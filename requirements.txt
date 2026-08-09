@@ -1,0 +1,27 @@
+# CyberGuard — pinned, offline-installable with pip --no-index if you pre-fetch wheels
+
+# Web framework
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+pydantic>=2.6
+httpx>=0.27
+sqlalchemy>=2.0
+cryptography>=42.0
+
+# Detection core (the 90%)
+numpy>=1.26
+pandas>=2.2
+scikit-learn>=1.4
+xgboost>=2.0
+torch>=2.2          # CPU wheel is enough for inference; CUDA optional for training
+joblib>=1.3
+
+# MITRE ATT&CK + RAG (optional until first sync — app runs without them)
+taxii2-client>=2.3
+stix2>=3.0
+requests>=2.31
+chromadb>=0.5
+
+# Dev / tests
+pytest>=8.0

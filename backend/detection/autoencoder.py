@@ -1,0 +1,178 @@
+"""Stage 4 — Deep autoencoder for zero-day detection.
+
+Trained ONLY on benign traffic. Attack = high reconstruction error.
+Architecture: N → 64 → 32 → 16 (bottleneck) → 32 → 64 → N
+Threshold: mean + k*std of validation reconstruction errors (k=2 or 3).
+
+This is what the thesis was missing entirely: catching patterns the
+classifier has NEVER seen, without any LLM involvement.
+
+Thesis fix #6: "No zero-day detection — The LLM can only explain what
+it was trained on. Unknown attack patterns are missed entirely."
+
+The autoencoder learns to compress-and-reconstruct benign traffic through
+a 16-neuron bottleneck. When it sees something that doesn't "look normal",
+the reconstruction error spikes — signaling a potential zero-day attack.
+"""
+from __future__ import annotations
+import logging
+import numpy as np
+from pathlib import Path
+import torch
+from torch import nn
+
+log = logging.getLogger("cyberguard.autoencoder")
+
+
+class _AE(nn.Module):
+    """Symmetric autoencoder: N → 64 → 32 → 16 → 32 → 64 → N.
+
+    The 16-neuron bottleneck forces the network to learn a compact
+    representation of "normal" — anything that can't be compressed
+    well into 16 dimensions is suspicious.
+    """
+    def __init__(self, n_features: int) -> None:
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(n_features, 64), nn.BatchNorm1d(64), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(64, 32), nn.BatchNorm1d(32), nn.ReLU(), nn.Dropout(0.05),
+            nn.Linear(32, 16),  # bottleneck
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(16, 32), nn.BatchNorm1d(32), nn.ReLU(),
+            nn.Linear(32, 64), nn.BatchNorm1d(64), nn.ReLU(),
+            nn.Linear(64, n_features),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.decoder(self.encoder(x))
+
+
+class AutoencoderDetector:
+    """Zero-day detector: high reconstruction error = unknown attack.
+
+    Args:
+        n_features: Number of input features.
+        k: Threshold multiplier — threshold = mean + k * std of benign errors.
+           k=3 is balanced; k=2 catches more but raises false positives.
+        device: 'cuda', 'cpu', or None for auto-detect.
+    """
+
+    def __init__(self, n_features: int, k: float = 3.0,
+                 device: str | None = None) -> None:
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.n_features = n_features
+        self.net = _AE(n_features).to(self.device)
+        self.k = k
+        self.threshold: float | None = None
+        self._mean_err: float = 0.0
+        self._std_err: float = 0.0
+
+    def fit(self, X_benign: np.ndarray, X_val: np.ndarray,
+            epochs: int = 50, lr: float = 1e-3, batch: int = 512,
+            callback=None) -> "AutoencoderDetector":
+        """Train on benign-only data. Calibrate threshold on validation set.
+
+        Args:
+            X_benign: Normalized benign training features.
+            X_val: Normalized benign validation features (for threshold calibration).
+            epochs: Number of training epochs.
+            lr: Learning rate.
+            batch: Mini-batch size.
+            callback: Optional function(epoch, loss) called each epoch.
+        """
+        opt = torch.optim.Adam(self.net.parameters(), lr=lr, weight_decay=1e-5)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, patience=5, factor=0.5)
+        loss_fn = nn.MSELoss(reduction="none")
+        Xb = torch.tensor(X_benign, dtype=torch.float32, device=self.device)
+
+        self.net.train()
+        for epoch in range(epochs):
+            perm = torch.randperm(len(Xb), device=self.device)
+            epoch_loss = 0.0
+            n_batches = 0
+            for i in range(0, len(Xb), batch):
+                idx = perm[i:i + batch]
+                out = self.net(Xb[idx])
+                loss = loss_fn(out, Xb[idx]).mean()
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+                epoch_loss += loss.item()
+                n_batches += 1
+            avg_loss = epoch_loss / max(n_batches, 1)
+            scheduler.step(avg_loss)
+            if callback:
+                callback(epoch, avg_loss)
+
+        # Calibrate threshold on held-out BENIGN validation data
+        errs = self.errors(X_val)
+        self._mean_err = float(errs.mean())
+        self._std_err = float(errs.std())
+        self.threshold = self._mean_err + self.k * self._std_err
+        log.info("Autoencoder trained (%d epochs). Threshold=%.4f (mean=%.4f + %.1f*std=%.4f)",
+                 epochs, self.threshold, self._mean_err, self.k, self._std_err)
+        return self
+
+    @torch.no_grad()
+    def errors(self, X: np.ndarray) -> np.ndarray:
+        """Compute per-sample reconstruction MSE.
+
+        Returns:
+            1D array of reconstruction errors (length = number of samples).
+        """
+        self.net.eval()
+        Xt = torch.tensor(X, dtype=torch.float32, device=self.device)
+        out = self.net(Xt)
+        return ((out - Xt) ** 2).mean(dim=1).cpu().numpy()
+
+    def score(self, x: np.ndarray) -> float:
+        """Reconstruction error for one normalized flow."""
+        return float(self.errors(x.reshape(1, -1))[0])
+
+    def score_batch(self, X: np.ndarray) -> np.ndarray:
+        """Reconstruction errors for a batch of flows."""
+        return self.errors(X)
+
+    def is_zero_day(self, x: np.ndarray) -> tuple[bool, float]:
+        """Check if a flow is a potential zero-day attack.
+
+        Returns:
+            (is_anomaly, reconstruction_error)
+        """
+        err = self.score(x)
+        assert self.threshold is not None, "call fit() first"
+        return err > self.threshold, err
+
+    def anomaly_ratio(self, err: float) -> float:
+        """How many standard deviations above the mean this error is.
+        Useful for severity scoring: ratio > k means zero-day."""
+        if self._std_err <= 0:
+            return 0.0
+        return (err - self._mean_err) / max(self._std_err, 1e-9)
+
+    def save(self, path: str | Path) -> None:
+        """Persist model weights, threshold, and calibration stats."""
+        torch.save({
+            "state": self.net.state_dict(),
+            "threshold": self.threshold,
+            "k": self.k,
+            "mean_err": self._mean_err,
+            "std_err": self._std_err,
+            "n_features": self.n_features,
+        }, path)
+        log.info("Autoencoder saved to %s", path)
+
+    def load(self, path: str | Path, n_features: int | None = None) -> "AutoencoderDetector":
+        """Load model from disk."""
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
+        nf = n_features or ckpt.get("n_features", self.n_features)
+        self.net = _AE(nf).to(self.device)
+        self.net.load_state_dict(ckpt["state"])
+        self.threshold = ckpt["threshold"]
+        self.k = ckpt.get("k", self.k)
+        self._mean_err = ckpt.get("mean_err", 0.0)
+        self._std_err = ckpt.get("std_err", 0.0)
+        self.n_features = nf
+        log.info("Autoencoder loaded from %s (threshold=%.4f)", path, self.threshold)
+        return self
