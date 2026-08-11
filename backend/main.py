@@ -5,6 +5,7 @@ Serves the SPA frontend + all API routers. Local-first: binds to 127.0.0.1.
 """
 from __future__ import annotations
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,13 +22,27 @@ logging.basicConfig(
     datefmt="%H:%M:%S"
 )
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    init_all()
+    yield
+
+
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from .limiter import limiter
+
 app = FastAPI(
     title="CyberGuard",
     version="2.0.0",
     description="Multi-layer AI cyber threat detection — "
                 "4-stage pipeline first, LLM explains. "
-                "Built on CICIDS2017, MITRE ATT&CK, XGBoost, deep autoencoder."
+                "Built on CICIDS2017, MITRE ATT&CK, XGBoost, deep autoencoder.",
+    lifespan=_lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Local UI only; tighten origins if you ever expose this beyond localhost.
 app.add_middleware(
@@ -42,11 +57,6 @@ app.include_router(chat.router)
 app.include_router(detection.router)
 app.include_router(mitre.router)
 app.include_router(settings.router)
-
-
-@app.on_event("startup")
-def startup() -> None:
-    init_all()
 
 
 FRONTEND = BASE_DIR / "frontend"

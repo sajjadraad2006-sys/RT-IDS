@@ -48,10 +48,11 @@ except Exception as e:
 # 4. Classifier
 try:
     from backend.detection.classifier import AttackClassifier
-    X = np.vstack([np.random.randn(80, N_FEATURES), np.random.randn(20, N_FEATURES) + 4])
+    rng = np.random.default_rng(42)
+    X = np.vstack([rng.normal(0, 0.3, size=(80, N_FEATURES)), rng.normal(4, 0.3, size=(20, N_FEATURES))])
     y = np.array(["Benign"]*80 + ["DDoS"]*20)
     clf = AttackClassifier().fit(X, y)
-    label, conf = clf.predict(np.random.randn(N_FEATURES) + 4)
+    label, conf = clf.predict(rng.normal(4, 0.3, size=(N_FEATURES,)))
     assert label == "DDoS" and conf > 0.5
     imp = clf.feature_importance(5)
     assert len(imp) >= 1, "Feature importance should return results"

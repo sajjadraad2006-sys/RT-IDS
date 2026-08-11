@@ -7,7 +7,16 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from ..config import DB_PATH
 
 Base = declarative_base()
-engine = create_engine(f"sqlite:///{DB_PATH}", future=True)
+engine = create_engine(
+    f"sqlite:///{DB_PATH}",
+    future=True,
+    connect_args={"check_same_thread": False, "timeout": 30}
+)
+
+# Enable WAL mode for multi-threaded concurrency
+with engine.connect() as conn:
+    conn.exec_driver_sql("PRAGMA journal_mode=WAL;")
+
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 

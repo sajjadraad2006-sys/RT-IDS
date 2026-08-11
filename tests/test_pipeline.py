@@ -11,6 +11,10 @@ N_FEATURES = len(FEATURE_NAMES)  # 32
 
 class _FakeClf:
     def predict(self, x): return ("DDoS", 0.995)
+    def predict_batch(self, X):
+        labels = np.array(["DDoS"] * len(X))
+        confs = np.full(len(X), 0.995)
+        return labels, confs
     def is_confident_attack(self, label, conf): return label != "Benign" and conf > 0.9
     def feature_importance(self, top=10): return [("packets_per_sec", 0.21)]
 
@@ -18,17 +22,25 @@ class _FakeClf:
 class _FakeClfLowConf:
     """Classifier that returns low-confidence attack."""
     def predict(self, x): return ("PortScan", 0.75)
+    def predict_batch(self, X):
+        labels = np.array(["PortScan"] * len(X))
+        confs = np.full(len(X), 0.75)
+        return labels, confs
     def is_confident_attack(self, label, conf): return label != "Benign" and conf > 0.9
     def feature_importance(self, top=10): return []
 
 
 class _FakeAE:
+    threshold = 1.0
     def is_zero_day(self, x): return (False, 0.01)
+    def score_batch(self, X): return np.full(len(X), 0.01)
 
 
 class _FakeAEZeroDay:
     """Autoencoder that flags everything as zero-day."""
+    threshold = 0.5
     def is_zero_day(self, x): return (True, 1.42)
+    def score_batch(self, X): return np.full(len(X), 1.42)
 
 
 def _pipeline(stat_passes: bool, clf=None, ae=None) -> DetectionPipeline:

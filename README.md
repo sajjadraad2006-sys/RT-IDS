@@ -222,7 +222,8 @@ project/
 │   ├── layer2_normalize/        # Feature scaling & normalization
 │   ├── layer4_ml/               # Baseline isolation forest & statistical ML scripts
 │   ├── layer6_mitre/            # TAXII STIX parser tools
-│   └── datasets/                # Sample datasets & generator scripts
+│   ├── datasets/                # Sample datasets & generator scripts
+│   └── tests/                   # Research pipeline tests
 │
 ├── data/                        # Dynamic application data directory (Git-ignored)
 │   ├── mitre/                   # Cached MITRE ATT&CK STIX 2.1 JSON files

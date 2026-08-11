@@ -43,4 +43,4 @@ GITHUB_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/enterpri
 
 # ── System ────────────────────────────────────────────────────────────────────
 LOG_LEVEL = os.getenv("CG_LOG_LEVEL", "INFO")
-MAX_UPLOAD_MB = int(os.getenv("CG_MAX_UPLOAD_MB", "200"))
+MAX_UPLOAD_MB = int(os.getenv("CG_MAX_UPLOAD_MB", "500"))

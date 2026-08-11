@@ -143,3 +143,32 @@ def extract_features(flow: dict) -> dict[str, float]:
 def extract_features_batch(flows: list[dict]) -> list[dict[str, float]]:
     """Vectorized batch extraction — map multiple flows at once."""
     return [extract_features(f) for f in flows]
+
+
+def extract_features_matrix(flows: list[dict]) -> np.ndarray:
+    """Ultra-fast feature matrix extraction — converts list of flow dicts directly to N × 32 NumPy float32 matrix.
+    
+    Fast direct dictionary key lookup without Pandas overhead.
+    """
+    if not flows:
+        return np.zeros((0, len(FEATURE_NAMES)), dtype=np.float32)
+
+    import numpy as np
+
+    n = len(flows)
+    n_feats = len(FEATURE_NAMES)
+    arr = np.zeros((n, n_feats), dtype=np.float32)
+
+    # Cache feature index mapping for O(1) assignments
+    feat_to_idx = {name: i for i, name in enumerate(FEATURE_NAMES)}
+
+    for row_idx, flow in enumerate(flows):
+        for raw_key, val in flow.items():
+            canon = _ALIASES.get(raw_key.strip() if isinstance(raw_key, str) else raw_key, raw_key)
+            col_idx = feat_to_idx.get(canon)
+            if col_idx is not None:
+                arr[row_idx, col_idx] = _num(val)
+
+    np.nan_to_num(arr, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
+    return arr
+

@@ -17,7 +17,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import (precision_recall_fscore_support,
                              confusion_matrix, classification_report)
 from sklearn.ensemble import IsolationForest
-from .features import extract_features, FEATURE_NAMES
+from .features import extract_features, extract_features_matrix, FEATURE_NAMES
 from .normalizer import Normalizer
 from .statistical import StatisticalFilter
 from .classifier import AttackClassifier
@@ -114,9 +114,8 @@ def load_cicids2017(csv_dir: str | Path) -> tuple[np.ndarray, np.ndarray]:
     feats_df = df.drop(columns=[label_col], errors="ignore")
     records = feats_df.to_dict("records")
 
-    log.info("Extracting features from %d records...", len(records))
-    X = np.array([[extract_features(row)[n] for n in FEATURE_NAMES]
-                  for row in records], dtype=float)
+    log.info("Extracting features from %d records using vectorized matrix conversion...", len(records))
+    X = extract_features_matrix(records)
 
     # Clean infinities and NaN
     X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)

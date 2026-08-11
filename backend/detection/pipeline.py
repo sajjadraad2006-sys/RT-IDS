@@ -150,16 +150,111 @@ class DetectionPipeline:
         self.stats.record(alert)
         return alert
 
+    def _create_classifier_alert(self, label: str, conf: float, orig_i: int, X_norm: np.ndarray, n: int, t0: float) -> Alert:
+        sev = "critical" if conf > 0.98 else "high"
+        top_feats = self.stat.top_anomalous_features(X_norm[orig_i], FEATURE_NAMES, top=5)
+        a = Alert(
+            severity=sev, type=label, confidence=float(conf),
+            stage="classifier",
+            mitre_techniques=map_alert_to_techniques(label),
+            top_features=top_feats,
+        )
+        a.latency_ms = round(((time.perf_counter() - t0) / n) * 1000, 3)
+        self.stats.record(a)
+        return a
+
+    def _process_autoencoder_batch(self, sub_orig_indices: list[int], stage4_sub_indices: list[int],
+                                   labels: list[str], confs: list[float], X_norm: np.ndarray,
+                                   alerts: list[Alert | None], n: int, t0: float) -> None:
+        X_stage4 = X_norm[sub_orig_indices]
+        ae_errors = self.ae.score_batch(X_stage4)
+
+        for orig_i, err, sub_i in zip(sub_orig_indices, ae_errors, stage4_sub_indices):
+            label, conf = labels[sub_i], confs[sub_i]
+            top_feats = self.stat.top_anomalous_features(X_norm[orig_i], FEATURE_NAMES, top=5)
+            is_zd = (self.ae.threshold is not None) and (err > self.ae.threshold)
+
+            if is_zd:
+                a = Alert(
+                    severity="high", type="zero-day",
+                    anomaly_score=round(float(err), 4),
+                    stage="autoencoder",
+                    mitre_techniques=map_alert_to_techniques("zero-day"),
+                    top_features=top_feats,
+                )
+            elif label.lower() != "benign":
+                a = Alert(
+                    severity="medium", type=label, confidence=float(conf),
+                    stage="classifier",
+                    mitre_techniques=map_alert_to_techniques(label),
+                    top_features=top_feats,
+                )
+            else:
+                a = Alert(severity="low", type="Benign", note="passed all stages", stage="none")
+
+            a.latency_ms = round(((time.perf_counter() - t0) / n) * 1000, 3)
+            self.stats.record(a)
+            alerts[orig_i] = a
+
     def detect_batch(self, flows: list[dict]) -> list[Alert]:
-        """Run multiple flows through the pipeline.
+        """Run multiple flows through the pipeline in fully vectorized batches."""
+        if not flows:
+            return []
 
-        Args:
-            flows: List of raw flow records.
+        t0 = time.perf_counter()
+        n = len(flows)
 
-        Returns:
-            List of Alert objects.
-        """
-        return [self.detect(f) for f in flows]
+        # 1. Matrix feature extraction & normalization
+        from .features import extract_features_matrix
+        X_raw = extract_features_matrix(flows)
+        X_norm = self.normalizer.transform(X_raw)
+
+        # 2. Stage 2 Z-score filter
+        anom_mask = self.stat.filter_batch(X_norm)
+        alerts: list[Alert | None] = [None] * n
+
+        n_benign_passed = len(np.where(~anom_mask)[0])
+        if n_benign_passed > 0:
+            self.stats.total_flows += n_benign_passed
+            self.stats.benign_filtered += n_benign_passed
+
+        anom_indices = np.where(anom_mask)[0]
+        if len(anom_indices) == 0:
+            return [a for a in alerts if a is not None]
+
+        X_anom = X_norm[anom_indices]
+
+        # 3. Stage 3 XGBoost classification
+        labels, confs = self.clf.predict_batch(X_anom)
+        stage4_sub_indices = []
+
+        for idx_in_anom, (orig_i, label, conf) in enumerate(zip(anom_indices, labels, confs)):
+            if self.clf.is_confident_attack(label, conf):
+                alerts[orig_i] = self._create_classifier_alert(label, conf, orig_i, X_norm, n, t0)
+            else:
+                stage4_sub_indices.append(idx_in_anom)
+
+        if not stage4_sub_indices:
+            for orig_i, label, conf in zip(anom_indices, labels, confs):
+                if alerts[orig_i] is None:
+                    top_feats = self.stat.top_anomalous_features(X_norm[orig_i], FEATURE_NAMES, top=5)
+                    sev = "medium" if label.lower() != "benign" else "low"
+                    a = Alert(
+                        severity=sev, type=label, confidence=float(conf),
+                        stage="classifier" if label.lower() != "benign" else "none",
+                        mitre_techniques=map_alert_to_techniques(label) if label.lower() != "benign" else [],
+                        top_features=top_feats,
+                    )
+                    a.latency_ms = round(((time.perf_counter() - t0) / n) * 1000, 3)
+                    self.stats.record(a)
+                    alerts[orig_i] = a
+            return [a for a in alerts if a is not None]
+
+        # 4. Stage 4 Autoencoder zero-day processing
+        sub_orig_indices = [anom_indices[sub_i] for sub_i in stage4_sub_indices]
+        self._process_autoencoder_batch(sub_orig_indices, stage4_sub_indices, labels, confs, X_norm, alerts, n, t0)
+
+        return [a for a in alerts if a is not None]
 
     def get_stats(self) -> dict:
         """Return pipeline statistics as a dict."""

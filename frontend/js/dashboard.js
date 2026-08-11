@@ -279,7 +279,13 @@
       CG.util.toast("Supported formats: .csv, .json, .log, .txt, .tsv, .dat");
       return;
     }
-    CG.util.toast(`Analyzing ${file.name} through the 4-stage pipeline…`);
+    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    const isLarge = file.size > 10 * 1024 * 1024; // >10 MB
+    CG.util.toast(
+      isLarge
+        ? `Uploading ${file.name} (${sizeMB} MB) — large file, this may take a few minutes…`
+        : `Analyzing ${file.name} (${sizeMB} MB) through the 4-stage pipeline…`
+    );
     // animate stages in sequence while the request runs
     ["extract", "statistical", "classifier", "autoencoder"].forEach((s, i) =>
       setTimeout(() => flashStage(s, false), 250 + i * 350));
@@ -299,9 +305,12 @@
       paintAlerts();
       flashStage("classifier", true);
       setTimeout(() => flashStage("autoencoder", true), 500);
+      const totalAlerts = res.total_alerts || res.alerts.length;
+      const cappedNote = res.alerts_capped ? ` (showing ${res.alerts.length} of ${totalAlerts})` : "";
+      const elapsed = res.elapsed_seconds ? ` in ${res.elapsed_seconds}s` : "";
       CG.util.toast(
-        `${file.name}: ${CG.util.fmtNum(res.flows)} flows → ${res.alerts.length} alerts · ` +
-        `${CG.util.fmtNum(res.throughput_rps)} rec/s · ${CG.api.mode === "demo" ? "demo simulation" : "live pipeline"}`);
+        `${file.name}: ${CG.util.fmtNum(res.flows)} flows → ${CG.util.fmtNum(totalAlerts)} alerts${cappedNote} · ` +
+        `${CG.util.fmtNum(res.throughput_rps)} rec/s${elapsed} · ${CG.api.mode === "demo" ? "demo simulation" : "live pipeline"}`);
     } catch (e) {
       CG.util.toast("Analysis failed: " + e.message);
     }

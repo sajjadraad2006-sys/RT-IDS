@@ -146,7 +146,7 @@ window.CG = window.CG || {};
     if (API.mode === "live") {
       const fd = new FormData();
       fd.append("file", file);
-      return tryFetch("/api/detect/upload", { method: "POST", body: fd }, 60000);
+      return tryFetch("/api/detect/upload", { method: "POST", body: fd }, 1800000);
     }
     // demo: simulate a pipeline run over the file
     await new Promise((r) => setTimeout(r, 1400));

@@ -54,6 +54,8 @@ class AttackClassifier:
         weights = {c: len(y_enc) / (len(classes_unique) * n) for c, n in zip(classes_unique, counts)}
         sample_weight = np.array([weights[v] for v in y_enc])
 
+        import torch
+        xgb_device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = XGBClassifier(
             n_estimators=n_estimators,
             max_depth=max_depth,
@@ -61,6 +63,7 @@ class AttackClassifier:
             subsample=0.8,
             colsample_bytree=0.8,
             tree_method="hist",
+            device=xgb_device,
             n_jobs=-1,
             eval_metric="mlogloss",
             verbosity=0,

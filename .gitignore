@@ -62,6 +62,9 @@ logs/
 *.sqlite
 *.sqlite3
 *.db
+*.db-shm
+*.db-wal
+.secret_key
 
 # Testing & Coverage
 .pytest_cache/
