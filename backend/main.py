@@ -9,11 +9,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .db.init_db import init_all
-from .api import chat, detection, mitre, settings
-from .config import BASE_DIR, LOG_LEVEL
+from .api import chat, decision, detection, mitre, settings
+from .config import ALLOWED_HOSTS, ALLOWED_ORIGINS, BASE_DIR, LOG_LEVEL
+from .security import ApiAccessMiddleware, RequestLimitsMiddleware, SecurityHeadersMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -44,16 +46,21 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(ApiAccessMiddleware)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+app.add_middleware(RequestLimitsMiddleware)
+
 # Local UI only; tighten origins if you ever expose this beyond localhost.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000", "http://localhost:8000",
-                   "http://127.0.0.1:5500", "http://localhost:5500"],
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type", "X-CyberGuard-Token"]
 )
 
 app.include_router(chat.router)
+app.include_router(decision.router)
 app.include_router(detection.router)
 app.include_router(mitre.router)
 app.include_router(settings.router)

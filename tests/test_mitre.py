@@ -13,10 +13,9 @@ def test_ddos_maps_to_t1498():
     assert "T1499" in techs
 
 
-def test_zero_day_maps_to_exploitation():
-    techs = map_alert_to_techniques("zero-day")
-    assert "T1203" in techs
-    assert "T1068" in techs
+def test_unknown_anomaly_does_not_invent_exploitation_mapping():
+    techs = map_alert_to_techniques("unknown-anomaly")
+    assert techs == []
 
 
 def test_portscan_maps_to_discovery():
@@ -45,7 +44,7 @@ def test_all_mapped_techniques():
     assert isinstance(techs, set)
     assert len(techs) >= 15
     assert "T1498" in techs
-    assert "T1203" in techs
+    assert "T1203" not in techs
 
 
 def test_technique_context_generates_markdown():
@@ -73,3 +72,16 @@ def test_web_attack_includes_exploit_and_execution():
     techs = map_alert_to_techniques("WebAttack")
     assert "T1190" in techs  # Exploit Public-Facing App
     assert "T1059" in techs  # Command and Scripting Interpreter
+
+
+def test_local_rag_indexes_all_mitre_and_retrieves_known_technique():
+    from backend.llm.rag import MitreRAG
+    from backend.mitre.attack_db import list_techniques
+
+    rag = MitreRAG()
+    techniques = list_techniques(limit=5000)
+    assert rag.index(techniques) == len(techniques)
+    results = rag.query("T1498 network denial of service DDoS", k=3)
+    assert results
+    assert any(row["id"] == "T1498" for row in results)
+    assert rag.count() == len(techniques)

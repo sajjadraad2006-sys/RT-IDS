@@ -5,7 +5,7 @@
   const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3, none: 4 };
   const CLASS_COLORS = {
     DDoS: "#E97366", DoS: "#DE9255", PortScan: "#EAC26B", BruteForce: "#BF8EDA",
-    WebAttack: "#5E9FE8", Bot: "#4FB9C9", Infiltration: "#DF84A8", "zero-day": "#72BC8F",
+    WebAttack: "#5E9FE8", Bot: "#4FB9C9", Infiltration: "#DF84A8", "unknown-anomaly": "#72BC8F",
   };
 
   // MITRE technique descriptions for modal (demo mode fallback)
@@ -40,12 +40,12 @@
   /* ---------- KPIs ---------- */
   function paintKpis() {
     const threats = ALERTS.filter((a) => a.stage === "classifier").length;
-    const zd = ALERTS.filter((a) => a.type === "zero-day").length;
-    animateNum(document.getElementById("kpi-flows"), flowsTotal || 2840);
+    const zd = ALERTS.filter((a) => a.stage === "autoencoder").length;
+    animateNum(document.getElementById("kpi-flows"), flowsTotal);
     animateNum(document.getElementById("kpi-threats"), threats);
     animateNum(document.getElementById("kpi-zeroday"), zd);
     document.getElementById("kpi-throughput").textContent =
-      throughput ? CG.util.fmtNum(throughput) : "112k";
+      throughput ? CG.util.fmtNum(throughput) : "—";
   }
 
   function animateNum(el, target) {
@@ -61,10 +61,10 @@
   }
 
   /* ---------- pipeline ---------- */
-  function paintPipeline(stageCounts) {
+  function paintPipeline(stageCounts, stats) {
     const c = stageCounts || {
-      extract: flowsTotal || 2840,
-      statistical: Math.floor((flowsTotal || 2840) * 0.26),
+      extract: flowsTotal,
+      statistical: 0,
       classifier: ALERTS.filter((a) => a.stage === "classifier").length,
       autoencoder: ALERTS.filter((a) => a.stage === "autoencoder").length,
     };
@@ -72,8 +72,9 @@
       const el = document.getElementById("count-" + stage);
       if (el) el.textContent = CG.util.fmtNum(n) + (stage === "extract" ? " flows" : " flagged");
     }
-    document.getElementById("pipeline-note").textContent =
-      "stage 2 drop rate ≈ 74% · mean latency 1.4 ms/flow";
+    document.getElementById("pipeline-note").textContent = stats
+      ? `measured drop rate ${Number(stats.drop_rate_pct || 0).toFixed(1)}% · mean latency ${Number(stats.mean_latency_ms || 0).toFixed(3)} ms/flow`
+      : "upload a log file to measure this pipeline";
   }
 
   function flashStage(stage, alert) {
@@ -231,8 +232,8 @@
         await new Promise(r => setTimeout(r, 800 + Math.random() * 600));
         const a = currentAlert;
         const techs = (a.mitre_techniques || []).join(", ");
-        const explanation = a.type === "zero-day"
-          ? `#### Zero-Day Alert Analysis\nThe autoencoder's reconstruction error (**${a.anomaly_score}**) exceeded the calibrated threshold (μ + k·σ). This flow's traffic pattern does not match any benign behavior learned during training.\n\n**Key observations:**\n- The flow deviated significantly from the learned normal distribution\n- XGBoost could not classify it with high confidence — this is the expected behavior for novel attack vectors\n- MITRE techniques ${techs} are associated with exploitation-type attacks\n\n**Recommended actions:**\n1. Isolate the source IP immediately\n2. Capture full PCAP for forensic analysis\n3. Check for lateral movement from this host\n4. Update detection signatures once the attack vector is identified`
+        const explanation = a.stage === "autoencoder"
+          ? `#### Unknown Anomaly Analysis\nThe autoencoder's reconstruction error (**${a.anomaly_score}**) exceeded its held-out benign threshold. This is an anomaly signal, not proof of an exploit or a zero-day.\n\n**Key observations:**\n- The flow deviated from the learned benign distribution\n- The classifier abstained from a high-confidence known label\n- No MITRE technique can be inferred from reconstruction error alone\n\n**Recommended review:**\n1. Correlate with trusted packet capture and endpoint telemetry\n2. Check adjacent flows and asset context\n3. Escalate only when independent evidence supports it`
           : `#### ${a.type} Detection Analysis\nThe XGBoost classifier identified this flow as **${a.type}** with **${(a.confidence*100).toFixed(1)}%** confidence (stage: ${a.stage}).\n\n**Detection path:**\n1. Stage 1 extracted 32 numeric features from the raw flow\n2. Stage 2 Z-score filter flagged statistical anomalies\n3. Stage 3 classifier matched known ${a.type} signatures\n\n**MITRE ATT&CK context:**\nThis maps to techniques: ${techs || "none mapped"}\n\n**Containment guidance:**\n- Block the source at the perimeter firewall\n- Rate-limit similar traffic patterns\n- Monitor for follow-up reconnaissance activity\n- Review correlated alerts in the same time window`;
         expEl.innerHTML = CG.util.md(explanation);
       }
@@ -300,7 +301,7 @@
         statistical: res.stage_counts.statistical,
         classifier: res.stage_counts.classifier,
         autoencoder: res.stage_counts.autoencoder,
-      });
+      }, res.pipeline_stats);
       paintCharts(res.feature_importance);
       paintAlerts();
       flashStage("classifier", true);
@@ -320,7 +321,18 @@
   CG.onView.dashboard = async function () {
     if (!ALERTS.length) {
       ALERTS = await CG.api.alerts();
-      flowsTotal = 2840;
+      flowsTotal = CG.api.mode === "demo" ? 2840 : 0;
+    }
+    const health = await CG.api.pipelineHealth();
+    const engine = document.getElementById("engine-status");
+    const dot = document.getElementById("engine-dot");
+    if (CG.api.mode === "live") {
+      engine.textContent = health.production_approved
+        ? "Production-approved artifacts"
+        : health.integrity_verified
+          ? "Evaluation-only artifacts"
+          : "Pipeline blocked: integrity failure";
+      dot.className = health.production_approved ? "dot dot-ok" : "dot dot-warn";
     }
     paintKpis();
     paintPipeline();

@@ -7,7 +7,12 @@
   const input = document.getElementById("chat-input");
   const upload = document.getElementById("chat-upload");
   const session = "session-" + (localStorage.getItem("cg-session") ||
-    (() => { const id = Math.random().toString(36).slice(2); localStorage.setItem("cg-session", id); return id; })());
+    (() => {
+      const id = crypto.randomUUID ? crypto.randomUUID() :
+        crypto.getRandomValues(new Uint32Array(4)).join("-");
+      localStorage.setItem("cg-session", id);
+      return id;
+    })());
 
   const avatarAI = `<div class="msg-avatar"><svg><use href="#i-shield"/></svg></div>`;
   const avatarUser = `<div class="msg-avatar"><svg><use href="#i-doc"/></svg></div>`;
@@ -61,7 +66,7 @@
         <div class="ac-body">
           <div class="ac-row"><span>Stage 2 · Z-score flagged</span><span class="mono">${CG.util.fmtNum(byStage.statistical || 0)}</span></div>
           <div class="ac-row"><span>Stage 3 · classifier alerts</span><span class="mono">${byStage.classifier ?? 0}</span></div>
-          <div class="ac-row"><span>Stage 4 · zero-day signals</span><span class="mono">${byStage.autoencoder ?? 0}</span></div>
+          <div class="ac-row"><span>Stage 4 · unknown anomalies</span><span class="mono">${byStage.autoencoder ?? 0}</span></div>
         </div>
       </div>
       ${top.length ? `<p>Top alerts:</p><ul>${top.map((a) =>

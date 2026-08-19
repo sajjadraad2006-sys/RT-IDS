@@ -16,6 +16,7 @@ We extract 30 scientifically validated features from CICIDS2017:
 from __future__ import annotations
 import math
 from typing import Any
+import numpy as np
 
 # ── Canonical feature vector ──────────────────────────────────────────────────
 FEATURE_NAMES: list[str] = [
@@ -48,6 +49,13 @@ _ALIASES: dict[str, str] = {
     "Total Length of Bwd Packets": "total_bwd_bytes",
     "Flow Packets/s": "packets_per_sec",
     "Flow Bytes/s": "bytes_per_sec",
+    # CSE-CIC-IDS2018 CICFlowMeter-V3 spellings
+    "Tot Fwd Pkts": "total_fwd_packets",
+    "Tot Bwd Pkts": "total_bwd_packets",
+    "TotLen Fwd Pkts": "total_fwd_bytes",
+    "TotLen Bwd Pkts": "total_bwd_bytes",
+    "Flow Pkts/s": "packets_per_sec",
+    "Flow Byts/s": "bytes_per_sec",
     # Packet size
     "Fwd Packet Length Mean": "fwd_packet_length_mean",
     "Bwd Packet Length Mean": "bwd_packet_length_mean",
@@ -57,6 +65,13 @@ _ALIASES: dict[str, str] = {
     "Min Packet Length": "packet_length_min",
     "Packet Length Min": "packet_length_min",
     "Average Packet Size": "avg_pkt_size",
+    "Fwd Pkt Len Mean": "fwd_packet_length_mean",
+    "Bwd Pkt Len Mean": "bwd_packet_length_mean",
+    "Pkt Len Mean": "packet_length_mean",
+    "Pkt Len Std": "packet_length_std",
+    "Pkt Len Max": "packet_length_max",
+    "Pkt Len Min": "packet_length_min",
+    "Pkt Size Avg": "avg_pkt_size",
     # TCP flags
     "SYN Flag Count": "syn_flag_count",
     "ACK Flag Count": "ack_flag_count",
@@ -64,6 +79,12 @@ _ALIASES: dict[str, str] = {
     "FIN Flag Count": "fin_flag_count",
     "PSH Flag Count": "psh_flag_count",
     "URG Flag Count": "urg_flag_count",
+    "SYN Flag Cnt": "syn_flag_count",
+    "ACK Flag Cnt": "ack_flag_count",
+    "RST Flag Cnt": "rst_flag_count",
+    "FIN Flag Cnt": "fin_flag_count",
+    "PSH Flag Cnt": "psh_flag_count",
+    "URG Flag Cnt": "urg_flag_count",
     # Window / timing
     "Init_Win_bytes_forward": "init_win_bytes_fwd",
     "Init_Win_bytes_backward": "init_win_bytes_bwd",
@@ -71,10 +92,14 @@ _ALIASES: dict[str, str] = {
     "Flow IAT Std": "flow_iat_std",
     "Flow IAT Max": "flow_iat_max",
     "Fwd IAT Mean": "fwd_iat_mean",
+    "Init Fwd Win Byts": "init_win_bytes_fwd",
+    "Init Bwd Win Byts": "init_win_bytes_bwd",
     # Headers
     "Fwd Header Length": "fwd_header_len",
     "Fwd Header Length.1": "fwd_header_len",
     "Bwd Header Length": "bwd_header_len",
+    "Fwd Header Len": "fwd_header_len",
+    "Bwd Header Len": "bwd_header_len",
     # Behavioral
     "Down/Up Ratio": "down_up_ratio",
     "Active Mean": "active_mean",
@@ -88,13 +113,15 @@ def _num(v: Any) -> float:
     This is critical — the thesis crashed on dirty input."""
     try:
         f = float(v)
-        return f if math.isfinite(f) else 0.0
+        if not math.isfinite(f) or f < 0:
+            return 0.0
+        return min(f, 1e15)
     except (TypeError, ValueError):
         return 0.0
 
 
 def extract_features(flow: dict) -> dict[str, float]:
-    """Map one flow record to the fixed 30-feature vector.
+    """Map one flow record to the fixed 32-feature vector.
 
     Missing values and infinities become 0.0 — RobustScaler in Stage 1b
     handles the rest. Never raises on dirty input.
@@ -153,8 +180,6 @@ def extract_features_matrix(flows: list[dict]) -> np.ndarray:
     if not flows:
         return np.zeros((0, len(FEATURE_NAMES)), dtype=np.float32)
 
-    import numpy as np
-
     n = len(flows)
     n_feats = len(FEATURE_NAMES)
     arr = np.zeros((n, n_feats), dtype=np.float32)
@@ -169,6 +194,63 @@ def extract_features_matrix(flows: list[dict]) -> np.ndarray:
             if col_idx is not None:
                 arr[row_idx, col_idx] = _num(val)
 
+    return _derive_matrix(arr, feat_to_idx)
+
+
+def _derive_matrix(arr: np.ndarray, feat_to_idx: dict[str, int]) -> np.ndarray:
+    """Apply the same derived-feature rules to an already populated matrix."""
+    idx = feat_to_idx
+    duration = arr[:, idx["flow_duration"]]
+    total_packets = (
+        arr[:, idx["total_fwd_packets"]] + arr[:, idx["total_bwd_packets"]]
+    )
+    total_bytes = arr[:, idx["total_fwd_bytes"]] + arr[:, idx["total_bwd_bytes"]]
+    seconds = np.maximum(duration / 1e6, 1e-9)
+    missing = (duration > 0) & (arr[:, idx["packets_per_sec"]] == 0)
+    arr[missing, idx["packets_per_sec"]] = total_packets[missing] / seconds[missing]
+    missing = (duration > 0) & (arr[:, idx["bytes_per_sec"]] == 0)
+    arr[missing, idx["bytes_per_sec"]] = total_bytes[missing] / seconds[missing]
+    missing = (arr[:, idx["down_up_ratio"]] == 0) & (
+        arr[:, idx["total_fwd_bytes"]] > 0
+    )
+    arr[missing, idx["down_up_ratio"]] = (
+        arr[missing, idx["total_bwd_bytes"]]
+        / np.maximum(arr[missing, idx["total_fwd_bytes"]], 1e-9)
+    )
+    missing = (arr[:, idx["avg_pkt_size"]] == 0) & (total_packets > 0)
+    arr[missing, idx["avg_pkt_size"]] = total_bytes[missing] / total_packets[missing]
+    missing = (arr[:, idx["flow_bytes_ratio"]] == 0) & (total_bytes > 0)
+    arr[missing, idx["flow_bytes_ratio"]] = (
+        arr[missing, idx["total_fwd_bytes"]] / total_bytes[missing]
+    )
+
     np.nan_to_num(arr, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
     return arr
 
+
+def extract_features_dataframe(frame) -> np.ndarray:
+    """Vectorized Pandas-to-feature conversion for large training captures."""
+    n = len(frame)
+    arr = np.zeros((n, len(FEATURE_NAMES)), dtype=np.float32)
+    feat_to_idx = {name: index for index, name in enumerate(FEATURE_NAMES)}
+    for raw_name in frame.columns:
+        canonical = _ALIASES.get(
+            raw_name.strip() if isinstance(raw_name, str) else raw_name,
+            raw_name,
+        )
+        index = feat_to_idx.get(canonical)
+        if index is None:
+            continue
+        values = frame[raw_name]
+        # pandas is intentionally imported by the caller/training workflow,
+        # not by the latency-sensitive single-flow inference module.
+        try:
+            numeric_dtype = np.issubdtype(values.dtype, np.number)
+        except TypeError:
+            numeric_dtype = False
+        numeric = values if numeric_dtype else values.apply(lambda value: _num(value))
+        converted = np.asarray(numeric, dtype=np.float64).copy()
+        converted[~np.isfinite(converted)] = 0.0
+        converted[converted < 0] = 0.0
+        arr[:, index] = np.minimum(converted, 1e15).astype(np.float32)
+    return _derive_matrix(arr, feat_to_idx)

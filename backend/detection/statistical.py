@@ -5,13 +5,13 @@ then passes through only flows whose max |z| across features exceeds the
 threshold. Expected pass-through: ~20-30% of real traffic — the heavy stages
 below see a fraction of the load.
 
-Performance target: 100k+ records/second on CPU.
+Throughput is workload- and hardware-dependent and must be measured at runtime.
 
 This is the "speed gate" of the pipeline. It eliminates 70-80% of benign
 traffic before it reaches the expensive XGBoost and autoencoder stages.
 
 Thesis fix #1: The thesis used an LLM to read each log (~2-5 sec/log).
-This filter processes 100,000+ logs per second on CPU alone.
+This vectorized filter is designed for high-throughput CPU processing.
 """
 from __future__ import annotations
 import logging
@@ -46,23 +46,26 @@ class StatisticalFilter:
                  X_benign.shape[0], self.threshold)
         return self
 
+    def _z(self, X: np.ndarray) -> np.ndarray:
+        if self.mean_ is None or self.std_ is None:
+            raise RuntimeError("statistical filter is not fitted")
+        z = np.abs((X - self.mean_) / self.std_)
+        return np.clip(np.nan_to_num(z, nan=0.0, posinf=1e12), 0.0, 1e12)
+
     def is_anomalous(self, x: np.ndarray) -> bool:
         """Single flow → True if it should pass to heavier stages.
 
         Args:
             x: 1D normalized feature vector.
         """
-        assert self.mean_ is not None and self.std_ is not None
-        z = np.abs((x - self.mean_) / self.std_)
-        return bool(z.max() > self.threshold)
+        return bool(self._z(x).max() > self.threshold)
 
     def z_scores(self, x: np.ndarray) -> np.ndarray:
         """Return per-feature Z-scores for explainability.
 
         The dashboard uses this to show which features triggered the alert.
         """
-        assert self.mean_ is not None and self.std_ is not None
-        return np.abs((x - self.mean_) / self.std_)
+        return self._z(x)
 
     def top_anomalous_features(self, x: np.ndarray, feature_names: list[str],
                                 top: int = 5) -> list[tuple[str, float]]:
@@ -86,15 +89,11 @@ class StatisticalFilter:
         Returns:
             Boolean array of length N. True = anomalous (passes to next stage).
         """
-        assert self.mean_ is not None and self.std_ is not None
-        z = np.abs((X - self.mean_) / self.std_)
-        return z.max(axis=1) > self.threshold
+        return self._z(X).max(axis=1) > self.threshold
 
     def max_z_scores(self, X: np.ndarray) -> np.ndarray:
         """Return max Z-score per sample (for scoring/ranking)."""
-        assert self.mean_ is not None and self.std_ is not None
-        z = np.abs((X - self.mean_) / self.std_)
-        return z.max(axis=1)
+        return self._z(X).max(axis=1)
 
     def save(self, path: str | Path) -> None:
         """Persist filter parameters to disk."""

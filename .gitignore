@@ -33,6 +33,14 @@ __pycache__/
 
 # Datasets and Large Files
 datasets/
+!cyberguard/datasets/
+cyberguard/datasets/*
+!cyberguard/datasets/manifest.json
+!cyberguard/datasets/*.py
+!cyberguard/datasets/*_sources.json
+data/models/candidates/
+data/models/releases/
+data/models/active_bundle.json
 data/chroma/
 data/cyberguard.db
 data/*.csv

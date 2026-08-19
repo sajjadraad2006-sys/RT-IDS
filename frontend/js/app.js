@@ -77,7 +77,7 @@ window.CG = window.CG || {};
   }
 
   /* ---------------- router ---------------- */
-  const views = ["dashboard", "chat", "mitre", "models", "settings"];
+  const views = ["dashboard", "review", "chat", "mitre", "models", "settings"];
   function route(view) {
     if (!views.includes(view)) view = "dashboard";
     document.querySelectorAll(".nav-item").forEach((b) =>
@@ -195,7 +195,7 @@ window.CG = window.CG || {};
     if (ls) { ls.classList.add("is-gone"); setTimeout(() => ls.remove(), 600); }
   });
 
-  /* keyboard shortcuts: Ctrl+1-5 switch views */
+  /* keyboard shortcuts: Ctrl+1-6 switch views */
   document.addEventListener("keydown", (e) => {
     if (!e.ctrlKey || e.shiftKey || e.altKey) return;
     const idx = parseInt(e.key) - 1;

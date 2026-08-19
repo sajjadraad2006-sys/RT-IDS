@@ -1,5 +1,5 @@
 """Stage 4 tests: trained on benign only, unseen distribution must score
-higher reconstruction error than benign (zero-day signal).
+higher reconstruction error than benign (unknown-anomaly signal).
 
 Validates: threshold calibration, anomaly ratio, save/load, and score_batch."""
 import numpy as np

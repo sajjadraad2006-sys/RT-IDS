@@ -4,7 +4,8 @@ Known-attack classification with confidence scoring. Handles class imbalance
 with per-class weights (CICIDS2017 is heavily imbalanced: ~83% Benign).
 Exposes feature importances for the dashboard's explainability panel.
 
-Expected accuracy: 97-99% on CICIDS2017 known attacks.
+No accuracy is assumed. Metrics must come from the artifact manifest produced
+from an independently held-out, validated dataset.
 
 Thesis fix #2: The thesis evaluated on only 100 samples with BERTScore.
 We enforce minimum 10,000 test samples and report precision/recall/F1.
@@ -23,10 +24,13 @@ log = logging.getLogger("cyberguard.classifier")
 class AttackClassifier:
     """XGBoost multi-class classifier for known attack types."""
 
-    def __init__(self) -> None:
+    def __init__(self, confidence_threshold: float | None = None) -> None:
         self.model = None  # xgboost.XGBClassifier once trained
         self.fitted = False
         self.classes_: list[str] = []
+        self.confidence_threshold = float(
+            CLASSIFIER_CONFIDENCE if confidence_threshold is None else confidence_threshold
+        )
 
     def fit(self, X: np.ndarray, y: np.ndarray,
             n_estimators: int = 300, max_depth: int = 8) -> "AttackClassifier":
@@ -106,7 +110,7 @@ class AttackClassifier:
 
     def is_confident_attack(self, label: str, confidence: float) -> bool:
         """Check if the prediction is a confident known attack."""
-        return label.lower() != "benign" and confidence > CLASSIFIER_CONFIDENCE
+        return label.lower() != "benign" and confidence >= self.confidence_threshold
 
     def feature_importance(self, top: int = 10) -> list[tuple[str, float]]:
         """Return top-N most important features by XGBoost gain.
@@ -124,7 +128,8 @@ class AttackClassifier:
     def save(self, path: str | Path) -> None:
         """Persist the trained model and label encoder."""
         joblib.dump({"model": self.model, "le": self._le,
-                     "classes": self.classes_}, path)
+                     "classes": self.classes_,
+                     "confidence_threshold": self.confidence_threshold}, path)
         log.info("Classifier saved to %s", path)
 
     def load(self, path: str | Path) -> "AttackClassifier":
@@ -134,6 +139,9 @@ class AttackClassifier:
             self.model = data["model"]
             self._le = data["le"]
             self.classes_ = data.get("classes", [])
+            self.confidence_threshold = float(
+                data.get("confidence_threshold", self.confidence_threshold)
+            )
         else:
             # backward compat
             self.model = data

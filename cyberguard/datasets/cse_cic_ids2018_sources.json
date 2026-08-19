@@ -1,0 +1,64 @@
+{
+  "schema_version": "cyberguard-acquisition-catalog-v1",
+  "dataset_id": "cse-cic-ids2018-selected-days-v1",
+  "publisher": "Canadian Institute for Cybersecurity, University of New Brunswick",
+  "publisher_page": "https://www.unb.ca/cic/datasets/ids-2018.html",
+  "license": "Redistribution and use permitted with citation to CSE-CIC-IDS2018 and the publisher page.",
+  "checksum_note": "The publisher lists byte sizes and multipart S3 ETags but does not publish SHA-256 values. SHA-256 is locally observed after the first authoritative download.",
+  "objects": [
+    {
+      "capture_id": "cse-cic-ids2018-2018-02-15",
+      "filename": "Thursday-15-02-2018_TrafficForML_CICFlowMeter.csv",
+      "url": "https://cse-cic-ids2018.s3.amazonaws.com/Processed%20Traffic%20Data%20for%20ML%20Algorithms/Thursday-15-02-2018_TrafficForML_CICFlowMeter.csv",
+      "bytes": 375945899,
+      "etag": "eb1dc2ec76efe09c8995f28bfa4c8656-23",
+      "intended_partition": "training",
+      "documented_attacks": ["DoS-GoldenEye", "DoS-Slowloris"]
+    },
+    {
+      "capture_id": "cse-cic-ids2018-2018-02-22",
+      "filename": "Thursday-22-02-2018_TrafficForML_CICFlowMeter.csv",
+      "url": "https://cse-cic-ids2018.s3.amazonaws.com/Processed%20Traffic%20Data%20for%20ML%20Algorithms/Thursday-22-02-2018_TrafficForML_CICFlowMeter.csv",
+      "bytes": 382636202,
+      "etag": "2bfbfdc038eb59f60bb725d9f3ede5d7-23",
+      "intended_partition": "training",
+      "documented_attacks": ["Brute Force-Web", "Brute Force-XSS", "SQL Injection"]
+    },
+    {
+      "capture_id": "cse-cic-ids2018-2018-02-14",
+      "filename": "Wednesday-14-02-2018_TrafficForML_CICFlowMeter.csv",
+      "url": "https://cse-cic-ids2018.s3.amazonaws.com/Processed%20Traffic%20Data%20for%20ML%20Algorithms/Wednesday-14-02-2018_TrafficForML_CICFlowMeter.csv",
+      "bytes": 358223333,
+      "etag": "46c0f45f8e6fe1edf1f08487448c102f-22",
+      "intended_partition": "calibration",
+      "documented_attacks": ["FTP-BruteForce", "SSH-Bruteforce"]
+    },
+    {
+      "capture_id": "cse-cic-ids2018-2018-02-16",
+      "filename": "Friday-16-02-2018_TrafficForML_CICFlowMeter.csv",
+      "url": "https://cse-cic-ids2018.s3.amazonaws.com/Processed%20Traffic%20Data%20for%20ML%20Algorithms/Friday-16-02-2018_TrafficForML_CICFlowMeter.csv",
+      "bytes": 333723605,
+      "etag": "e68ef27c09c98ba91fe3c6b1108a18b9-20",
+      "intended_partition": "final_test",
+      "documented_attacks": ["DoS-SlowHTTPTest", "DoS-Hulk"]
+    },
+    {
+      "capture_id": "cse-cic-ids2018-2018-02-23",
+      "filename": "Friday-23-02-2018_TrafficForML_CICFlowMeter.csv",
+      "url": "https://cse-cic-ids2018.s3.amazonaws.com/Processed%20Traffic%20Data%20for%20ML%20Algorithms/Friday-23-02-2018_TrafficForML_CICFlowMeter.csv",
+      "bytes": 382840456,
+      "etag": "472d63fb3c1285ce2f1e25617ba8cba5-23",
+      "intended_partition": "final_test",
+      "documented_attacks": ["Brute Force-Web", "Brute Force-XSS", "SQL Injection"]
+    },
+    {
+      "capture_id": "cse-cic-ids2018-2018-02-21",
+      "filename": "Wednesday-21-02-2018_TrafficForML_CICFlowMeter.csv",
+      "url": "https://cse-cic-ids2018.s3.amazonaws.com/Processed%20Traffic%20Data%20for%20ML%20Algorithms/Wednesday-21-02-2018_TrafficForML_CICFlowMeter.csv",
+      "bytes": 328893673,
+      "etag": "3a1d6b804ba9f6a3085973c2fa425883-20",
+      "intended_partition": "ood_test",
+      "documented_attacks": ["DDoS-LOIC-UDP", "DDoS-HOIC"]
+    }
+  ]
+}

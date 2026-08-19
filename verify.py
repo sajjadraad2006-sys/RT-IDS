@@ -132,10 +132,11 @@ except Exception as e:
 
 # 12. DB Models
 try:
-    from backend.db.models import AlertRecord, Setting, ChatMessage
-    checks.append(("DB Models (AlertRecord, Setting, ChatMessage)", "PASS"))
+    from backend.db.models import AlertRecord, Setting, ChatMessage, DecisionCase
+    from backend.decision.engine import build_smart_log, policy_decision
+    checks.append(("DB Models + Smart Decision", "PASS"))
 except Exception as e:
-    checks.append(("DB Models", f"FAIL: {e}"))
+    checks.append(("DB Models + Smart Decision", f"FAIL: {e}"))
 
 # 13. Frontend files
 try:
@@ -148,20 +149,21 @@ try:
 except Exception as e:
     checks.append(("Frontend files", f"FAIL: {e}"))
 
-# 14. Trained models (optional — may not exist yet)
+# 14. Trained model integrity and operational mode
 try:
-    models_exist = all([
-        (TRAINED_DIR / "normalizer.pkl").exists(),
-        (TRAINED_DIR / "statistical.pkl").exists(),
-        (TRAINED_DIR / "classifier.pkl").exists(),
-        (TRAINED_DIR / "autoencoder.pt").exists(),
-    ])
-    if models_exist:
-        checks.append(("Trained Models", "PASS"))
-    else:
-        checks.append(("Trained Models", "SKIP (run trainer.py on CICIDS2017 first)"))
+    from backend.detection.integrity import (
+        validate_artifact_bundle, validate_dataset_manifest,
+    )
+    artifact_meta = validate_artifact_bundle(TRAINED_DIR)
+    mode = "production" if artifact_meta.get("production_approved") else "evaluation-only"
+    checks.append((f"Artifact integrity ({mode})", "PASS"))
+    datasets = validate_dataset_manifest(
+        BASE_DIR / "cyberguard/datasets/manifest.json", BASE_DIR
+    )
+    assert datasets and all(not item["training_approved"] for item in datasets)
+    checks.append((f"Dataset manifest ({len(datasets)} fixtures, 0 production)", "PASS"))
 except Exception as e:
-    checks.append(("Trained Models", f"FAIL: {e}"))
+    checks.append(("Data/model integrity", f"FAIL: {e}"))
 
 elapsed = time.perf_counter() - t_start
 

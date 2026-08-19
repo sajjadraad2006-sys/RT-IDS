@@ -35,10 +35,10 @@ source "$VENV/bin/activate"
 echo -e "${YELLOW}[+] Installing Python dependencies...${NC}"
 pip install --upgrade pip -q 2>/dev/null
 pip install numpy pandas scikit-learn xgboost torch --extra-index-url https://download.pytorch.org/whl/cpu -q 2>/dev/null
-pip install fastapi uvicorn[standard] python-multipart httpx sqlalchemy cryptography pydantic joblib -q 2>/dev/null
+pip install fastapi uvicorn[standard] python-multipart httpx sqlalchemy cryptography pydantic joblib slowapi -q 2>/dev/null
 pip install pytest -q 2>/dev/null
 # Optional: MITRE + RAG (non-blocking)
-pip install taxii2-client stix2 requests chromadb -q 2>/dev/null || true
+pip install taxii2-client stix2 requests -q 2>/dev/null || true
 echo -e "${GREEN}[✓] Python dependencies installed${NC}"
 
 # ── 3. Initialize database ───────────────────────────────────────────────────

@@ -37,7 +37,7 @@ class _FakeAE:
 
 
 class _FakeAEZeroDay:
-    """Autoencoder that flags everything as zero-day."""
+    """Autoencoder that flags everything as an unknown anomaly."""
     threshold = 0.5
     def is_zero_day(self, x): return (True, 1.42)
     def score_batch(self, X): return np.full(len(X), 1.42)
@@ -79,13 +79,13 @@ def test_pipeline_stats_tracking():
 
 
 def test_zero_day_detection_via_autoencoder():
-    """When classifier is uncertain, autoencoder catches zero-day."""
+    """When classifier is uncertain, autoencoder flags an unknown anomaly."""
     pipe = _pipeline(stat_passes=True, clf=_FakeClfLowConf(), ae=_FakeAEZeroDay())
     alert = pipe.detect({"Flow Duration": "9999999", "SYN Flag Count": "500"})
-    assert alert.type == "zero-day"
+    assert alert.type == "unknown-anomaly"
     assert alert.stage == "autoencoder"
     assert alert.anomaly_score > 1.0
-    assert "T1203" in alert.mitre_techniques
+    assert alert.mitre_techniques == []
 
 
 def test_low_confidence_attack_gets_medium_severity():
@@ -122,3 +122,22 @@ def test_top_features_in_alert():
     pipe = _pipeline(stat_passes=True)
     alert = pipe.detect({"Flow Duration": "9999999", "SYN Flag Count": "500"})
     assert isinstance(alert.top_features, list)
+
+
+class _MixedStat:
+    def filter_batch(self, X):
+        return np.array([False, True, False])
+
+    def top_anomalous_features(self, x, names, top=5):
+        return []
+
+
+def test_batch_preserves_flow_order_for_mixed_benign_and_attack_rows():
+    """A filtered row must not shift the attack onto a neighboring flow."""
+    pipe = _pipeline(stat_passes=True)
+    pipe.stat = _MixedStat()
+    flows = [{"row": 0}, {"row": 1}, {"row": 2}]
+    alerts = pipe.detect_batch(flows)
+    assert len(alerts) == len(flows)
+    assert [a.type for a in alerts] == ["Benign", "DDoS", "Benign"]
+    assert [a.stage for a in alerts] == ["none", "classifier", "none"]

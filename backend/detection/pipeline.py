@@ -4,10 +4,10 @@ Works with zero LLM. The LLM layer only explains alerts afterwards.
     flow → features → [Z-filter] → [XGBoost] → [Autoencoder] → Alert
 
 Pipeline logic:
-1. Stage 1: Extract 30 numeric features, normalize with RobustScaler
+1. Stage 1: Extract 32 numeric features, normalize with RobustScaler
 2. Stage 2: Z-Score filter — if max|z| < threshold, flow is benign (fast exit)
 3. Stage 3: XGBoost classifies into 8 attack types with confidence
-4. Stage 4: Autoencoder catches zero-day attacks via reconstruction error
+4. Stage 4: Autoencoder flags unknown anomalies via reconstruction error
 
 Each stage is independently testable and replaceable.
 """
@@ -30,7 +30,7 @@ log = logging.getLogger("cyberguard.pipeline")
 class Alert:
     """Detection result from the pipeline."""
     severity: str                     # none | low | medium | high | critical
-    type: str                         # Benign | DDoS | ... | zero-day
+    type: str                         # Benign | DDoS | ... | unknown-anomaly
     confidence: float = 0.0
     anomaly_score: float = 0.0
     stage: str = "none"               # statistical | classifier | autoencoder
@@ -40,7 +40,16 @@ class Alert:
     top_features: list[tuple[str, float]] = field(default_factory=list)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        def json_safe(value):
+            if isinstance(value, float):
+                return value if np.isfinite(value) else 0.0
+            if isinstance(value, dict):
+                return {key: json_safe(item) for key, item in value.items()}
+            if isinstance(value, (list, tuple)):
+                return [json_safe(item) for item in value]
+            return value
+
+        return json_safe(asdict(self))
 
 
 @dataclass
@@ -119,14 +128,15 @@ class DetectionPipeline:
             self.stats.record(alert)
             return alert
 
-        # ── Stage 4: Autoencoder (zero-day) ──────────────────────────────
+        # ── Stage 4: Autoencoder (unknown anomaly) ──────────────────────
         is_zd, err = self.ae.is_zero_day(x[0])
         if is_zd:
             alert = Alert(
-                severity="high", type="zero-day",
+                severity="high", type="unknown-anomaly",
                 anomaly_score=round(err, 4),
                 stage="autoencoder",
-                mitre_techniques=map_alert_to_techniques("zero-day"),
+                # Reconstruction error cannot identify an ATT&CK technique.
+                mitre_techniques=[],
                 top_features=top_feats)
             self._finish(alert, t0)
             self.stats.record(alert)
@@ -176,10 +186,10 @@ class DetectionPipeline:
 
             if is_zd:
                 a = Alert(
-                    severity="high", type="zero-day",
+                    severity="high", type="unknown-anomaly",
                     anomaly_score=round(float(err), 4),
                     stage="autoencoder",
-                    mitre_techniques=map_alert_to_techniques("zero-day"),
+                    mitre_techniques=[],
                     top_features=top_feats,
                 )
             elif label.lower() != "benign":
@@ -213,10 +223,15 @@ class DetectionPipeline:
         anom_mask = self.stat.filter_batch(X_norm)
         alerts: list[Alert | None] = [None] * n
 
-        n_benign_passed = len(np.where(~anom_mask)[0])
-        if n_benign_passed > 0:
-            self.stats.total_flows += n_benign_passed
-            self.stats.benign_filtered += n_benign_passed
+        benign_indices = np.where(~anom_mask)[0]
+        for orig_i in benign_indices:
+            alert = Alert(
+                severity="none", type="Benign",
+                note="passed statistical filter", stage="none",
+            )
+            alert.latency_ms = round(((time.perf_counter() - t0) / n) * 1000, 3)
+            self.stats.record(alert)
+            alerts[orig_i] = alert
 
         anom_indices = np.where(anom_mask)[0]
         if len(anom_indices) == 0:
@@ -250,7 +265,7 @@ class DetectionPipeline:
                     alerts[orig_i] = a
             return [a for a in alerts if a is not None]
 
-        # 4. Stage 4 Autoencoder zero-day processing
+        # 4. Stage 4 Autoencoder unknown-anomaly processing
         sub_orig_indices = [anom_indices[sub_i] for sub_i in stage4_sub_indices]
         self._process_autoencoder_batch(sub_orig_indices, stage4_sub_indices, labels, confs, X_norm, alerts, n, t0)
 

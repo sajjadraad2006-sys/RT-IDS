@@ -114,7 +114,7 @@ window.CG = window.CG || {};
     el("line", { x1: tx, y1: padT, x2: tx, y2: padT + ih, stroke: "#EAC26B", "stroke-width": "1.5", "stroke-dasharray": "4 3" }, svg);
     const lbl = el("text", { x: tx + 4, y: padT + 10, class: "bar-label", "font-size": "9" }, svg);
     lbl.textContent = `threshold (k·σ) = ${threshold}`;
-    mount(container, svg, [["benign error", "#4FB9C9"], ["zero-day candidate", "#E97366"], ["threshold", "#EAC26B"]]);
+    mount(container, svg, [["benign error", "#4FB9C9"], ["unknown anomaly", "#E97366"], ["threshold", "#EAC26B"]]);
   }
 
   /* Horizontal bars — XGBoost feature importance */

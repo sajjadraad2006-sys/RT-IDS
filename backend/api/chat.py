@@ -4,12 +4,14 @@ is reachable, returns a clear degradation notice instead of failing.
 """
 from __future__ import annotations
 import json, re, time
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Path, Query, Request
+from pydantic import BaseModel, Field
 from ..llm.provider import get_provider
 from ..llm.prompts import SYSTEM_ANALYST
 from ..llm.rag import MitreRAG
 from ..db.models import ChatMessage, SessionLocal, Setting, AlertRecord
+from ..limiter import limiter
+from ..security import safe_llm_url
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 _rag = MitreRAG()
@@ -32,12 +34,13 @@ def _resolve_mitre(ids: list) -> list:
 
 
 class ChatRequest(BaseModel):
-    session_id: str
-    message: str
+    session_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+    message: str = Field(min_length=1, max_length=8000)
 
 
 @router.post("")
-async def chat(req: ChatRequest) -> dict:
+@limiter.limit("30/minute")
+async def chat(request: Request, req: ChatRequest) -> dict:
     settings = _load_llm_settings()
     provider = get_provider(settings)
     context_docs = _rag.query(req.message, k=3)
@@ -54,7 +57,6 @@ async def chat(req: ChatRequest) -> dict:
             "type": r.type, "severity": r.severity,
             "confidence": r.confidence, "stage": r.stage,
             "mitre": _resolve_mitre(json.loads(r.mitre_techniques)),
-            "source_file": r.source_file,
         } for r in recent]
     alerts_block = json.dumps(recent_alerts) if recent_alerts else \
         "[]  (empty — no detections recorded yet)"
@@ -93,19 +95,30 @@ async def chat(req: ChatRequest) -> dict:
 
 
 @router.get("/history/{session_id}")
-def history(session_id: str) -> list[dict]:
+@limiter.limit("30/minute")
+def history(
+    request: Request,
+    session_id: str = Path(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9._-]+$"),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> list[dict]:
     with SessionLocal() as s:
         rows = (s.query(ChatMessage).filter_by(session_id=session_id)
-                .order_by(ChatMessage.created_at).all())
-        return [{"role": r.role, "content": r.content} for r in rows]
+                .order_by(ChatMessage.created_at.desc()).limit(limit).all())
+        return [{"role": r.role, "content": r.content} for r in reversed(rows)]
 
 
 def _load_llm_settings() -> dict:
     return {
         "llm_provider": Setting.get("llm_provider", "local"),
-        "llama_url": Setting.get("llama_url", "http://127.0.0.1:8080"),
+        "llama_url": safe_llm_url(
+            Setting.get("llama_url", "http://127.0.0.1:8080"),
+            "http://127.0.0.1:8080", local=True,
+        ),
         "local_model": Setting.get("local_model", "foundation-sec"),
-        "api_base_url": Setting.get("api_base_url", ""),
+        "api_base_url": safe_llm_url(
+            Setting.get("api_base_url", "https://api.deepseek.com/v1"),
+            "https://api.deepseek.com/v1", local=False,
+        ),
         "api_model": Setting.get("api_model", ""),
         "api_key": Setting.get("api_key", ""),
     }

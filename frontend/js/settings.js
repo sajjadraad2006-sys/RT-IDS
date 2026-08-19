@@ -105,12 +105,23 @@
   }
 
   CG.onView.settings = async () => {
-    current = await CG.api.getSettings();
+    const [settingsData, health] = await Promise.all([
+      CG.api.getSettings(), CG.api.pipelineHealth(),
+    ]);
+    current = settingsData;
     setProviderUI(current.llm_provider);
     document.getElementById("set-llama-url").value = current.llama_url;
     document.getElementById("set-local-model").value = current.local_model;
     document.getElementById("set-api-base").value = current.api_base_url;
     document.getElementById("set-api-model").value = current.api_model;
+    if (health.classifier_abstention_threshold != null) {
+      conf.value = health.classifier_abstention_threshold;
+      document.getElementById("conf-val").textContent = Number(conf.value).toFixed(2);
+    }
+    if (health.autoencoder_k != null) {
+      k.value = health.autoencoder_k;
+      document.getElementById("k-val").textContent = Number(k.value).toFixed(1);
+    }
     status.textContent = "";
   };
 

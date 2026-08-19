@@ -1,12 +1,16 @@
 """SQLAlchemy models. API keys are stored Fernet-encrypted, never plaintext."""
 from __future__ import annotations
-import os, time
+import os, stat, time
 from sqlalchemy import (create_engine, Column, Integer, String, Float,
                         Text, Boolean)
 from sqlalchemy.orm import declarative_base, sessionmaker
 from ..config import DB_PATH
 
 Base = declarative_base()
+# Create the DB with a private mode before SQLite opens it.
+DB_PATH.touch(mode=0o600, exist_ok=True)
+os.chmod(DB_PATH, 0o600)
+
 engine = create_engine(
     f"sqlite:///{DB_PATH}",
     future=True,
@@ -21,13 +25,30 @@ SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
 def _fernet():
-    """Machine-local key derived from a local secret file (auto-created)."""
+    """Open the machine-local key without following attacker-created links."""
     from cryptography.fernet import Fernet
+
     key_file = DB_PATH.parent / ".secret_key"
-    if not key_file.exists():
-        key_file.write_bytes(Fernet.generate_key())
-        os.chmod(key_file, 0o600)
-    return Fernet(key_file.read_bytes())
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(key_file, flags)
+    except FileNotFoundError:
+        create_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        create_flags |= getattr(os, "O_NOFOLLOW", 0)
+        try:
+            fd = os.open(key_file, create_flags, 0o600)
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(Fernet.generate_key())
+        except FileExistsError:
+            pass
+        fd = os.open(key_file, flags)
+
+    with os.fdopen(fd, "rb") as handle:
+        mode = stat.S_IMODE(os.fstat(handle.fileno()).st_mode)
+        if mode & 0o077:
+            os.fchmod(handle.fileno(), 0o600)
+        key = handle.read()
+    return Fernet(key)
 
 
 class AlertRecord(Base):
@@ -81,3 +102,49 @@ class ChatMessage(Base):
     role = Column(String(16))
     content = Column(Text)
     created_at = Column(Float, default=time.time)
+
+
+class DecisionCase(Base):
+    """Persisted Smart Log plus the latest guarded AI/policy decision."""
+    __tablename__ = "decision_cases"
+    id = Column(Integer, primary_key=True)
+    alert_id = Column(Integer, unique=True, index=True, nullable=False)
+    smart_log_json = Column(Text, default="{}")
+    decision_json = Column(Text, default="")
+    provider = Column(String(32), default="policy")
+    prompt_version = Column(String(32), default="smart-decision-v2")
+    policy_version = Column(String(32), default="smart-policy-v2")
+    analyst_verdict = Column(String(32), default="")
+    analyst_notes = Column(Text, default="")
+    reviewed_by = Column(String(64), default="")
+    reviewed_at = Column(Float, nullable=True)
+    created_at = Column(Float, default=time.time)
+    updated_at = Column(Float, default=time.time, onupdate=time.time)
+
+
+class AuditEvent(Base):
+    """Append-only, hash-chained security workflow event."""
+    __tablename__ = "audit_events"
+    id = Column(Integer, primary_key=True)
+    created_at = Column(Float, default=time.time, index=True, nullable=False)
+    actor = Column(String(64), nullable=False)
+    action = Column(String(64), nullable=False, index=True)
+    entity_type = Column(String(32), nullable=False)
+    entity_id = Column(String(64), nullable=False, index=True)
+    payload_json = Column(Text, default="{}", nullable=False)
+    previous_hash = Column(String(64), default="", nullable=False)
+    event_hash = Column(String(64), unique=True, nullable=False)
+
+
+class ResponseSimulation(Base):
+    """Idempotent response plan only; never an actuator execution record."""
+    __tablename__ = "response_simulations"
+    id = Column(Integer, primary_key=True)
+    idempotency_key = Column(String(64), unique=True, index=True, nullable=False)
+    alert_id = Column(Integer, index=True, nullable=False)
+    asset_ref = Column(String(128), nullable=False)
+    requested_action = Column(String(32), nullable=False)
+    approvals = Column(Integer, default=0, nullable=False)
+    ttl_seconds = Column(Integer, nullable=False)
+    response_json = Column(Text, nullable=False)
+    created_at = Column(Float, default=time.time, nullable=False)

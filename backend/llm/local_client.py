@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import httpx
 from ..config import LLAMA_SERVER_URL, LOCAL_MODEL
+from ..security import validate_llm_url
 
 log = logging.getLogger("cyberguard.llm.local")
 
@@ -13,7 +14,7 @@ class LocalClient:
     name = "local"
 
     def __init__(self, base_url: str | None = None, model: str | None = None) -> None:
-        self.base_url = (base_url or LLAMA_SERVER_URL).rstrip("/")
+        self.base_url = validate_llm_url(base_url or LLAMA_SERVER_URL, local=True)
         self.model = model or LOCAL_MODEL
 
     async def chat(self, messages: list[dict], max_tokens: int = 1024,

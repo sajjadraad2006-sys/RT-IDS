@@ -1,0 +1,30 @@
+{
+  "schema_version": "cyberguard-artifacts-v1",
+  "feature_schema_version": "cyberguard-flow-features-v1",
+  "feature_schema_hash": "c32ac77083b396b166f55f3de0e515a1a74e887cf374445f7e0d867887a81c3b",
+  "code_revision": "legacy-artifacts-inventoried-2026-08-18",
+  "production_approved": false,
+  "dataset_hashes": {
+    "synthetic-cicids-shape-fixture-large-v1": "4193bbaddda808df3587f5fe0cb2a8d5b5792b7e1caff286a660bef2142c4193"
+  },
+  "classes": ["Benign", "Bot", "DDoS", "PortScan"],
+  "classifier": {
+    "abstention_threshold": 0.9,
+    "threshold_status": "legacy_unvalidated"
+  },
+  "autoencoder": {
+    "k": 3.0,
+    "threshold": 0.0045968578779138625,
+    "threshold_status": "legacy_unvalidated"
+  },
+  "metrics": {
+    "status": "unverified_legacy_fixture",
+    "independent_test_split": false
+  },
+  "artifacts": {
+    "autoencoder.pt": {"sha256": "c53afcb167d00efcee52468147a6f931a6275225074729376d8fc9ded7d2bf71", "bytes": 51675},
+    "classifier.pkl": {"sha256": "6e469215aa3ad428630011146c18f7ed8e5dd434b594438b97adc1e5fd57cff1", "bytes": 4751368},
+    "normalizer.pkl": {"sha256": "65d9b51b83dc012e5eeac02e98b3d64c7b1a9bc717eba8d341d7c81756db9893", "bytes": 1047},
+    "statistical.pkl": {"sha256": "f8fba28f3cfb1c2ba1f2be0c98b2dbfb999998e73dc2e3485883481429aa51ff", "bytes": 848}
+  }
+}

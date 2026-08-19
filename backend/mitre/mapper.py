@@ -2,7 +2,8 @@
 
 Static core mapping (works offline immediately); enriched by attack_db.py
 after the first TAXII sync. Covers all CICIDS2017 attack classes plus
-zero-day signals from the autoencoder.
+known classifier labels. Autoencoder anomalies intentionally receive no
+technique: reconstruction error alone cannot infer attacker behavior.
 """
 from __future__ import annotations
 
@@ -22,7 +23,6 @@ _LABEL_TO_TECHNIQUES: dict[str, list[str]] = {
     "Bot": ["T1071", "T1071.001", "T1105"],          # C2 / Ingress Tool Transfer
     "Infiltration": ["T1041", "T1020", "T1048"],     # Exfil over C2 / alt protocol
     "Heartbleed": ["T1190", "T1212"],                # Exploit + Credential Access
-    "zero-day": ["T1203", "T1068"],                  # Exploitation for Client/Privilege
 }
 
 # ── Reverse mapping: technique → labels ──────────────────────────────────────
@@ -36,7 +36,7 @@ def map_alert_to_techniques(label: str) -> list[str]:
     """Map a detection label to relevant MITRE ATT&CK technique IDs.
 
     Args:
-        label: Detection class (e.g., "DDoS", "zero-day").
+        label: Detection class (e.g., "DDoS", "PortScan").
 
     Returns:
         List of technique IDs (e.g., ["T1498", "T1499"]).

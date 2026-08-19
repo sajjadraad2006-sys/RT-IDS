@@ -1,9 +1,10 @@
 """MITRE ATT&CK browse + sync endpoints."""
 from __future__ import annotations
 import json
-from fastapi import APIRouter
+from fastapi import APIRouter, Query, Request
 from ..mitre import attack_db, taxii_sync
 from ..llm.rag import MitreRAG
+from ..limiter import limiter
 
 router = APIRouter(prefix="/api/mitre", tags=["mitre"])
 _rag = MitreRAG()
@@ -21,8 +22,11 @@ def tactics() -> list[str]:
 
 
 @router.get("/techniques")
-def techniques(tactic: str | None = None, q: str | None = None,
-               limit: int = 400) -> list[dict]:
+def techniques(
+    tactic: str | None = Query(default=None, max_length=64),
+    q: str | None = Query(default=None, max_length=200),
+    limit: int = Query(default=400, ge=1, le=500),
+) -> list[dict]:
     detected = attack_db.get_detected_techniques()
     rows = attack_db.list_techniques(tactic=tactic, q=q)[:limit]
     for r in rows:
@@ -42,17 +46,18 @@ def technique_detail(tid: str) -> dict:
 
 
 @router.post("/sync")
-def sync(force: bool = False) -> dict:
+@limiter.limit("2/minute")
+def sync(request: Request, force: bool = False) -> dict:
     status = taxii_sync.sync_attack(force=force)
     # index on BOTH fresh syncs and cached snapshots — index_snapshot uses
     # INSERT OR REPLACE, so re-indexing a cached snapshot is safe. Without
     # this, a pre-existing snapshot leaves the SQLite index empty forever.
     if status.get("status") in ("synced", "cached"):
-        status["indexed"] = attack_db.index_snapshot()
+        status["indexed"] = attack_db.index_snapshot(status.get("path"))
         try:
             # feed the same techniques into the RAG vector store so the
             # chat answers with live ATT&CK context right after a sync
-            status["rag_indexed"] = _rag.index(attack_db.list_techniques())
+            status["rag_indexed"] = _rag.index(attack_db.list_techniques(limit=5000))
         except Exception as exc:
             status["rag_indexed"] = f"failed: {exc}"
     return status

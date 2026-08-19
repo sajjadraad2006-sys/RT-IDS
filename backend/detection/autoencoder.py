@@ -1,4 +1,4 @@
-"""Stage 4 — Deep autoencoder for zero-day detection.
+"""Stage 4 — Deep autoencoder for unknown-behavior detection.
 
 Trained ONLY on benign traffic. Attack = high reconstruction error.
 Architecture: N → 64 → 32 → 16 (bottleneck) → 32 → 64 → N
@@ -12,7 +12,7 @@ it was trained on. Unknown attack patterns are missed entirely."
 
 The autoencoder learns to compress-and-reconstruct benign traffic through
 a 16-neuron bottleneck. When it sees something that doesn't "look normal",
-the reconstruction error spikes — signaling a potential zero-day attack.
+the reconstruction error spikes — signaling an unknown anomaly for review.
 """
 from __future__ import annotations
 import logging
@@ -124,7 +124,11 @@ class AutoencoderDetector:
         self.net.eval()
         Xt = torch.tensor(X, dtype=torch.float32, device=self.device)
         out = self.net(Xt)
-        return ((out - Xt) ** 2).mean(dim=1).cpu().numpy()
+        errors = ((out - Xt) ** 2).mean(dim=1).cpu().numpy()
+        return np.clip(
+            np.nan_to_num(errors, nan=1e30, posinf=1e30, neginf=1e30),
+            0.0, 1e30,
+        )
 
     def score(self, x: np.ndarray) -> float:
         """Reconstruction error for one normalized flow."""
@@ -135,18 +139,19 @@ class AutoencoderDetector:
         return self.errors(X)
 
     def is_zero_day(self, x: np.ndarray) -> tuple[bool, float]:
-        """Check if a flow is a potential zero-day attack.
+        """Check if a flow exceeds the calibrated unknown-anomaly threshold.
 
         Returns:
             (is_anomaly, reconstruction_error)
         """
         err = self.score(x)
-        assert self.threshold is not None, "call fit() first"
+        if self.threshold is None:
+            raise RuntimeError("autoencoder is not fitted")
         return err > self.threshold, err
 
     def anomaly_ratio(self, err: float) -> float:
         """How many standard deviations above the mean this error is.
-        Useful for severity scoring: ratio > k means zero-day."""
+        Useful for severity scoring: ratio > k means anomalous."""
         if self._std_err <= 0:
             return 0.0
         return (err - self._mean_err) / max(self._std_err, 1e-9)
@@ -165,7 +170,7 @@ class AutoencoderDetector:
 
     def load(self, path: str | Path, n_features: int | None = None) -> "AutoencoderDetector":
         """Load model from disk."""
-        ckpt = torch.load(path, map_location=self.device, weights_only=False)
+        ckpt = torch.load(path, map_location=self.device, weights_only=True)
         nf = n_features or ckpt.get("n_features", self.n_features)
         self.net = _AE(nf).to(self.device)
         self.net.load_state_dict(ckpt["state"])

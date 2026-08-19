@@ -40,7 +40,11 @@ class Normalizer:
         if not self.fitted:
             raise RuntimeError("Normalizer not fitted — run trainer.py first")
         X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
-        return self.scaler.transform(X)
+        transformed = self.scaler.transform(X)
+        transformed = np.nan_to_num(
+            transformed, nan=0.0, posinf=1e6, neginf=-1e6
+        )
+        return np.clip(transformed, -1e6, 1e6)
 
     def fit_transform(self, X: np.ndarray) -> np.ndarray:
         """Fit and transform in one step."""

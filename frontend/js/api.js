@@ -8,12 +8,22 @@ window.CG = window.CG || {};
 (function () {
   const API = { mode: "demo", base: "" };
 
-  async function tryFetch(path, opts = {}, timeoutMs = 2500) {
+  async function tryFetch(path, opts = {}, timeoutMs = 2500, retried = false) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      const res = await fetch(API.base + path, { ...opts, signal: ctrl.signal });
+      const headers = new Headers(opts.headers || {});
+      const token = sessionStorage.getItem("cg-api-token");
+      if (token) headers.set("X-CyberGuard-Token", token);
+      const res = await fetch(API.base + path, { ...opts, headers, signal: ctrl.signal });
       clearTimeout(t);
+      if (res.status === 401 && !retried) {
+        const entered = window.prompt("CyberGuard API token:");
+        if (entered) {
+          sessionStorage.setItem("cg-api-token", entered);
+          return tryFetch(path, opts, timeoutMs, true);
+        }
+      }
       if (!res.ok) throw new Error("HTTP " + res.status);
       return await res.json();
     } catch (e) {
@@ -33,7 +43,7 @@ window.CG = window.CG || {};
   /* ---------------- demo dataset ---------------- */
   const TECHS = [
     ["T1046", "Network Service Discovery", "discovery", "Adversaries may attempt to get a listing of services running on remote hosts, including those that may be vulnerable to remote software exploitation. Port scanning of this kind maps directly to the PortScan class in the CyberGuard classifier — high SYN counts, tiny payloads, short flow durations."],
-    ["T1498", "Network Denial of Service", "impact", "Adversaries may perform Network Denial of Service (DoS) attacks to degrade or block the availability of targeted resources. Detected via packets-per-second and bytes-per-second spikes in Stage 1 features, confirmed by XGBoost with >99% confidence."],
+    ["T1498", "Network Denial of Service", "impact", "Adversaries may perform Network Denial of Service (DoS) attacks to degrade or block availability. CyberGuard can map evaluated DDoS classifications to this technique; confidence depends on the active artifact."],
     ["T1498.001", "Direct Network Flood", "impact", "Direct network floods amplify traffic volume against a target. Stage 2 Z-score filter flags the volumetric anomaly before the classifier labels it."],
     ["T1499", "Endpoint Denial of Service", "impact", "Adversaries may perform Endpoint Denial of Service attacks to degrade or block availability. Distinguished from network floods by per-flow header and window features."],
     ["T1110", "Brute Force", "credential-access", "Adversaries may use brute force techniques to gain access to accounts when passwords are unknown. CyberGuard flags repeated short-lived flows to authentication ports with failed-handshake signatures."],
@@ -44,7 +54,7 @@ window.CG = window.CG || {};
     ["T1105", "Ingress Tool Transfer", "command-and-control", "Adversaries may transfer tools from an external system into a compromised environment."],
     ["T1041", "Exfiltration Over C2 Channel", "exfiltration", "Stealing data over the established C2 channel. Infiltration-class flows show asymmetric byte ratios — the flow_bytes_ratio feature exposes this."],
     ["T1020", "Automated Exfiltration", "exfiltration", "Automated, scheduled data theft. Inter-arrival time (IAT) statistics become unnaturally regular."],
-    ["T1203", "Exploitation for Client Execution", "execution", "Exploiting a software vulnerability in a client application. Zero-day variants are caught by the autoencoder even when the classifier has never seen them."],
+    ["T1203", "Exploitation for Client Execution", "execution", "Exploiting a software vulnerability in a client application. CyberGuard does not infer this technique from an autoencoder anomaly alone."],
     ["T1595", "Active Scanning", "reconnaissance", "Adversaries may execute active reconnaissance scans to gather information."],
     ["T1078", "Valid Accounts", "defense-evasion", "Adversaries may obtain and abuse credentials of existing accounts."],
     ["T1055", "Process Injection", "privilege-escalation", "Adversaries may inject code into processes to evade defenses."],
@@ -59,7 +69,7 @@ window.CG = window.CG || {};
   ];
 
   const CLASSES = ["DDoS", "DoS", "PortScan", "BruteForce", "WebAttack", "Bot", "Infiltration"];
-  const LABEL_TECH = { DDoS: ["T1498", "T1499"], DoS: ["T1499.002", "T1498"], PortScan: ["T1046"], BruteForce: ["T1110", "T1110.001"], WebAttack: ["T1190", "T1059"], Bot: ["T1071", "T1105"], Infiltration: ["T1041", "T1020"], "zero-day": ["T1203"] };
+  const LABEL_TECH = { DDoS: ["T1498", "T1499"], DoS: ["T1499.002", "T1498"], PortScan: ["T1046"], BruteForce: ["T1110", "T1110.001"], WebAttack: ["T1190", "T1059"], Bot: ["T1071", "T1105"], Infiltration: ["T1041", "T1020"], "unknown-anomaly": [] };
 
   const now = Date.now() / 1000;
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -67,7 +77,7 @@ window.CG = window.CG || {};
 
   const DEMO_ALERTS = Array.from({ length: 42 }, (_, i) => {
     const zeroDay = Math.random() < 0.14;
-    const type = zeroDay ? "zero-day" : pick(CLASSES);
+    const type = zeroDay ? "unknown-anomaly" : pick(CLASSES);
     const conf = zeroDay ? 0 : rand(0.86, 0.999);
     const sev = zeroDay ? "high" : conf > 0.98 ? "critical" : conf > 0.9 ? "high" : "medium";
     return {
@@ -100,15 +110,15 @@ window.CG = window.CG || {};
   const CHAT_BRAIN = [
     {
       keys: ["autoencoder", "zero-day", "zero day"],
-      a: "#### Stage 4 — Deep Autoencoder\nThe autoencoder is trained **only on benign traffic** (CICIDS2017 BENIGN flows). It learns to reconstruct normal behavior through a 16-neuron bottleneck.\n\n- Architecture: `26 → 64 → 32 → 16 → 32 → 64 → 26`\n- Anomaly signal: reconstruction **mean-squared error**\n- Threshold: `mean + k·σ` of validation errors — currently **k = 3**\n\nBecause it never saw attacks during training, *any* flow it cannot reconstruct well — including attack patterns the XGBoost classifier was never trained on — raises a zero-day alert. That is exactly what the original thesis could not do: its LLM could only explain attacks it already knew.\n\n**Trade-off:** lowering k catches more novel attacks but raises false positives. Tune it in Settings → Detection thresholds.",
+      a: "#### Stage 4 — Deep Autoencoder\nThe autoencoder is trained **only on approved benign training flows** and learns to reconstruct normal behavior through a bottleneck.\n\n- Architecture: `32 → 64 → 32 → 16 → 32 → 64 → 32`\n- Anomaly signal: reconstruction **mean-squared error**\n- Threshold: calibrated on a held-out benign partition\n\nA high error is an **unknown anomaly signal**, not proof of a zero-day exploit. It must enter analyst review. Exact false-positive and detection rates belong to the active artifact metadata.",
     },
     {
       keys: ["t1498", "ddos", "denial of service"],
-      a: "#### T1498 — Network Denial of Service\nAdversaries flood a target to degrade availability. CyberGuard detects it deterministically — no LLM involved:\n\n1. **Stage 1** computes `packets_per_sec`, `bytes_per_sec`, and SYN-flag counts\n2. **Stage 2** Z-score filter passes the volumetric spike through instantly\n3. **Stage 3** XGBoost labels it `DDoS` — on CICIDS2017 this class separates cleanly (expected 97–99% accuracy; exact numbers only after the training run — see `trainer.py`)\n\n**Containment:** rate-limit at the edge, blackhole the source prefixes, enable upstream scrubbing. The alert row links T1498 and T1499 in the MITRE browser.",
+      a: "#### T1498 — Network Denial of Service\nAdversaries flood a target to degrade availability. CyberGuard's deterministic path computes flow rates, applies the statistical gate, and asks the active classifier for a calibrated label.\n\nThe bundled artifact is evaluation-only and covers only Benign, Bot, DDoS, and PortScan; use its manifest and independent metrics before trusting a DDoS result. Any containment remains an analyst-approved recommendation.",
     },
     {
       keys: ["summarize", "recent", "threats", "containment"],
-      a: "#### Recent session summary (demo dataset)\n- **42 alerts** in the last hour — 36 from the classifier, 6 zero-day signals from the autoencoder\n- Top class: **DDoS** (T1498/T1499), then **PortScan** (T1046)\n- Mean detection latency: **1.4 ms** per flow — the LLM is never in the hot path\n\n**Recommended actions:**\n1. Contain the two critical DDoS sources first (confidence > 0.98)\n2. Review the 6 zero-day flows manually — autoencoder alerts deserve analyst eyes\n3. Sync MITRE ATT&CK if the badge says your snapshot is stale\n\nUpload a real CSV/JSON log and I will explain the actual pipeline verdicts.",
+      a: "#### Recent session summary (demo dataset)\nThis view uses simulated alerts only. Autoencoder results are unknown-anomaly signals requiring independent evidence; they are not confirmed zero-days. Start the backend and upload a manifested workload for measured throughput and persisted review cases.",
     },
     {
       keys: ["bertscore", "metric", "f1", "evaluation"],
@@ -153,7 +163,7 @@ window.CG = window.CG || {};
     const flows = Math.floor(rand(900, 2600));
     const fresh = Array.from({ length: Math.floor(rand(6, 14)) }, (_, i) => {
       const zd = Math.random() < 0.18;
-      const type = zd ? "zero-day" : pick(CLASSES);
+      const type = zd ? "unknown-anomaly" : pick(CLASSES);
       const conf = zd ? 0 : rand(0.87, 0.999);
       return {
         id: 2000 + i, created_at: Date.now() / 1000 - i * 4,
@@ -183,7 +193,7 @@ window.CG = window.CG || {};
       const q = message.toLowerCase();
       const hit = CHAT_BRAIN.find((b) => b.keys.some((k) => q.includes(k)));
       const answer = hit ? hit.a :
-        "#### Analyst note\nThe detection pipeline is deterministic — features, Z-score, XGBoost, autoencoder. I explain its verdicts with MITRE context; I never decide what is an attack.\n\nTry:\n- *How does zero-day detection work here?*\n- *Explain T1498 and our detection*\n- *Why was BERTScore the wrong metric?*\n\nOr attach a `.csv` / `.json` log and I will walk you through what each stage found.";
+        "#### Analyst note\nThe detection pipeline is deterministic — features, Z-score, XGBoost, autoencoder. I explain its evidence with MITRE context; policy owns disposition.\n\nTry:\n- *How are unknown anomalies reviewed?*\n- *Explain T1498 and our detection*\n- *Why was BERTScore the wrong metric?*";
       setTimeout(() => resolve({ answer, degraded: false, provider: DEMO_SETTINGS.llm_provider, context_used: true }), 900 + Math.random() * 900);
     });
   };
@@ -202,7 +212,7 @@ window.CG = window.CG || {};
   API.mitreSync = () =>
     API.mode === "live"
       ? tryFetch("/api/mitre/sync", { method: "POST" }, 120000)
-      : new Promise((r) => setTimeout(() => r({ status: "cached", version: "v19", note: "demo mode — TAXII sync runs when the backend is live" }), 1200));
+      : new Promise((r) => setTimeout(() => r({ status: "cached", version: "v19.1", note: "demo mode — TAXII sync runs when the backend is live" }), 1200));
 
   API.explainAlert = (alertId) =>
     API.mode === "live"
@@ -220,6 +230,55 @@ window.CG = window.CG || {};
           stages: { normalizer: false, statistical_filter: false, classifier: false, autoencoder: false },
           note: "Demo mode — train models with trainer.py for live pipeline",
         });
+
+  API.decisionQueue = () =>
+    API.mode === "live"
+      ? tryFetch("/api/decision/queue?limit=200")
+      : Promise.resolve(DEMO_ALERTS.filter(a => a.stage === "autoencoder" || a.severity === "medium").map(a => ({
+          alert_id: a.id, event_id: `demo-${a.id}`, created_at: a.created_at,
+          type: a.type, severity: a.severity,
+          review_reason: "demo ambiguous or unknown signal", decided: false,
+          provider: "demo", prompt_version: "smart-decision-v2",
+          policy_version: "smart-policy-v2", analyst_verdict: "", reviewed_at: null,
+        })));
+
+  API.decisionCase = (alertId) =>
+    API.mode === "live"
+      ? tryFetch(`/api/decision/case/${alertId}`)
+      : Promise.resolve(null);
+
+  API.evaluateDecision = (alertId, refresh = false) =>
+    API.mode === "live"
+      ? tryFetch(`/api/decision/evaluate/${alertId}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh }),
+        }, 120000)
+      : Promise.resolve({
+          smart_log: {
+            schema_version: "smart-log-v1", event_id: `demo-${alertId}`, alert_id: alertId,
+            evidence_fingerprint: "demo-not-cryptographic", review_required: true,
+            review_reason: "demo case", detection: {
+              type: "unknown-anomaly", severity: "high", stage: "autoencoder",
+              confidence: 0, anomaly_score: 1.2, mitre_techniques: [], top_features: [],
+            }, trust_boundaries: ["demo data only"],
+          },
+          decision: {
+            verdict: "needs_human", confidence: 0.5, recommended_action: "escalate",
+            rationale: "Demo-only policy result; start the backend for persisted review.",
+            evidence: [], containment: [], limitations: ["No action was executed."],
+            source: "policy", provider: "demo", model_version: "none",
+            policy_version: "smart-policy-v2", prompt_version: "none",
+            requires_human: true, executed_action: "none", degraded: false,
+          }, cached: false,
+        });
+
+  API.feedbackDecision = (alertId, verdict, notes) =>
+    API.mode === "live"
+      ? tryFetch(`/api/decision/feedback/${alertId}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ verdict, notes }),
+        })
+      : Promise.resolve({ status: "demo_not_persisted", reviewed_by: "demo" });
 
   CG.api = API;
 })();

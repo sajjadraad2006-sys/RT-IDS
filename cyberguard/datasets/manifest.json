@@ -1,0 +1,59 @@
+{
+  "schema_version": "cyberguard-datasets-v1",
+  "datasets": [
+    {
+      "id": "synthetic-cicids-shape-fixture-small-v1",
+      "path": "cyberguard/datasets/cicids2017/sample_traffic.csv",
+      "publisher": "CyberGuard project deterministic fixture generator",
+      "publisher_page": "cyberguard/datasets/generate_sample.py",
+      "source_url": "local-generator:cyberguard/datasets/generate_sample.py@seed-42",
+      "license": "MIT project test fixture; not an official CICIDS2017 distribution",
+      "access_date": "2026-08-18",
+      "bytes": 175005,
+      "sha256": "430c8d7675ac39affa7beb01788b8a9b2a4dba70215c0a6b0f4d68645efd90e6",
+      "checksum_provenance": "locally_generated_deterministic_fixture",
+      "schema_version": "synthetic-flow-fixture-v1",
+      "capture_id": "synthetic-small-seed-42",
+      "time_range": {"start": null, "end": null, "timezone": null},
+      "row_count": 2000,
+      "labels": {"BENIGN": 1600, "DDoS": 200, "PortScan": 100, "Bot": 100},
+      "columns": ["Flow Duration", "Flow Packets/s", "SYN Flag Count", "Init_Win_bytes_fwd", "Total Fwd Packets", "Total Backward Packets", "Flow Bytes/s", "Label"],
+      "label_column": "Label",
+      "minimum_bytes": 100000,
+      "transformation_lineage": {
+        "parent_sha256": null,
+        "transform": "cyberguard/datasets/generate_sample.py",
+        "transform_version": "seed-42"
+      },
+      "training_approved": false,
+      "allowed_uses": ["unit_test", "smoke_test", "ui_demo"]
+    },
+    {
+      "id": "synthetic-cicids-shape-fixture-large-v1",
+      "path": "cyberguard/datasets/cicids2017/full_traffic.csv",
+      "publisher": "CyberGuard project deterministic fixture generator",
+      "publisher_page": "cyberguard/datasets/generate_sample.py",
+      "source_url": "local-generator:cyberguard/datasets/generate_sample.py@seed-42",
+      "license": "MIT project test fixture; not an official CICIDS2017 distribution",
+      "access_date": "2026-08-18",
+      "bytes": 4369150,
+      "sha256": "4193bbaddda808df3587f5fe0cb2a8d5b5792b7e1caff286a660bef2142c4193",
+      "checksum_provenance": "locally_generated_deterministic_fixture",
+      "schema_version": "synthetic-flow-fixture-v1",
+      "capture_id": "synthetic-large-seed-42",
+      "time_range": {"start": null, "end": null, "timezone": null},
+      "row_count": 50000,
+      "labels": {"BENIGN": 40000, "DDoS": 5000, "PortScan": 2500, "Bot": 2500},
+      "columns": ["Flow Duration", "Flow Packets/s", "SYN Flag Count", "Init_Win_bytes_fwd", "Total Fwd Packets", "Total Backward Packets", "Flow Bytes/s", "Label"],
+      "label_column": "Label",
+      "minimum_bytes": 1000000,
+      "transformation_lineage": {
+        "parent_sha256": null,
+        "transform": "cyberguard/datasets/generate_sample.py",
+        "transform_version": "seed-42"
+      },
+      "training_approved": false,
+      "allowed_uses": ["benchmark_smoke_test", "ui_demo"]
+    }
+  ]
+}

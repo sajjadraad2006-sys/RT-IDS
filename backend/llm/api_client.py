@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import httpx
 from ..config import API_BASE_URL, API_MODEL
+from ..security import validate_llm_url
 
 log = logging.getLogger("cyberguard.llm.api")
 
@@ -14,7 +15,7 @@ class ApiClient:
 
     def __init__(self, base_url: str | None = None, api_key: str | None = None,
                  model: str | None = None) -> None:
-        self.base_url = (base_url or API_BASE_URL).rstrip("/")
+        self.base_url = validate_llm_url(base_url or API_BASE_URL, local=False)
         self.api_key = api_key
         self.model = model or API_MODEL
 

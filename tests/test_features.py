@@ -78,5 +78,5 @@ def test_flow_iat_max_extracted():
 def test_negative_values_handled():
     row = {"Flow Duration": "-100", "Total Fwd Packets": "-5"}
     out = extract_features(row)
-    assert out["flow_duration"] == -100.0  # valid finite float, not sanitized
+    assert out["flow_duration"] == 0.0  # impossible negative counters are rejected
     assert all(np.isfinite(v) for v in out.values())
