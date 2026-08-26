@@ -28,10 +28,19 @@ from sklearn.preprocessing import label_binarize
 
 from .autoencoder import AutoencoderDetector
 from .classifier import AttackClassifier
+from .deduplication import FEATURE_HASH_SCHEMA_VERSION, canonical_feature_hashes
 from .features import FEATURE_NAMES
-from .integrity import sha256_file, write_artifact_manifest
+from .integrity import (
+    COVERAGE_CONTRACT_VERSION,
+    PIPELINE_V2_VERSION,
+    ROUTING_V2_SCHEMA_VERSION,
+    IntegrityError,
+    sha256_file,
+    write_artifact_manifest,
+)
 from .normalizer import Normalizer
 from .statistical import StatisticalFilter
+from ..config import CLASSES
 
 
 SEED = 42
@@ -62,6 +71,17 @@ def _source_snapshot_hash() -> str:
 
 def _load_partitions(audit_path: Path) -> tuple[dict[str, dict], dict]:
     audit = json.loads(audit_path.read_text(encoding="utf-8"))
+    if audit.get("schema_version") != "cyberguard-dataset-audit-v2":
+        raise IntegrityError(
+            "candidate training requires cyberguard-dataset-audit-v2; "
+            "regenerate derived arrays because v1 hashes included labels"
+        )
+    if audit.get("feature_hash_schema_version") != FEATURE_HASH_SCHEMA_VERSION:
+        raise IntegrityError(
+            "candidate audit does not declare label-independent feature hashes"
+        )
+    if audit.get("label_included_in_feature_hash") is not False:
+        raise IntegrityError("candidate feature hashes must exclude labels")
     by_partition: dict[str, list[dict]] = {}
     for capture in audit["captures"]:
         by_partition.setdefault(capture["intended_partition"], []).append(capture)
@@ -70,31 +90,74 @@ def _load_partitions(audit_path: Path) -> tuple[dict[str, dict], dict]:
         raise ValueError(f"audit lacks required partitions: {sorted(required - set(by_partition))}")
 
     result = {}
-    seen_exact: set[int] = set()
-    seen_near: set[int] = set()
+    seen_exact: dict[int, set[str]] = {}
+    seen_near: dict[int, set[str]] = {}
+    all_exact_conflict_hashes: set[int] = set()
+    all_near_conflict_hashes: set[int] = set()
     for partition in ("training", "calibration", "final_test", "ood_test"):
         X_parts, y_parts, time_parts, hash_parts, near_parts, capture_parts = [], [], [], [], [], []
         removed_exact = 0
         removed_near = 0
+        removed_exact_same_label = 0
+        removed_exact_conflicting_label = 0
+        removed_near_same_label = 0
+        removed_near_conflicting_label = 0
+        exact_conflict_hashes: set[int] = set()
+        near_conflict_hashes: set[int] = set()
         for capture in sorted(by_partition[partition], key=lambda row: row["capture_id"]):
+            derived = capture.get("derived", {})
+            if derived.get("feature_hash_schema_version") != FEATURE_HASH_SCHEMA_VERSION:
+                raise IntegrityError(
+                    f"capture {capture.get('capture_id')} lacks v2 feature hashes"
+                )
+            if derived.get("label_included_in_feature_hash") is not False:
+                raise IntegrityError(
+                    f"capture {capture.get('capture_id')} feature hashes include labels"
+                )
             with np.load(capture["derived"]["path"], allow_pickle=False) as data:
                 X = data["X"]
                 y = data["y"].astype("U32")
                 timestamps = data["timestamps"]
                 hashes = data["row_hashes"]
                 near = data["near_hashes"]
+                expected_hashes, expected_near = canonical_feature_hashes(X)
+                if not np.array_equal(hashes, expected_hashes) or not np.array_equal(
+                    near, expected_near
+                ):
+                    raise IntegrityError(
+                        f"capture {capture.get('capture_id')} feature hashes do not "
+                        "match its canonical feature rows"
+                    )
                 keep = np.ones(len(y), dtype=bool)
-                for index, (exact_value, near_value) in enumerate(zip(hashes, near)):
+                for index, (exact_value, near_value, label_value) in enumerate(
+                    zip(hashes, near, y)
+                ):
                     exact_int, near_int = int(exact_value), int(near_value)
-                    if exact_int in seen_exact:
+                    label = str(label_value)
+                    exact_labels = seen_exact.get(exact_int)
+                    near_labels = seen_near.get(near_int)
+                    if exact_labels:
                         keep[index] = False
                         removed_exact += 1
-                    elif near_int in seen_near:
+                        if exact_labels - {label}:
+                            removed_exact_conflicting_label += 1
+                            exact_conflict_hashes.add(exact_int)
+                            all_exact_conflict_hashes.add(exact_int)
+                        else:
+                            removed_exact_same_label += 1
+                    elif near_labels:
                         keep[index] = False
                         removed_near += 1
-                    else:
-                        seen_exact.add(exact_int)
-                        seen_near.add(near_int)
+                        if near_labels - {label}:
+                            removed_near_conflicting_label += 1
+                            near_conflict_hashes.add(near_int)
+                            all_near_conflict_hashes.add(near_int)
+                        else:
+                            removed_near_same_label += 1
+                    # Track labels from every source row, including rejected
+                    # duplicates, so later conflicts cannot be hidden.
+                    seen_exact.setdefault(exact_int, set()).add(label)
+                    seen_near.setdefault(near_int, set()).add(label)
                 X_parts.append(X[keep])
                 y_parts.append(y[keep])
                 time_parts.append(timestamps[keep])
@@ -110,7 +173,24 @@ def _load_partitions(audit_path: Path) -> tuple[dict[str, dict], dict]:
             "capture_ids": np.concatenate(capture_parts),
             "removed_exact_overlap": removed_exact,
             "removed_near_overlap": removed_near,
+            "removed_exact_same_label": removed_exact_same_label,
+            "removed_exact_conflicting_label": removed_exact_conflicting_label,
+            "removed_near_same_label": removed_near_same_label,
+            "removed_near_conflicting_label": removed_near_conflicting_label,
+            "exact_conflicting_label_feature_groups": len(exact_conflict_hashes),
+            "near_conflicting_label_feature_groups": len(near_conflict_hashes),
         }
+    audit = {
+        **audit,
+        "candidate_deduplication": {
+            "exact_conflicting_label_feature_groups": len(
+                all_exact_conflict_hashes
+            ),
+            "near_conflicting_label_feature_groups": len(
+                all_near_conflict_hashes
+            ),
+        },
+    }
     return result, audit
 
 
@@ -189,6 +269,53 @@ def _binary_metrics(y_true, predicted_attack) -> dict:
         "f1": 2 * precision * recall / max(precision + recall, 1e-12),
         "benign_false_positive_rate": fp / max(fp + tn, 1),
         "false_positives_per_10000_benign": fp / max(fp + tn, 1) * 10_000,
+    }
+
+
+def _pipeline_v2_routes(
+    labels: np.ndarray,
+    confidences: np.ndarray,
+    *,
+    classifier_threshold: float,
+    statistical_flags: np.ndarray,
+    autoencoder_flags: np.ndarray,
+) -> dict[str, np.ndarray]:
+    """Apply the serving/shadow Pipeline v2 routing rule without fitting.
+
+    All three input signal arrays must already have been computed for every
+    row. Statistical and autoencoder evidence can request review, but neither
+    can prevent a row from reaching the known-attack classifier.
+    """
+    labels = np.asarray(labels).astype("U64")
+    confidences = np.asarray(confidences, dtype=float)
+    statistical_flags = np.asarray(statistical_flags, dtype=bool)
+    autoencoder_flags = np.asarray(autoencoder_flags, dtype=bool)
+    lengths = {
+        len(labels), len(confidences), len(statistical_flags),
+        len(autoencoder_flags),
+    }
+    if len(lengths) != 1:
+        raise ValueError("Pipeline v2 signal arrays must have identical lengths")
+
+    non_benign = np.char.lower(labels) != "benign"
+    known_attack = non_benign & (confidences >= classifier_threshold)
+    human_review = non_benign & ~known_attack
+    unknown_review = ~non_benign & (statistical_flags | autoencoder_flags)
+    routes = np.full(len(labels), "benign", dtype="U32")
+    routes[human_review] = "human_review"
+    routes[unknown_review] = "unknown_anomaly_review"
+    routes[known_attack] = "known_attack"
+    verdicts = np.full(len(labels), "Benign", dtype="U64")
+    verdicts[human_review] = labels[human_review]
+    verdicts[unknown_review] = "Unknown Anomaly"
+    verdicts[known_attack] = labels[known_attack]
+    return {
+        "routes": routes,
+        "verdicts": verdicts,
+        "known_attack": known_attack,
+        "human_review": human_review,
+        "unknown_anomaly_review": unknown_review,
+        "actionable": known_attack | human_review | unknown_review,
     }
 
 
@@ -273,20 +400,17 @@ def _benchmark(norm, stat, clf, ae, X_raw) -> dict:
         durations["normalizer"].append(time.perf_counter() - stage_start)
         processed["normalizer"] += len(raw)
         stage_start = time.perf_counter()
-        mask = stat.filter_batch(X)
+        stat.z_scores_batch(X)
         durations["statistical"].append(time.perf_counter() - stage_start)
         processed["statistical"] += len(raw)
-        subset = X[mask]
         stage_start = time.perf_counter()
-        if len(subset):
-            clf.predict_batch(subset)
+        clf.predict_batch(X)
         durations["classifier"].append(time.perf_counter() - stage_start)
-        processed["classifier"] += len(subset)
+        processed["classifier"] += len(X)
         stage_start = time.perf_counter()
-        if len(subset):
-            ae.score_batch(subset)
+        ae.score_batch(X)
         durations["autoencoder"].append(time.perf_counter() - stage_start)
-        processed["autoencoder"] += len(subset)
+        processed["autoencoder"] += len(X)
         durations["complete_pipeline"].append(time.perf_counter() - total_start)
         processed["complete_pipeline"] += len(raw)
     result = {}
@@ -363,47 +487,81 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
     classifier_metrics = _classification_metrics(
         final["y"], final_labels, final_prob, list(clf.classes_)
     )
-    final_stat = stat.filter_batch(X_final)
+    final_z = stat.max_z_scores(X_final)
+    final_stat = final_z > stat.threshold
     final_ae_errors = ae.score_batch(X_final)
+    final_ae = final_ae_errors > ae.threshold
     final_iso = iso.predict(X_final) == -1
-    accepted = final_stat & (final_labels != "Benign") & (
+    final_routes = _pipeline_v2_routes(
+        final_labels,
+        final_conf,
+        classifier_threshold=clf.confidence_threshold,
+        statistical_flags=final_stat,
+        autoencoder_flags=final_ae,
+    )
+    pipeline_class_metrics = _classification_metrics(
+        final["y"], final_routes["verdicts"], final_prob, list(clf.classes_)
+    )
+    pipeline_class_metrics["pr_auc_signal"] = (
+        "known-attack classifier probabilities; anomaly review routes do not "
+        "invent per-class probabilities"
+    )
+    classifier_attack = (final_labels != "Benign") & (
         final_conf >= clf.confidence_threshold
     )
-    review = final_stat & ~accepted & (
-        (final_ae_errors > ae.threshold) | (final_labels != "Benign")
-    )
-    pipeline_attack = accepted | review
+    pipeline_attack = final_routes["actionable"]
     final_binary = {
         "pipeline": _binary_metrics(final["y"], pipeline_attack),
+        "classifier": _binary_metrics(final["y"], classifier_attack),
         "statistical": _binary_metrics(final["y"], final_stat),
         "isolation_forest": _binary_metrics(final["y"], final_iso),
-        "autoencoder": _binary_metrics(final["y"], final_ae_errors > ae.threshold),
+        "autoencoder": _binary_metrics(final["y"], final_ae),
     }
 
     known_attack = final["y"] != "Benign"
+    route_counts = dict(Counter(final_routes["routes"].tolist()))
+    review_mask = (
+        final_routes["human_review"] | final_routes["unknown_anomaly_review"]
+    )
     routing = {
-        "known_attack_correct_classifier_bypass": int(
-            (accepted & (final_labels == final["y"]) & known_attack).sum()
+        "schema_version": ROUTING_V2_SCHEMA_VERSION,
+        "counts": route_counts,
+        "classifier_rows": int(len(final_labels)),
+        "validated_rows": int(len(X_final)),
+        "classifier_received_every_validated_row": bool(
+            len(final_labels) == len(X_final)
+        ),
+        "known_attack_correct": int(
+            (final_routes["known_attack"] & (final_labels == final["y"]) & known_attack).sum()
         ),
         "known_attack_total": int(known_attack.sum()),
-        "review_rows": int(review.sum()),
-        "classifier_accept_rows": int(accepted.sum()),
-        "benign_review_rows": int((review & ~known_attack).sum()),
+        "review_rows": int(review_mask.sum()),
+        "review_rate": float(review_mask.mean()),
+        "classifier_accept_rows": int(final_routes["known_attack"].sum()),
+        "benign_review_rows": int((review_mask & ~known_attack).sum()),
+        "unknown_anomaly_review_rows": int(
+            final_routes["unknown_anomaly_review"].sum()
+        ),
     }
 
     ood_labels, ood_conf = clf.predict_batch(X_ood)
-    ood_stat = stat.filter_batch(X_ood)
+    ood_stat = stat.max_z_scores(X_ood) > stat.threshold
     ood_ae_errors = ae.score_batch(X_ood)
     ood_iso_score = -iso.decision_function(X_ood)
     cal_iso_score = -iso.decision_function(X_cal[calibration_benign])
     cal_z = stat.max_z_scores(X_cal[calibration_benign])
     ood_z = stat.max_z_scores(X_ood)
-    high_conf_ood = ood_stat & (ood_labels != "Benign") & (
+    high_conf_ood = (ood_labels != "Benign") & (
         ood_conf >= clf.confidence_threshold
     )
-    ood_review = ood_stat & ~high_conf_ood & (
-        (ood_ae_errors > ae.threshold) | (ood_labels != "Benign")
+    ood_routes = _pipeline_v2_routes(
+        ood_labels,
+        ood_conf,
+        classifier_threshold=clf.confidence_threshold,
+        statistical_flags=ood_stat,
+        autoencoder_flags=ood_ae_errors > ae.threshold,
     )
+    ood_review = ood_routes["human_review"] | ood_routes["unknown_anomaly_review"]
     negative_ae = final_ae_errors[final["y"] == "Benign"]
     negative_iso = -iso.decision_function(X_final[final["y"] == "Benign"])
     negative_z = stat.max_z_scores(X_final[final["y"] == "Benign"])
@@ -442,6 +600,12 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
     output_dir.mkdir(parents=True, exist_ok=False)
     split_arrays = {}
     split_summary = {}
+    duplicate_conflicts = {
+        "exact_conflicting_label_rows": 0,
+        "near_conflicting_label_rows": 0,
+        "exact_conflicting_label_feature_groups": 0,
+        "near_conflicting_label_feature_groups": 0,
+    }
     for name, part in partitions.items():
         split_arrays[name + "_row_hashes"] = part["row_hashes"]
         split_arrays[name + "_near_hashes"] = part["near_hashes"]
@@ -453,14 +617,50 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
             "near_hash_sha256": hashlib.sha256(part["near_hashes"].tobytes()).hexdigest(),
             "removed_exact_overlap": part["removed_exact_overlap"],
             "removed_near_overlap": part["removed_near_overlap"],
+            "removed_exact_same_label": part["removed_exact_same_label"],
+            "removed_exact_conflicting_label": part[
+                "removed_exact_conflicting_label"
+            ],
+            "removed_near_same_label": part["removed_near_same_label"],
+            "removed_near_conflicting_label": part[
+                "removed_near_conflicting_label"
+            ],
+            "exact_conflicting_label_feature_groups": part[
+                "exact_conflicting_label_feature_groups"
+            ],
+            "near_conflicting_label_feature_groups": part[
+                "near_conflicting_label_feature_groups"
+            ],
         }
+        duplicate_conflicts["exact_conflicting_label_rows"] += part[
+            "removed_exact_conflicting_label"
+        ]
+        duplicate_conflicts["near_conflicting_label_rows"] += part[
+            "removed_near_conflicting_label"
+        ]
+    duplicate_conflicts["exact_conflicting_label_feature_groups"] = int(
+        audit["candidate_deduplication"][
+            "exact_conflicting_label_feature_groups"
+        ]
+    )
+    duplicate_conflicts["near_conflicting_label_feature_groups"] = int(
+        audit["candidate_deduplication"][
+            "near_conflicting_label_feature_groups"
+        ]
+    )
     split_path = output_dir / "split_manifest.npz"
     np.savez_compressed(split_path, **split_arrays)
     split_manifest = {
-        "schema_version": "cyberguard-split-manifest-v1",
+        "schema_version": "cyberguard-split-manifest-v2",
+        "feature_hash_schema_version": FEATURE_HASH_SCHEMA_VERSION,
+        "label_included_in_feature_hash": False,
         "seed": SEED,
         "precedence": ["training", "calibration", "final_test", "ood_test"],
-        "deduplication": "exact and log-rounded near hash removed globally before fitting",
+        "deduplication": (
+            "feature-only exact and log-rounded near hashes removed globally before fitting; "
+            "labels tracked separately and conflicts fail quality gates"
+        ),
+        "duplicate_conflicts": duplicate_conflicts,
         "partitions": split_summary,
         "npz_sha256": sha256_file(split_path),
     }
@@ -482,6 +682,7 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
         "rows": int(len(ood["y"])),
         "high_confidence_known_mislabel_rate": float(high_conf_ood.mean()),
         "review_route_rate": float(ood_review.mean()),
+        "routing_counts": dict(Counter(ood_routes["routes"].tolist())),
         "ablation": ood_ablation,
         "ensemble_retained": ensemble_kept,
         "ensemble_rule": "max of calibrated anomaly signals" if ensemble_kept else "not added; no AUROC gain over best single signal",
@@ -497,8 +698,24 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
     }
 
     supports = [row["support"] for row in classifier_metrics["per_class"].values()]
+    trained_supported_labels = sorted(str(label) for label in clf.classes_)
+    final_evaluated_labels = set(map(str, np.unique(final["y"])))
+    all_evaluated_labels = final_evaluated_labels | set(map(str, np.unique(ood["y"])))
+    coverage_contract = {
+        "schema_version": COVERAGE_CONTRACT_VERSION,
+        "trained_supported_labels": trained_supported_labels,
+        "evaluated_labels": sorted(all_evaluated_labels),
+        "ood_only_labels": sorted(
+            all_evaluated_labels - set(trained_supported_labels)
+        ),
+        "unsupported_labels": sorted(
+            set(CLASSES) - all_evaluated_labels - set(trained_supported_labels)
+        ),
+        "telemetry_profile": "cse-cic-ids2018-cicflowmeter-v3-derived-v2",
+    }
     pre_gate_payload = {
         "classifier": classifier_metrics,
+        "pipeline_known_label_classification": pipeline_class_metrics,
         "binary": final_binary,
         "ood": ood_metrics,
         "autoencoder": autoencoder_metrics,
@@ -522,13 +739,33 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
             classifier_metrics["expected_calibration_error_10_bin"] <= 0.10
         ),
         "all_results_finite": _all_finite(pre_gate_payload),
+        "no_exact_or_near_conflicting_label_duplicates": not any(
+            duplicate_conflicts.values()
+        ),
+        "all_supported_labels_independently_evaluated": (
+            set(trained_supported_labels) <= final_evaluated_labels
+        ),
     }
     status = "shadow_only_not_promoted" if all(gate_results.values()) else "failed_gates"
     peak_vram = int(torch.cuda.max_memory_allocated()) if torch.cuda.is_available() else 0
     results = {
-        "schema_version": "cyberguard-candidate-metrics-v1",
+        "schema_version": "cyberguard-candidate-metrics-v2",
         "candidate_status": status,
         "production_approved": False,
+        "coverage_contract": coverage_contract,
+        "pipeline_version": PIPELINE_V2_VERSION,
+        "routing_schema_version": ROUTING_V2_SCHEMA_VERSION,
+        "routing_calibration": {
+            "known_attack_confidence_threshold": clf.confidence_threshold,
+            "statistical_anomaly_threshold": stat.threshold,
+            "autoencoder_error_threshold": ae.threshold,
+            "calibration_source": "capture-disjoint calibration partition only",
+            "calibration_dataset_hashes": {
+                capture["capture_id"]: capture["sha256"]
+                for capture in audit["captures"]
+                if capture["intended_partition"] == "calibration"
+            },
+        },
         "quality_gates_declared_before_final": {
             "minimum_final_rows": MIN_FINAL_ROWS,
             "minimum_independent_class_support": MIN_CLASS_SUPPORT,
@@ -539,6 +776,7 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
         },
         "quality_gate_results": gate_results,
         "classifier": classifier_metrics,
+        "pipeline_known_label_classification": pipeline_class_metrics,
         "binary_attack_vs_benign": final_binary,
         "routing": routing,
         "ood": ood_metrics,
@@ -561,7 +799,7 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
         "limitations": [
             "Numerical flow features do not inspect SQL/XSS payload text.",
             "CSE-CIC-IDS2018 is controlled testbed traffic, not current production telemetry.",
-            "BruteForce and DDoS were held out and are not supervised classifier classes.",
+            "Supported, evaluated, OOD-only, and unsupported labels are limited to the coverage contract.",
             "Checksum provenance is locally observed because the publisher did not publish SHA-256.",
             "Joblib classifier/scaler artifacts remain executable formats protected by a private checksum manifest."
         ],
@@ -612,6 +850,21 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
         },
         reproducibility=reproducibility,
         candidate_status=status,
+        coverage_contract=coverage_contract,
+        pipeline_version=PIPELINE_V2_VERSION,
+        routing_schema_version=ROUTING_V2_SCHEMA_VERSION,
+        routing_calibration={
+            "known_attack_confidence_threshold": clf.confidence_threshold,
+            "statistical_anomaly_threshold": stat.threshold,
+            "autoencoder_error_threshold": ae.threshold,
+            "calibration_source": "capture-disjoint calibration partition only",
+            "calibration_dataset_hashes": {
+                capture["capture_id"]: capture["sha256"]
+                for capture in audit["captures"]
+                if capture["intended_partition"] == "calibration"
+            },
+        },
+        evaluation_only=True,
     )
     return results
 

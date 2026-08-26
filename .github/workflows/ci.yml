@@ -1,0 +1,71 @@
+name: verification
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONHASHSEED: "0"
+      OMP_NUM_THREADS: "2"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            requirements.lock
+
+      - name: Install exact-pinned dependencies
+        run: python -m pip install --requirement requirements-dev.txt
+
+      - name: Verify dependency consistency
+        run: python -m pip check
+
+      - name: Validate committed deterministic fixture
+        run: |
+          python -m cyberguard.datasets.generate_sample --check
+          python -c "from backend.config import BASE_DIR; from backend.detection.integrity import validate_dataset_manifest; items = validate_dataset_manifest(BASE_DIR / 'cyberguard/datasets/manifest.json', BASE_DIR); assert len(items) == 1 and items[0]['training_approved'] is False"
+
+      - name: Run unit and integration tests
+        run: python -m pytest -q
+
+      - name: Run repository verification gate
+        run: python verify.py
+
+      - name: Check Python syntax
+        run: python -m compileall -q backend cyberguard tests verify.py
+
+      - name: Set up Node.js for JavaScript syntax checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check JavaScript syntax
+        run: |
+          for file in frontend/js/*.js; do
+            node --check "$file"
+          done
+
+      - name: Run Bandit
+        run: python -m bandit -r backend cyberguard -x '*/tests/*' -f txt
+
+      - name: Audit installed dependencies
+        run: python -m pip_audit --local --progress-spinner off

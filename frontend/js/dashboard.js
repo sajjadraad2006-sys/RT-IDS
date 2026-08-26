@@ -26,7 +26,7 @@
     T1041: "Exfiltration Over C2 Channel — data theft",
     T1020: "Automated Exfiltration — scheduled data leak",
     T1048: "Exfiltration Over Alternative Protocol",
-    T1203: "Exploitation for Client Execution — zero-day",
+    T1203: "Exploitation for Client Execution",
     T1068: "Exploitation for Privilege Escalation",
     T1212: "Exploitation for Credential Access",
     "T1499.002": "Service Exhaustion Flood",
@@ -39,11 +39,12 @@
 
   /* ---------- KPIs ---------- */
   function paintKpis() {
-    const threats = ALERTS.filter((a) => a.stage === "classifier").length;
-    const zd = ALERTS.filter((a) => a.stage === "autoencoder").length;
+    const threats = ALERTS.filter((a) => a.route === "known_attack").length;
+    const unknown = ALERTS.filter((a) =>
+      a.route === "unknown_anomaly_review" || a.type === "unknown-anomaly").length;
     animateNum(document.getElementById("kpi-flows"), flowsTotal);
     animateNum(document.getElementById("kpi-threats"), threats);
-    animateNum(document.getElementById("kpi-zeroday"), zd);
+    animateNum(document.getElementById("kpi-unknown"), unknown);
     document.getElementById("kpi-throughput").textContent =
       throughput ? CG.util.fmtNum(throughput) : "—";
   }
@@ -70,11 +71,13 @@
     };
     for (const [stage, n] of Object.entries(c)) {
       const el = document.getElementById("count-" + stage);
-      if (el) el.textContent = CG.util.fmtNum(n) + (stage === "extract" ? " flows" : " flagged");
+      if (el) el.textContent = CG.util.fmtNum(n) + (
+        stage === "extract" ? " flows" : stage === "classifier" ? " flows evaluated" : " signals"
+      );
     }
     document.getElementById("pipeline-note").textContent = stats
-      ? `measured drop rate ${Number(stats.drop_rate_pct || 0).toFixed(1)}% · mean latency ${Number(stats.mean_latency_ms || 0).toFixed(3)} ms/flow`
-      : "upload a log file to measure this pipeline";
+      ? `per-upload mean latency ${Number(stats.mean_latency_ms || 0).toFixed(3)} ms/flow · review rate ${Number(stats.review_rate_pct || 0).toFixed(1)}%`
+      : "upload supported flow records to measure this offline analysis";
   }
 
   function flashStage(stage, alert) {
@@ -108,11 +111,11 @@
     CG.charts.histogram(document.getElementById("chart-anomaly"),
       scores.length ? scores : [0.05, 0.09, 0.12, 0.2, 0.5, 0.9, 1.4], 0.45);
 
-    const fi = featureImportance || [
+    const fi = featureImportance || (CG.api.mode === "demo" ? [
       ["packets_per_sec", .21], ["syn_flag_count", .17], ["flow_duration", .13],
       ["bytes_per_sec", .11], ["iat_mean", .09], ["init_win_bytes_fwd", .08],
       ["packet_length_std", .07], ["flow_bytes_ratio", .06],
-    ];
+    ] : []);
     CG.charts.hbars(document.getElementById("chart-importance"), fi);
   }
 
@@ -131,7 +134,7 @@
         <td><span class="stage-tag">${a.stage}</span></td>
         <td class="mono">${a.confidence ? (a.confidence * 100).toFixed(1) + "%" : "—"}</td>
         <td class="mono">${a.anomaly_score || "—"}</td>
-        <td>${a.mitre_techniques.map((t) => `<span class="tech-tag">${t}</span>`).join("")}</td>
+        <td>${(a.mitre_techniques || []).map((t) => `<span class="tech-tag">${CG.util.esc(t)}</span>`).join("")}</td>
         <td class="mono">${a.latency_ms} ms</td>
       </tr>`).join("");
 
@@ -174,14 +177,14 @@
 
     // Top features
     const featEl = document.getElementById("modal-features");
-    const topFeats = alert.top_features || [
-      ["packets_per_sec", .83], ["syn_flag_count", .71], ["flow_duration", .64],
-      ["bytes_per_sec", .52], ["flow_bytes_ratio", .38],
-    ];
+    const topFeats = alert.top_features || [];
+    if (!topFeats.length) {
+      featEl.innerHTML = `<p class="text-muted">No persisted feature evidence is available for this alert.</p>`;
+    }
     const maxFeat = Math.max(...topFeats.map(f => f[1]), 0.01);
-    featEl.innerHTML = topFeats.map(([name, val]) => `
+    if (topFeats.length) featEl.innerHTML = topFeats.map(([name, val]) => `
       <div class="modal-feat-bar">
-        <span class="feat-name">${name}</span>
+        <span class="feat-name">${CG.util.esc(name)}</span>
         <div class="feat-track"><div class="feat-fill" style="width:${(val/maxFeat*100).toFixed(0)}%"></div></div>
         <span class="feat-val">${val.toFixed(3)}</span>
       </div>`).join("");
@@ -190,15 +193,15 @@
     const mitreEl = document.getElementById("modal-mitre");
     if (alert.mitre_techniques && alert.mitre_techniques.length) {
       mitreEl.innerHTML = alert.mitre_techniques.map(t =>
-        `<div style="margin:6px 0"><span class="tech-tag">${t}</span> <span style="color:var(--text-2);font-size:.82rem;margin-left:8px">${TECH_DESC[t] || "MITRE ATT&CK technique"}</span></div>`
-      ).join("") + `<p style="margin-top:12px;font-size:.82rem;color:var(--text-3)">View full details in the MITRE ATT&CK browser tab.</p>`;
+        `<div style="margin:6px 0"><span class="tech-tag">${CG.util.esc(t)}</span> <span style="color:var(--text-2);font-size:.82rem;margin-left:8px">${CG.util.esc(TECH_DESC[t] || "ATT&CK technique")}</span></div>`
+      ).join("") + `<p style="margin-top:12px;font-size:.82rem;color:var(--text-3)">Possible techniques based on the classifier label. This is a heuristic hypothesis, not observed attacker behavior.</p>`;
     } else {
-      mitreEl.innerHTML = `<p class="text-muted">No MITRE techniques mapped for this alert type.</p>`;
+      mitreEl.innerHTML = `<p class="text-muted">No candidate ATT&amp;CK technique. Unknown-anomaly evidence never invents a technique.</p>`;
     }
 
     // Reset explanation
     document.getElementById("modal-explanation").innerHTML =
-      `<p class="text-muted">Click "Explain with AI" to get an AI analysis of this pipeline verdict.</p>`;
+      `<p class="text-muted">Click "Explain with AI" for an advisory analysis of this bounded model evidence.</p>`;
 
     // Show modal
     modal.hidden = false;
@@ -233,12 +236,12 @@
         const a = currentAlert;
         const techs = (a.mitre_techniques || []).join(", ");
         const explanation = a.stage === "autoencoder"
-          ? `#### Unknown Anomaly Analysis\nThe autoencoder's reconstruction error (**${a.anomaly_score}**) exceeded its held-out benign threshold. This is an anomaly signal, not proof of an exploit or a zero-day.\n\n**Key observations:**\n- The flow deviated from the learned benign distribution\n- The classifier abstained from a high-confidence known label\n- No MITRE technique can be inferred from reconstruction error alone\n\n**Recommended review:**\n1. Correlate with trusted packet capture and endpoint telemetry\n2. Check adjacent flows and asset context\n3. Escalate only when independent evidence supports it`
-          : `#### ${a.type} Detection Analysis\nThe XGBoost classifier identified this flow as **${a.type}** with **${(a.confidence*100).toFixed(1)}%** confidence (stage: ${a.stage}).\n\n**Detection path:**\n1. Stage 1 extracted 32 numeric features from the raw flow\n2. Stage 2 Z-score filter flagged statistical anomalies\n3. Stage 3 classifier matched known ${a.type} signatures\n\n**MITRE ATT&CK context:**\nThis maps to techniques: ${techs || "none mapped"}\n\n**Containment guidance:**\n- Block the source at the perimeter firewall\n- Rate-limit similar traffic patterns\n- Monitor for follow-up reconnaissance activity\n- Review correlated alerts in the same time window`;
+          ? `#### Unknown Anomaly Analysis\nThe autoencoder reconstruction score (**${a.anomaly_score}**) is an independent unknown-behavior signal. It does not identify an exploit or ATT&CK technique.\n\n**Recommended review:**\n1. Correlate with separately authorized telemetry\n2. Check adjacent flows and asset context\n3. Escalate only when independent evidence supports it`
+          : `#### ${a.type} Model Evidence\nThe classifier labeled this validated flow **${a.type}** with **${(a.confidence*100).toFixed(1)}%** confidence. Pipeline v2 evaluates every accepted row; statistical and OOD components contribute independent evidence.\n\n**Candidate ATT&CK context:**\nPossible techniques based on the label: ${techs || "none"}. This is not observed behavior.\n\n**Advisory next steps:**\n- Validate against independent telemetry\n- Review correlated flows in the same time window\n- Apply any response only through an approved human-controlled process`;
         expEl.innerHTML = CG.util.md(explanation);
       }
     } catch (err) {
-      expEl.innerHTML = `<p style="color:var(--red)">LLM unavailable: ${CG.util.esc(err.message)}. The detection verdict is deterministic — this explanation is optional.</p>`;
+      expEl.innerHTML = `<p style="color:var(--red)">LLM unavailable: ${CG.util.esc(err.message)}. Detection continues; this advisory explanation is optional.</p>`;
     } finally {
       btn.disabled = false;
       btn.innerHTML = `<svg><use href="#i-bolt"/></svg>Explain with AI`;
@@ -269,6 +272,50 @@
     CG.util.toast(`Exported ${ALERTS.length} alerts to CSV.`);
   });
 
+  function paintUploadReport(res) {
+    const panel = document.getElementById("upload-report");
+    const schema = res.schema_validation || res.schema_report || {};
+    const counts = res.counts || {};
+    const pickCount = (name, fallback = 0) => res[name] ?? counts[name] ?? fallback;
+    const invalidRaw = schema.invalid_numeric_cell_counts ?? schema.invalid_numeric_cells ?? 0;
+    const invalidCells = typeof invalidRaw === "object"
+      ? Object.values(invalidRaw).reduce((sum, value) => sum + Number(value || 0), 0)
+      : Number(invalidRaw || 0);
+    const warnings = [
+      ...(Array.isArray(schema.warnings) ? schema.warnings : []),
+      ...(schema.missing_required_features?.length
+        ? [`Missing required features: ${schema.missing_required_features.join(", ")}`]
+        : []),
+      ...(schema.alias_conflicts && Object.keys(schema.alias_conflicts).length
+        ? [`Alias conflicts reported: ${Object.keys(schema.alias_conflicts).length}`]
+        : []),
+    ];
+    const coverageRaw = schema.feature_coverage_percentage ?? schema.coverage_percentage;
+    const coverage = res.demo || coverageRaw == null
+      ? "not validated"
+      : `${Number(coverageRaw).toFixed(1)}%`;
+    const profile = schema.detected_input_profile || schema.detected_profile || schema.input_profile || "unknown";
+    const returned = pickCount("alerts_returned", res.alerts?.length || 0);
+    const generated = pickCount("alerts_generated", res.total_alerts || returned);
+    const persisted = pickCount("alerts_persisted", res.smart_logs_created || 0);
+    panel.hidden = false;
+    panel.innerHTML = `
+      <h3>Upload schema, processing, and caps</h3>
+      <dl class="upload-report-grid">
+        <div><dt>Input profile</dt><dd>${CG.util.esc(profile)}</dd></div>
+        <div><dt>Feature coverage</dt><dd>${CG.util.esc(coverage)}</dd></div>
+        <div><dt>Parsed</dt><dd>${CG.util.fmtNum(pickCount("total_parsed", res.flows || 0))}</dd></div>
+        <div><dt>Accepted / rejected</dt><dd>${CG.util.fmtNum(pickCount("accepted", res.flows || 0))} / ${CG.util.fmtNum(pickCount("rejected", schema.rows_rejected || 0))}</dd></div>
+        <div><dt>Analyzed</dt><dd>${CG.util.fmtNum(pickCount("analyzed", res.flows || 0))}</dd></div>
+        <div><dt>Invalid numeric cells</dt><dd>${CG.util.fmtNum(invalidCells)}</dd></div>
+        <div><dt>Alerts generated / returned</dt><dd>${CG.util.fmtNum(generated)} / ${CG.util.fmtNum(returned)}</dd></div>
+        <div><dt>Alerts persisted</dt><dd>${CG.util.fmtNum(persisted)}</dd></div>
+      </dl>
+      <p class="upload-warnings">${warnings.length
+        ? warnings.map((warning) => CG.util.esc(warning)).join(" · ")
+        : "No schema warnings reported. Returned and persisted alert counts remain explicit above."}</p>`;
+  }
+
   /* ---------- upload ---------- */
   const input = document.getElementById("upload-input");
   document.getElementById("btn-upload").addEventListener("click", () => input.click());
@@ -276,8 +323,8 @@
     const file = input.files[0];
     input.value = "";
     if (!file) return;
-    if (!/\.(csv|json|log|txt|tsv|dat)$/i.test(file.name) && file.name.includes(".")) {
-      CG.util.toast("Supported formats: .csv, .json, .log, .txt, .tsv, .dat");
+    if (!/\.(csv|tsv|json|ndjson|jsonl)$/i.test(file.name)) {
+      CG.util.toast("Supported formats: headered .csv/.tsv, JSON objects/arrays, or .ndjson/.jsonl");
       return;
     }
     const sizeMB = (file.size / 1024 / 1024).toFixed(1);
@@ -285,10 +332,10 @@
     CG.util.toast(
       isLarge
         ? `Uploading ${file.name} (${sizeMB} MB) — large file, this may take a few minutes…`
-        : `Analyzing ${file.name} (${sizeMB} MB) through the 4-stage pipeline…`
+        : `Validating and analyzing ${file.name} (${sizeMB} MB) as uploaded flow records…`
     );
     // animate stages in sequence while the request runs
-    ["extract", "statistical", "classifier", "autoencoder"].forEach((s, i) =>
+    ["extract", "classifier", "statistical", "autoencoder"].forEach((s, i) =>
       setTimeout(() => flashStage(s, false), 250 + i * 350));
     try {
       const res = await CG.api.upload(file);
@@ -298,21 +345,38 @@
       paintKpis();
       paintPipeline({
         extract: res.flows,
-        statistical: res.stage_counts.statistical,
-        classifier: res.stage_counts.classifier,
-        autoencoder: res.stage_counts.autoencoder,
+        statistical: res.evidence_signal_counts?.statistical ?? res.stage_counts.statistical,
+        classifier: res.analyzed ?? res.flows,
+        autoencoder: res.evidence_signal_counts?.autoencoder ?? res.stage_counts.autoencoder,
       }, res.pipeline_stats);
       paintCharts(res.feature_importance);
       paintAlerts();
+      paintUploadReport(res);
       flashStage("classifier", true);
       setTimeout(() => flashStage("autoencoder", true), 500);
-      const totalAlerts = res.total_alerts || res.alerts.length;
-      const cappedNote = res.alerts_capped ? ` (showing ${res.alerts.length} of ${totalAlerts})` : "";
+      const totalAlerts = res.alerts_generated ?? res.total_alerts ?? res.alerts.length;
+      const returned = res.alerts_returned ?? res.alerts.length;
+      const persisted = res.alerts_persisted ?? res.smart_logs_created ?? 0;
+      const cappedNote = res.alerts_capped ? ` (returned ${returned} of ${totalAlerts}; persisted ${persisted})` : ` (persisted ${persisted})`;
       const elapsed = res.elapsed_seconds ? ` in ${res.elapsed_seconds}s` : "";
       CG.util.toast(
         `${file.name}: ${CG.util.fmtNum(res.flows)} flows → ${CG.util.fmtNum(totalAlerts)} alerts${cappedNote} · ` +
-        `${CG.util.fmtNum(res.throughput_rps)} rec/s${elapsed} · ${CG.api.mode === "demo" ? "demo simulation" : "live pipeline"}`);
+        `${CG.util.fmtNum(res.throughput_rps)} rec/s${elapsed} · ${CG.api.mode === "demo" ? "demo simulation" : "offline backend analysis"}`);
     } catch (e) {
+      const schema = e.detail?.schema_validation;
+      if (schema) {
+        paintUploadReport({
+          schema_validation: schema,
+          total_parsed: schema.total_parsed || 0,
+          accepted: schema.usable_row_count || 0,
+          rejected: schema.rows_rejected || 0,
+          analyzed: 0,
+          alerts_generated: 0,
+          alerts_returned: 0,
+          alerts_persisted: 0,
+          alerts: [],
+        });
+      }
       CG.util.toast("Analysis failed: " + e.message);
     }
   });
@@ -324,16 +388,7 @@
       flowsTotal = CG.api.mode === "demo" ? 2840 : 0;
     }
     const health = await CG.api.pipelineHealth();
-    const engine = document.getElementById("engine-status");
-    const dot = document.getElementById("engine-dot");
-    if (CG.api.mode === "live") {
-      engine.textContent = health.production_approved
-        ? "Production-approved artifacts"
-        : health.integrity_verified
-          ? "Evaluation-only artifacts"
-          : "Pipeline blocked: integrity failure";
-      dot.className = health.production_approved ? "dot dot-ok" : "dot dot-warn";
-    }
+    await CG.util.paintOperationalState(health);
     paintKpis();
     paintPipeline();
     paintCharts();

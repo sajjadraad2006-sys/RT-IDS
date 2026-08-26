@@ -4,10 +4,22 @@
   "feature_schema_hash": "c32ac77083b396b166f55f3de0e515a1a74e887cf374445f7e0d867887a81c3b",
   "code_revision": "legacy-artifacts-inventoried-2026-08-18",
   "production_approved": false,
+  "evaluation_only": true,
+  "pipeline_version": "cyberguard-pipeline-legacy-v1",
+  "routing_schema_version": "cyberguard-routing-legacy-v1",
+  "routing_calibration": {},
   "dataset_hashes": {
     "synthetic-cicids-shape-fixture-large-v1": "4193bbaddda808df3587f5fe0cb2a8d5b5792b7e1caff286a660bef2142c4193"
   },
   "classes": ["Benign", "Bot", "DDoS", "PortScan"],
+  "coverage_contract": {
+    "schema_version": "cyberguard-coverage-contract-v1",
+    "trained_supported_labels": ["Benign", "Bot", "DDoS", "PortScan"],
+    "evaluated_labels": [],
+    "ood_only_labels": [],
+    "unsupported_labels": ["BruteForce", "DoS", "Infiltration", "WebAttack"],
+    "telemetry_profile": "synthetic-fixture-shape-evaluation-only"
+  },
   "classifier": {
     "abstention_threshold": 0.9,
     "threshold_status": "legacy_unvalidated"

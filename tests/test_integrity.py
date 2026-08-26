@@ -13,6 +13,8 @@ from backend.db.init_db import init_application_tables
 from backend.detection.integrity import (
     ARTIFACT_FILENAMES,
     IntegrityError,
+    PIPELINE_V2_VERSION,
+    ROUTING_V2_SCHEMA_VERSION,
     feature_schema_hash,
     validate_artifact_bundle,
     validate_dataset_manifest,
@@ -23,7 +25,10 @@ from backend.detection.trainer import _defensible_split
 def test_bundled_dataset_inventory_is_valid_but_fixture_only():
     manifest = BASE_DIR / "cyberguard/datasets/manifest.json"
     rows = validate_dataset_manifest(manifest, BASE_DIR)
-    assert {item["row_count"] for item in rows} == {2000, 50000}
+    assert {item["row_count"] for item in rows} == {2000}
+    assert {item["id"] for item in rows} == {
+        "synthetic-cicids-shape-fixture-small-v1"
+    }
     assert all(item["training_approved"] is False for item in rows)
     with pytest.raises(IntegrityError, match="fixture-only"):
         validate_dataset_manifest(manifest, BASE_DIR, require_training_approved=True)
@@ -80,7 +85,39 @@ def test_artifact_checksum_is_verified_before_deserialization(tmp_path):
 def test_active_artifact_bundle_is_verified_and_explicitly_not_production():
     metadata = validate_artifact_bundle(TRAINED_DIR)
     assert metadata["production_approved"] is False
+    assert metadata["evaluation_only"] is True
+    assert metadata["pipeline_version"] == "cyberguard-pipeline-legacy-v1"
+    assert metadata["routing_schema_version"] == "cyberguard-routing-legacy-v1"
+    assert metadata["coverage_contract"]["evaluated_labels"] == []
     assert metadata["metrics"]["independent_test_split"] is False
+
+
+def test_pipeline_v2_manifest_without_calibration_fails_closed(tmp_path):
+    artifacts = {}
+    for name in ARTIFACT_FILENAMES:
+        path = tmp_path / name
+        path.write_bytes((name + "-unit").encode())
+        artifacts[name] = {
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "bytes": path.stat().st_size,
+        }
+    manifest = {
+        "schema_version": "cyberguard-artifacts-v1",
+        "feature_schema_hash": feature_schema_hash(),
+        "production_approved": False,
+        "evaluation_only": True,
+        "pipeline_version": PIPELINE_V2_VERSION,
+        "routing_schema_version": ROUTING_V2_SCHEMA_VERSION,
+        "classes": ["Benign"],
+        "classifier": {"abstention_threshold": 0.9},
+        "autoencoder": {"threshold": 1.0},
+        "artifacts": artifacts,
+    }
+    (tmp_path / "artifacts.json").write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
+    with pytest.raises(IntegrityError, match="calibration metadata is missing"):
+        validate_artifact_bundle(tmp_path)
 
 
 def test_split_never_mixes_capture_groups():

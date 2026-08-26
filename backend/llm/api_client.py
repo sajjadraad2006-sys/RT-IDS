@@ -34,7 +34,17 @@ class ApiClient:
             return r.json()["choices"][0]["message"]["content"]
 
     async def health(self) -> dict:
-        """Check API key status (doesn't actually ping the server)."""
-        return {"ok": bool(self.api_key), "model": self.model,
-                "url": self.base_url,
-                "note": "key configured" if self.api_key else "no key stored"}
+        """Report configuration honestly; this check makes no billable API call."""
+        configured = bool(self.api_key and self.model)
+        return {
+            "ok": None,
+            "configured": configured,
+            "status": "configured_not_verified" if configured else "not_configured",
+            "model": self.model or None,
+            "identity_verified": False,
+            "url": self.base_url,
+            "note": (
+                "credentials configured; provider reachability was not tested"
+                if configured else "API key or model is not configured"
+            ),
+        }

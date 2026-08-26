@@ -24,12 +24,20 @@ from .normalizer import Normalizer
 from .statistical import StatisticalFilter
 from .classifier import AttackClassifier
 from .autoencoder import AutoencoderDetector
+from .deduplication import (
+    FEATURE_HASH_SCHEMA_VERSION,
+    canonical_feature_hashes,
+    label_independent_duplicate_analysis,
+)
 from .integrity import (
+    COVERAGE_CONTRACT_VERSION,
+    LEGACY_PIPELINE_VERSION,
+    LEGACY_ROUTING_SCHEMA_VERSION,
     IntegrityError,
     validate_dataset_manifest,
     write_artifact_manifest,
 )
-from ..config import BASE_DIR
+from ..config import BASE_DIR, CLASSES
 
 log = logging.getLogger("cyberguard.trainer")
 
@@ -168,7 +176,6 @@ def load_cicids2017(
     # Normalize labels and reject unknown classes instead of quietly inventing
     # a new model output contract.
     y = df[label_col].astype(str).map(normalize_label).to_numpy()
-    from ..config import CLASSES
     unknown = sorted(set(y) - set(CLASSES))
     if unknown:
         raise IntegrityError(f"unmapped labels in training data: {unknown}")
@@ -195,12 +202,49 @@ def load_cicids2017(
     # Clean infinities and NaN
     X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
 
-    # Exact duplicate flows are removed before any split so identical rows can
-    # never leak across candidate/calibration/test partitions.
-    fingerprints = pd.util.hash_pandas_object(
-        pd.DataFrame(X).assign(__label=y), index=False
-    ).to_numpy()
-    keep = ~pd.Series(fingerprints).duplicated().to_numpy()
+    # Labels are tracked separately from feature hashes. Including the label
+    # here would hide identical feature rows carrying conflicting labels.
+    exact_hashes, near_hashes = canonical_feature_hashes(X)
+    duplicate_analysis = label_independent_duplicate_analysis(
+        exact_hashes, near_hashes, y
+    )
+    seen_exact: dict[int, set[str]] = {}
+    seen_near: dict[int, set[str]] = {}
+    keep = np.ones(len(y), dtype=bool)
+    removed = {
+        "exact_same_label": 0,
+        "exact_conflicting_label": 0,
+        "near_same_label": 0,
+        "near_conflicting_label": 0,
+    }
+    for index, (raw_exact, raw_near, raw_label) in enumerate(
+        zip(exact_hashes, near_hashes, y)
+    ):
+        exact_value, near_value, label = int(raw_exact), int(raw_near), str(raw_label)
+        exact_labels = seen_exact.get(exact_value)
+        near_labels = seen_near.get(near_value)
+        if exact_labels:
+            keep[index] = False
+            key = (
+                "exact_conflicting_label"
+                if exact_labels - {label} else "exact_same_label"
+            )
+            removed[key] += 1
+        elif near_labels:
+            keep[index] = False
+            key = (
+                "near_conflicting_label"
+                if near_labels - {label} else "near_same_label"
+            )
+            removed[key] += 1
+        seen_exact.setdefault(exact_value, set()).add(label)
+        seen_near.setdefault(near_value, set()).add(label)
+
+    if removed["exact_conflicting_label"] or removed["near_conflicting_label"]:
+        raise IntegrityError(
+            "label-conflicting feature duplicates detected before splitting: "
+            + json.dumps(removed, sort_keys=True)
+        )
     duplicate_count = int((~keep).sum())
     X, y, groups, timestamps = X[keep], y[keep], groups[keep], timestamps[keep]
 
@@ -212,6 +256,9 @@ def load_cicids2017(
         "groups": groups,
         "timestamps": timestamps,
         "duplicate_rows_removed": duplicate_count,
+        "duplicate_analysis": duplicate_analysis,
+        "deduplication_removed": removed,
+        "feature_hash_schema_version": FEATURE_HASH_SCHEMA_VERSION,
         "dataset_entries": entries,
     }
 
@@ -367,6 +414,9 @@ def train_all(
         "calibration_samples": int(len(calibration_indices)),
         "test_samples": int(len(test_indices)),
         "duplicate_rows_removed": metadata["duplicate_rows_removed"],
+        "duplicate_analysis": metadata["duplicate_analysis"],
+        "deduplication_removed": metadata["deduplication_removed"],
+        "feature_hash_schema_version": metadata["feature_hash_schema_version"],
     }
     results["calibration"] = calibration
     results["candidate_status"] = "shadow_only_not_promoted"
@@ -381,6 +431,22 @@ def train_all(
             revision = "unknown"
     except (OSError, UnicodeDecodeError):
         revision = "unknown"
+    evaluated_labels = sorted(set(map(str, y_test)))
+    supported_labels = sorted(str(label) for label in clf.classes_)
+    coverage_contract = {
+        "schema_version": COVERAGE_CONTRACT_VERSION,
+        "trained_supported_labels": supported_labels,
+        "evaluated_labels": evaluated_labels,
+        "ood_only_labels": [],
+        "unsupported_labels": sorted(set(CLASSES) - set(evaluated_labels)),
+        "telemetry_profile": "+".join(sorted({
+            str(item.get("schema_version", "unknown"))
+            for item in metadata["dataset_entries"]
+        })),
+    }
+    results["coverage_contract"] = coverage_contract
+    results["pipeline_version"] = LEGACY_PIPELINE_VERSION
+    results["routing_schema_version"] = LEGACY_ROUTING_SCHEMA_VERSION
     write_artifact_manifest(
         out,
         dataset_entries=metadata["dataset_entries"],
@@ -389,6 +455,11 @@ def train_all(
         abstention_threshold=clf.confidence_threshold,
         code_revision=revision,
         production_approved=False,
+        coverage_contract=coverage_contract,
+        pipeline_version=LEGACY_PIPELINE_VERSION,
+        routing_schema_version=LEGACY_ROUTING_SCHEMA_VERSION,
+        routing_calibration={},
+        evaluation_only=True,
     )
     (out / "metrics.json").write_text(
         json.dumps(results, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -475,7 +546,7 @@ def evaluate_all(
     ip, ir, if1, _ = precision_recall_fscore_support(
         y_binary, iso_pred, average="binary", pos_label="ATTACK", zero_division=0)
 
-    # Autoencoder unknown-anomaly scoring (not proof of a zero-day exploit)
+    # Autoencoder unknown-anomaly scoring (not proof of an exploit)
     ae_errors = ae.score_batch(X_test)
     ae_flagged = np.sum(ae_errors > ae.threshold) if ae.threshold else 0
 

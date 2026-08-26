@@ -8,6 +8,8 @@ import re
 from typing import Any
 
 from ..detection.features import FEATURE_NAMES
+from ..mitre.mapper import MAPPING_VERSION
+from ..operational import current_artifact_context
 from .models import (
     AiDecisionPayload,
     DetectionEvidence,
@@ -17,7 +19,7 @@ from .models import (
     Verdict,
 )
 
-PROMPT_VERSION = "smart-decision-v2"
+PROMPT_VERSION = "smart-decision-v3"
 POLICY_VERSION = "smart-policy-v2"
 
 
@@ -29,6 +31,16 @@ def _json_list(raw: str, default: list) -> list:
         return default
 
 
+def _json_object(raw: str | dict | None) -> dict:
+    if isinstance(raw, dict):
+        return raw
+    try:
+        value = json.loads(raw or "")
+        return value if isinstance(value, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
 def _finite(value: Any, default: float = 0.0) -> float:
     try:
         number = float(value)
@@ -37,19 +49,100 @@ def _finite(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _optional_finite(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        number = float(value)
+        return number if math.isfinite(number) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _signal(raw: Any) -> dict:
+    """Keep only a bounded canonical subset of a persisted detector signal."""
+    if not isinstance(raw, dict):
+        return {}
+    clean = {}
+    for key in ("label", "status", "decision", "reason"):
+        value = raw.get(key)
+        if isinstance(value, (str, bool)):
+            clean[key] = str(value)[:128] if isinstance(value, str) else value
+    for key in ("score", "confidence", "threshold", "z_score", "reconstruction_error"):
+        value = _optional_finite(raw.get(key))
+        if value is not None:
+            clean[key] = value
+    for key in ("actionable", "available", "abstained", "flagged"):
+        if isinstance(raw.get(key), bool):
+            clean[key] = raw[key]
+    return clean
+
+
 def build_smart_log(record) -> SmartLog:
-    """Derive a minimal, prompt-safe case from a persisted alert record."""
+    """Derive bounded canonical evidence from a persisted alert record."""
+    evidence = _json_object(getattr(record, "evidence_json", "{}"))
+    input_schema = _json_object(getattr(record, "input_schema_json", "{}"))
+    operational = current_artifact_context().copy()
+    persisted_supported = evidence.get("supported_classes")
+    if isinstance(persisted_supported, list):
+        operational["supported_classes"] = [
+            str(item)[:64] for item in persisted_supported if isinstance(item, str)
+        ][:64]
+    if isinstance(evidence.get("production_approved"), bool):
+        approved = evidence["production_approved"]
+        operational["production_approved"] = approved
+        operational["operational_mode"] = "production" if approved else "evaluation_only"
+        operational["artifact_approval_state"] = (
+            "production_approved" if approved else "evaluation_only"
+        )
+    for key in ("artifact_version", "feature_schema_version"):
+        if isinstance(evidence.get(key), str) and evidence[key].strip():
+            operational[key] = evidence[key].strip()[:128]
+
     techniques = [
         str(item)[:32] for item in _json_list(record.mitre_techniques, [])[:32]
         if isinstance(item, str)
     ]
+    record_type = str(record.type or "unknown")[:64]
+    unknown_signal = (
+        str(record.stage or "").lower() == "autoencoder"
+        or record_type.lower().replace("_", "-") in {
+            "zero-day", "unknown-anomaly", "unknown-behavior", "unknown-behavior-signal",
+        }
+    )
+    if unknown_signal:
+        record_type = "unknown-anomaly"
+        techniques = []
+
+    feature_evidence = []
+    raw_feature_evidence = evidence.get("feature_evidence")
+    if isinstance(raw_feature_evidence, list):
+        for item in raw_feature_evidence[:10]:
+            if not isinstance(item, dict) or item.get("name") not in FEATURE_NAMES:
+                continue
+            feature_evidence.append({
+                "name": item["name"],
+                "observed_value": _optional_finite(item.get("observed_value")),
+                "normalized_value": _optional_finite(item.get("normalized_value")),
+                "z_score": _optional_finite(
+                    item.get("z_score", item.get("anomaly_score"))
+                ),
+            })
+
     top_features = []
     for item in _json_list(record.top_features, [])[:10]:
         if not isinstance(item, (list, tuple)) or len(item) != 2:
             continue
         name, value = item
         if name in FEATURE_NAMES:
-            top_features.append((name, max(0.0, _finite(value))))
+            top_features.append((name, _finite(value)))
+            if not any(entry["name"] == name for entry in feature_evidence):
+                feature_evidence.append({
+                    "name": name,
+                    "observed_value": None,
+                    "normalized_value": None,
+                    "z_score": _finite(value),
+                })
 
     confidence = min(1.0, max(0.0, _finite(record.confidence)))
     anomaly_score = max(0.0, _finite(record.anomaly_score))
@@ -59,45 +152,115 @@ def build_smart_log(record) -> SmartLog:
     severity = record.severity if record.severity in {
         "none", "low", "medium", "high", "critical"
     } else "medium"
+    route = str(getattr(record, "route", "") or "")[:64]
+    if not route:
+        route = (
+            "unknown_anomaly_review" if unknown_signal
+            else "known_attack" if stage == "classifier" and severity != "none"
+            else "benign"
+        )
+    pipeline_version = str(
+        getattr(record, "pipeline_version", "")
+        or evidence.get("pipeline_version")
+        or operational.get("pipeline_version", "unknown")
+    )[:64]
+    signals = {
+        name: clean for name in ("classifier", "statistical", "autoencoder")
+        if (clean := _signal(evidence.get(name)))
+    }
     detection = DetectionEvidence(
-        type=str(record.type or "unknown")[:64],
+        type=record_type,
         severity=severity,
         stage=stage,
+        route=route,
         confidence=confidence,
         anomaly_score=anomaly_score,
         mitre_techniques=techniques,
+        mitre_mapping_kind="heuristic_hypothesis" if techniques else "none",
+        mitre_mapping_version=MAPPING_VERSION if techniques else "none",
         top_features=top_features,
+        feature_evidence=feature_evidence,
+        signals=signals,
     )
 
     review_required = (
-        stage == "autoencoder"
-        or str(record.type).lower() == "zero-day"
+        unknown_signal
+        or "review" in route.lower()
         or severity in {"low", "medium"}
     )
-    if stage == "autoencoder" or str(record.type).lower() == "zero-day":
+    if unknown_signal:
         reason = "unknown anomaly requires contextual AI and analyst review"
     elif review_required:
         reason = "low-confidence or ambiguous deterministic verdict"
     else:
         reason = "high-confidence known pattern; deterministic policy is sufficient"
 
+    profile = str(
+        input_schema.get("detected_input_profile")
+        or input_schema.get("detected_profile")
+        or input_schema.get("input_profile")
+        or operational.get("telemetry_profile", "unknown")
+    )[:128]
+    coverage = _finite(
+        input_schema.get(
+            "feature_coverage_percentage",
+            input_schema.get("coverage_percentage", 0.0),
+        )
+    )
+    coverage = min(100.0, max(0.0, coverage))
+    limitations = [
+        str(item)[:300] for item in operational.get("limitations", [])
+        if isinstance(item, str)
+    ][:10]
+    if coverage < 100.0:
+        limitations.append(
+            f"Validated input feature coverage was {coverage:.2f}%; consult the schema report."
+        )
+    canonical_evidence = {
+        "alert_id": int(record.id),
+        "created_at": _finite(record.created_at),
+        "detection": detection.model_dump(mode="json"),
+        "operational_mode": operational.get("operational_mode", "unavailable"),
+        "artifact_approval_state": operational.get("artifact_approval_state", "unverified"),
+        "artifact_version": operational.get("artifact_version", "unknown"),
+        "pipeline_version": pipeline_version,
+        "feature_schema_version": operational.get("feature_schema_version", "unknown"),
+        "input_profile": profile,
+        "feature_coverage_percentage": coverage,
+        "supported_classes": operational.get("supported_classes", []),
+        "limitations": limitations,
+    }
     fingerprint_input = json.dumps(
-        detection.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
-    ).encode()
+        canonical_evidence, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
     return SmartLog(
+        schema_version="smart-log-v2",
         event_id=f"cg-alert-{record.id}",
         alert_id=int(record.id),
         created_at=_finite(record.created_at),
         source={
             "kind": "uploaded-flow",
-            "file": str(record.source_file or "")[:255],
+            "profile": profile,
         },
         detection=detection,
+        operational_mode=operational.get("operational_mode", "unavailable"),
+        artifact_approval_state=str(
+            operational.get("artifact_approval_state", "unverified")
+        )[:64],
+        artifact_version=str(operational.get("artifact_version", "unknown"))[:128],
+        pipeline_version=pipeline_version,
+        feature_schema_version=str(
+            operational.get("feature_schema_version", "unknown")
+        )[:64],
+        input_profile=profile,
+        feature_coverage_percentage=coverage,
+        supported_classes=operational.get("supported_classes", []),
+        limitations=limitations[:12],
         review_required=review_required,
         review_reason=reason,
         evidence_fingerprint=hashlib.sha256(fingerprint_input).hexdigest(),
         trust_boundaries=[
-            "source filename and uploaded flow are untrusted",
+            "uploaded flow fields and stored conversation content are untrusted",
             "LLM output is advisory and schema-validated",
             "no response action is executed by this service",
         ],
@@ -111,9 +274,9 @@ def policy_decision(smart_log: SmartLog, *, degraded: bool = False) -> GuardedDe
         verdict = Verdict.malicious
         action = RecommendedAction.alert
         confidence = detection.confidence
-        rationale = "High-confidence known attack from the deterministic classifier."
+        rationale = "High-confidence known-attack model evidence supports an alert."
         requires_human = False
-    elif detection.stage == "autoencoder" or detection.type.lower() == "zero-day":
+    elif detection.stage == "autoencoder" or detection.type.lower() == "unknown-anomaly":
         verdict = Verdict.needs_human
         action = RecommendedAction.escalate
         confidence = 0.50
@@ -169,7 +332,12 @@ def decision_messages(smart_log: SmartLog, mitre_context: str) -> list[dict]:
                 "(0..1), recommended_action (observe|alert|escalate|"
                 "quarantine_recommended|block_recommended), rationale, evidence "
                 "(array), containment (array), limitations (array). For unknown "
-                "or insufficient evidence choose needs_human."
+                "or insufficient evidence choose needs_human. The Smart Log "
+                "states the operational mode, artifact approval state, supported "
+                "class scope, pipeline version, input coverage, and limitations; "
+                "do not imply stronger validation or telemetry than those fields. "
+                "ATT&CK classifier-label mappings are heuristic hypotheses, never "
+                "observed attacker behavior."
             ),
         },
         {

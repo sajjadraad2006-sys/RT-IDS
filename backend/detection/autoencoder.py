@@ -7,9 +7,6 @@ Threshold: mean + k*std of validation reconstruction errors (k=2 or 3).
 This is what the thesis was missing entirely: catching patterns the
 classifier has NEVER seen, without any LLM involvement.
 
-Thesis fix #6: "No zero-day detection — The LLM can only explain what
-it was trained on. Unknown attack patterns are missed entirely."
-
 The autoencoder learns to compress-and-reconstruct benign traffic through
 a 16-neuron bottleneck. When it sees something that doesn't "look normal",
 the reconstruction error spikes — signaling an unknown anomaly for review.
@@ -49,7 +46,7 @@ class _AE(nn.Module):
 
 
 class AutoencoderDetector:
-    """Zero-day detector: high reconstruction error = unknown attack.
+    """Unknown-anomaly evidence: high error means distributional deviation.
 
     Args:
         n_features: Number of input features.
@@ -138,7 +135,7 @@ class AutoencoderDetector:
         """Reconstruction errors for a batch of flows."""
         return self.errors(X)
 
-    def is_zero_day(self, x: np.ndarray) -> tuple[bool, float]:
+    def is_unknown_anomaly(self, x: np.ndarray) -> tuple[bool, float]:
         """Check if a flow exceeds the calibrated unknown-anomaly threshold.
 
         Returns:

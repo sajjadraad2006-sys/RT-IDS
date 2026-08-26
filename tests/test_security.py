@@ -124,9 +124,9 @@ def test_upload_rejects_non_object_json_and_binary():
     )
     binary = client.post(
         "/api/detect/upload",
-        files={"file": ("bad.dat", b"\x00" * 100, "application/octet-stream")},
+        files={"file": ("bad.csv", b"\x00" * 100, "text/csv")},
     )
-    assert primitive.status_code == 400
+    assert primitive.status_code == 422
     assert binary.status_code == 400
 
 
@@ -162,19 +162,24 @@ def test_mitre_supply_chain_rejects_tiny_or_invalid_bundle():
 
 
 def test_numeric_overflow_payload_stays_json_safe():
+    from tests.helpers import canonical_flow, canonical_json
+
+    payload = canonical_flow(flow_duration="1e309")
     response = client.post(
         "/api/detect/upload",
         files={
             "file": (
                 "overflow.json",
-                b'[{"Flow Duration":"1e309","Total Fwd Packets":"1e308","SYN Flag Count":"NaN"}]',
+                canonical_json(payload),
                 "application/json",
             )
         },
     )
-    assert response.status_code == 200
+    assert response.status_code == 422
     assert "Infinity" not in response.text
     assert "NaN" not in response.text
+    report = response.json()["detail"]["schema_validation"]
+    assert report["invalid_numeric_cell_counts"]["non_finite"] == 1
 
 
 def test_upload_rate_limit_blocks_request_flood():

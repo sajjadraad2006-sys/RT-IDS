@@ -1,143 +1,190 @@
-"""End-to-end pipeline: normal traffic is quiet, injected attack alerts,
-and every alert carries latency + stage attribution + MITRE mapping."""
-import numpy as np
-from backend.detection.normalizer import Normalizer
-from backend.detection.statistical import StatisticalFilter
-from backend.detection.pipeline import DetectionPipeline, Alert, PipelineStats
-from backend.detection.features import FEATURE_NAMES
+"""Pipeline v2 routing invariants and bounded process statistics."""
+import json
 
-N_FEATURES = len(FEATURE_NAMES)  # 32
+import numpy as np
+
+from backend.detection.features import FEATURE_NAMES
+from backend.detection.normalizer import Normalizer
+from backend.detection.pipeline import Alert, DetectionPipeline, PipelineStats
+from backend.detection.statistical import StatisticalFilter
+
+
+N_FEATURES = len(FEATURE_NAMES)
 
 
 class _FakeClf:
-    def predict(self, x): return ("DDoS", 0.995)
-    def predict_batch(self, X):
-        labels = np.array(["DDoS"] * len(X))
-        confs = np.full(len(X), 0.995)
-        return labels, confs
-    def is_confident_attack(self, label, conf): return label != "Benign" and conf > 0.9
-    def feature_importance(self, top=10): return [("packets_per_sec", 0.21)]
+    confidence_threshold = 0.9
 
+    def __init__(self, labels="DDoS", confidences=0.995):
+        self.labels = labels
+        self.confidences = confidences
+        self.rows_seen = 0
 
-class _FakeClfLowConf:
-    """Classifier that returns low-confidence attack."""
-    def predict(self, x): return ("PortScan", 0.75)
-    def predict_batch(self, X):
-        labels = np.array(["PortScan"] * len(X))
-        confs = np.full(len(X), 0.75)
-        return labels, confs
-    def is_confident_attack(self, label, conf): return label != "Benign" and conf > 0.9
-    def feature_importance(self, top=10): return []
+    def predict_batch(self, matrix):
+        self.rows_seen += len(matrix)
+        labels = self.labels
+        confidences = self.confidences
+        if isinstance(labels, str):
+            labels = [labels] * len(matrix)
+        if isinstance(confidences, (int, float)):
+            confidences = [confidences] * len(matrix)
+        return np.asarray(labels[: len(matrix)]), np.asarray(confidences[: len(matrix)])
+
+    def feature_importance(self, top=10):
+        return [("packets_per_sec", 0.21)]
 
 
 class _FakeAE:
-    threshold = 1.0
-    def is_zero_day(self, x): return (False, 0.01)
-    def score_batch(self, X): return np.full(len(X), 0.01)
+    def __init__(self, *, threshold=1.0, errors=0.01):
+        self.threshold = threshold
+        self.errors = errors
+
+    def score_batch(self, matrix):
+        errors = self.errors
+        if isinstance(errors, (int, float)):
+            errors = [errors] * len(matrix)
+        return np.asarray(errors[: len(matrix)], dtype=float)
 
 
-class _FakeAEZeroDay:
-    """Autoencoder that flags everything as an unknown anomaly."""
-    threshold = 0.5
-    def is_zero_day(self, x): return (True, 1.42)
-    def score_batch(self, X): return np.full(len(X), 1.42)
-
-
-def _pipeline(stat_passes: bool, clf=None, ae=None) -> DetectionPipeline:
+def _pipeline(*, clf=None, ae=None, stat_threshold=3.0) -> DetectionPipeline:
     rng = np.random.default_rng(0)
-    Xb = rng.normal(0, 1, size=(2000, N_FEATURES))
-    norm = Normalizer().fit(Xb)
-    stat = StatisticalFilter(threshold=3.0).fit(Xb)
-    if not stat_passes:
-        stat.threshold = 1e9  # nothing is anomalous
-    return DetectionPipeline(norm, stat, clf or _FakeClf(), ae or _FakeAE())
+    benign_training = rng.normal(0, 1, size=(2000, N_FEATURES))
+    normalizer = Normalizer().fit(benign_training)
+    statistical = StatisticalFilter(threshold=stat_threshold).fit(benign_training)
+    return DetectionPipeline(
+        normalizer,
+        statistical,
+        clf or _FakeClf(),
+        ae or _FakeAE(),
+    )
 
 
-def test_benign_flow_is_filtered_out_early():
-    pipe = _pipeline(stat_passes=False)
-    alert = pipe.detect({"Flow Duration": "1000"})
-    assert alert.severity == "none" and alert.stage == "none"
+def _flow(duration=1.0):
+    return {
+        name: (duration if name == "flow_duration" else 0.0)
+        for name in FEATURE_NAMES
+    }
 
 
-def test_anomalous_flow_reaches_classifier_and_alerts():
-    pipe = _pipeline(stat_passes=True)
-    alert = pipe.detect({"Flow Duration": "9999999", "SYN Flag Count": "500"})
-    assert isinstance(alert, Alert)
-    assert alert.type == "DDoS" and alert.stage == "classifier"
-    assert alert.confidence > 0.9 and alert.latency_ms >= 0
+def _without_latency(alert: Alert) -> dict:
+    payload = alert.to_dict()
+    payload.pop("latency_ms")
+    return payload
+
+
+def test_classifier_receives_every_row_even_when_statistical_signal_is_quiet():
+    classifier = _FakeClf()
+    pipe = _pipeline(clf=classifier, stat_threshold=1e12)
+    alerts = pipe.detect_batch([_flow(0.0), _flow(1.0), _flow(2.0)])
+    assert classifier.rows_seen == 3
+    assert [alert.route for alert in alerts] == ["known_attack"] * 3
+
+
+def test_no_statistical_fast_exit_can_hide_supported_known_attack():
+    pipe = _pipeline(clf=_FakeClf("DDoS", 0.995), stat_threshold=1e12)
+    alert = pipe.detect(_flow())
+    assert alert.type == "DDoS"
+    assert alert.route == "known_attack"
+    assert alert.stage == "classifier"
     assert "T1498" in alert.mitre_techniques
 
 
-def test_pipeline_stats_tracking():
-    pipe = _pipeline(stat_passes=True)
-    pipe.detect({"Flow Duration": "1000"})
-    pipe.detect({"Flow Duration": "9999999", "SYN Flag Count": "500"})
-    stats = pipe.get_stats()
-    assert stats["total_flows"] == 2
-    assert "mean_latency_ms" in stats
-    assert "drop_rate_pct" in stats
+def test_benign_requires_classifier_and_anomaly_signals_to_be_quiet():
+    pipe = _pipeline(
+        clf=_FakeClf("Benign", 0.99),
+        ae=_FakeAE(threshold=10.0, errors=0.01),
+        stat_threshold=1e12,
+    )
+    alert = pipe.detect(_flow())
+    assert alert.type == "Benign"
+    assert alert.severity == "none"
+    assert alert.route == "benign"
 
 
-def test_zero_day_detection_via_autoencoder():
-    """When classifier is uncertain, autoencoder flags an unknown anomaly."""
-    pipe = _pipeline(stat_passes=True, clf=_FakeClfLowConf(), ae=_FakeAEZeroDay())
-    alert = pipe.detect({"Flow Duration": "9999999", "SYN Flag Count": "500"})
+def test_classifier_benign_plus_autoencoder_signal_routes_unknown_review():
+    pipe = _pipeline(
+        clf=_FakeClf("Benign", 0.99),
+        ae=_FakeAE(threshold=0.5, errors=1.42),
+        stat_threshold=1e12,
+    )
+    alert = pipe.detect(_flow())
     assert alert.type == "unknown-anomaly"
     assert alert.stage == "autoencoder"
-    assert alert.anomaly_score > 1.0
+    assert alert.route == "unknown_anomaly_review"
+    assert alert.anomaly_score == 1.42
     assert alert.mitre_techniques == []
 
 
-def test_low_confidence_attack_gets_medium_severity():
-    """When classifier detects but isn't confident, severity=medium."""
-    pipe = _pipeline(stat_passes=True, clf=_FakeClfLowConf(), ae=_FakeAE())
-    alert = pipe.detect({"Flow Duration": "9999999", "SYN Flag Count": "500"})
-    assert alert.severity == "medium"
+def test_uncertain_non_benign_classifier_always_routes_human_review():
+    pipe = _pipeline(
+        clf=_FakeClf("PortScan", 0.75),
+        ae=_FakeAE(threshold=0.5, errors=1.42),
+    )
+    alert = pipe.detect(_flow(9_999_999))
     assert alert.type == "PortScan"
+    assert alert.severity == "medium"
     assert alert.stage == "classifier"
+    assert alert.route == "human_review"
 
 
-def test_alert_to_dict_serializable():
-    pipe = _pipeline(stat_passes=True)
-    alert = pipe.detect({"Flow Duration": "9999999", "SYN Flag Count": "500"})
-    d = alert.to_dict()
-    assert isinstance(d, dict)
-    assert "severity" in d and "type" in d and "mitre_techniques" in d
+def test_high_confidence_label_outside_declared_scope_requires_review():
+    pipe = _pipeline(clf=_FakeClf("PortScan", 0.999), stat_threshold=1e12)
+    pipe.artifact_metadata = {"classes": ["Benign", "DDoS"]}
+    pipe.supported_labels = {"Benign", "DDoS"}
+    alert = pipe.detect(_flow())
+    assert alert.route == "human_review"
+    assert alert.mitre_techniques == []
+    assert alert.evidence["routing_reason"] == (
+        "classifier_label_outside_declared_supported_scope"
+    )
 
 
-def test_batch_detection():
-    pipe = _pipeline(stat_passes=True)
-    flows = [
-        {"Flow Duration": "9999999", "SYN Flag Count": "500"},
-        {"Flow Duration": "100"},
-        {"Flow Duration": "9999999", "SYN Flag Count": "999"},
+def test_batch_preserves_order_and_single_row_routing_parity():
+    flows = [_flow(0.0), _flow(1.0), _flow(2.0)]
+    batch_pipe = _pipeline(
+        clf=_FakeClf(["Benign", "DDoS", "PortScan"], [0.99, 0.995, 0.5]),
+        ae=_FakeAE(threshold=10.0, errors=[0.01, 0.01, 0.01]),
+        stat_threshold=1e12,
+    )
+    batch = batch_pipe.detect_batch(flows)
+    assert [item.route for item in batch] == [
+        "benign", "known_attack", "human_review"
     ]
-    alerts = pipe.detect_batch(flows)
-    assert len(alerts) == 3
-    assert all(isinstance(a, Alert) for a in alerts)
+
+    singles = []
+    for flow, label, confidence in zip(
+        flows, ["Benign", "DDoS", "PortScan"], [0.99, 0.995, 0.5]
+    ):
+        singles.append(
+            _pipeline(
+                clf=_FakeClf(label, confidence),
+                ae=_FakeAE(threshold=10.0, errors=0.01),
+                stat_threshold=1e12,
+            ).detect(flow)
+        )
+    assert [_without_latency(item) for item in batch] == [
+        _without_latency(item) for item in singles
+    ]
 
 
-def test_top_features_in_alert():
-    """Alerts from classifier stage should include top anomalous features."""
-    pipe = _pipeline(stat_passes=True)
-    alert = pipe.detect({"Flow Duration": "9999999", "SYN Flag Count": "500"})
-    assert isinstance(alert.top_features, list)
+def test_alert_json_is_finite_and_contains_versioned_evidence():
+    payload = _pipeline().detect(_flow(9_999_999)).to_dict()
+    encoded = json.dumps(payload, allow_nan=False)
+    assert "cyberguard-pipeline-v2" in encoded
+    assert payload["feature_evidence"]
 
 
-class _MixedStat:
-    def filter_batch(self, X):
-        return np.array([False, True, False])
+def test_pipeline_stats_are_constant_space():
+    stats = PipelineStats()
+    for _ in range(10_000):
+        stats.record(Alert(severity="none", type="Benign", route="benign"))
+    assert stats.total_flows == 10_000
+    assert stats.mean_latency_ms == 0
+    assert not hasattr(stats, "_latencies")
 
-    def top_anomalous_features(self, x, names, top=5):
-        return []
-
-
-def test_batch_preserves_flow_order_for_mixed_benign_and_attack_rows():
-    """A filtered row must not shift the attack onto a neighboring flow."""
-    pipe = _pipeline(stat_passes=True)
-    pipe.stat = _MixedStat()
-    flows = [{"row": 0}, {"row": 1}, {"row": 2}]
-    alerts = pipe.detect_batch(flows)
-    assert len(alerts) == len(flows)
-    assert [a.type for a in alerts] == ["Benign", "DDoS", "Benign"]
-    assert [a.stage for a in alerts] == ["none", "classifier", "none"]
+    pipe = _pipeline(clf=_FakeClf("Benign", 0.99), stat_threshold=1e12)
+    pipe.detect_batch([_flow(), _flow()])
+    reported = pipe.get_stats()
+    assert reported["scope"] == "process_lifetime"
+    assert reported["total_flows"] == 2
+    assert reported["latency_samples_retained"] == 0

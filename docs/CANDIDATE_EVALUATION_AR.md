@@ -4,6 +4,11 @@
 **الحالة:** `failed_gates` — لم يُرقَّ ولم يتغير النموذج الفعّال  
 **المسار:** `data/models/candidates/cse-cic-ids2018-v1-seed42/`
 
+> هذا تقرير تاريخي مجمّد لمرشح v1. لا يجوز استخدام captures المسماة
+> `final test` هنا لضبط أو ادعاء نتيجة Pipeline v2. في 26 أغسطس 2026 أصبح
+> منطق v2 classifier-first منفذًا ومختبرًا بوحدات حتمية، لكن لم تتوفر مجموعة
+> final جديدة غير مفتوحة؛ لذلك لا توجد نتيجة دقة v2 ولا مرشح إنتاجي جديد.
+
 ## المصدر والترخيص
 
 استُخدمت ملفات CSV الأصلية المنشورة من Canadian Institute for Cybersecurity في
@@ -43,7 +48,10 @@ University of New Brunswick ضمن
 
 قُسمت البيانات حسب أيام التقاط منفصلة قبل التدريب. ثم أزيل التكرار exact
 وnear-duplicate عالميًا بترتيب ثابت: training ثم calibration ثم final ثم OOD.
-الـnear hash هو hash لـ `round(log1p(32-feature vector), 3) + label`.
+كان hash المرشح v1 يضم `label` مع الصف، وهو خلل لأنه يخفي تطابق الميزات ذات
+labels المتعارضة. لا يُعاد تفسير تقرير v1 كإثبات خلوه من هذا التسرب. الإصدار
+الحالي `cyberguard-feature-row-hash-v2` يحسب exact/near من الميزات فقط، ويتتبع
+labels منفصلة، ويبلغ same-label/conflicting-label ويُفشل gate عند التعارض.
 
 | القسم | Captures | الصفوف بعد إزالة التسرب | Labels canonical |
 |---|---|---:|---|
@@ -136,8 +144,11 @@ confidence OOD mislabel. فشل المرشح في:
 
 لذلك الحالة **`failed_gates`** و`production_approved=false`. رفض
 `python -m backend.detection.promote ...` الـdry-run بسبب هذين الفشلين.
-أثبت shadow على 100,000 صف أن artifact hashes لم تتغير، وأنه لم توجد LLM calls
-أو DB/pointer mutations. لم يُنفذ promotion أو firewall/EDR action.
+شغّل v1 مقارنة shadow تاريخية على 100,000 صف دون LLM أو تغيير pointer، لكن
+هذا التقرير القديم لا يحقق عقد `cyberguard-shadow-report-v2` ولا يجعل المرشح
+قابلًا للترقية. الترقية الحالية تتطلب تقريرًا مطابقًا ومربوطًا تشفيريًا بكل
+artifact hashes والـmanifest مع صفر DB/pointer mutations. لم يُنفذ promotion
+أو firewall/EDR action.
 
 ## الحدود والخطوة التالية
 
@@ -147,6 +158,17 @@ confidence OOD mislabel. فشل المرشح في:
 - checksum-only لا يقاوم مهاجمًا يستطيع تبديل artifact والـmanifest معًا.
 - المرشح لم يطبق probability calibration layer؛ ECE المعروض للمصنف الخام.
 
-الخطوة الآمنة التالية: تصميم مرشح v2 **على training/calibration فقط** يغيّر
-توجيه البوابة الإحصائية أو يسمح classifier-first، ثم استخدام captures نهائية
-جديدة لم تُفتح، بدل تعديل threshold بناءً على final test الحالي.
+الخطوة الآمنة التالية: منطق v2 classifier-first جاهز في الكود والتقييم والـshadow؛
+يجب تدريبه ومعايرته **على training/calibration جديدة فقط** ثم تقييمه مرة واحدة
+على captures نهائية جديدة لم تُفتح. لا تُستخدم أرقام v1 لضبط thresholds.
+
+## عقد Pipeline v2 المنفذ بلا ادعاء نتيجة
+
+- كل صف validated يصل إلى المصنف قبل التوجيه.
+- Z-score وautoencoder إشارتان مستقلتان ولا تعلنان benign مبكرًا.
+- التقرير الجديد يضم classifier/statistical/autoencoder/Isolation Forest
+  baselines، TP/FP/FN/TN، FPR لكل 10,000، per-class PR-AUC/support، ECE،
+  routing counts، review rate، OOD mislabel، throughput والذاكرة.
+- manifest v2 يتطلب calibration source وdataset hashes وthresholds المطابقة.
+- coverage contract يصرح trained/evaluated/OOD-only/unsupported والـtelemetry.
+- لم يُنشأ أو يُرقَّ أي candidate v2 في هذا التحديث لغياب final جديد مستقل.

@@ -6,6 +6,7 @@ index is rebuilt from the trusted local SQLite ATT&CK index when needed.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 
 log = logging.getLogger("cyberguard.rag")
@@ -19,6 +20,23 @@ class MitreRAG:
     _documents: list[str] = []
     _vectorizer = None
     _matrix = None
+
+    def __init__(self, min_relevance: float | None = None) -> None:
+        if min_relevance is None:
+            try:
+                min_relevance = float(os.getenv("CG_RAG_MIN_RELEVANCE", "0.12"))
+            except ValueError:
+                min_relevance = 0.12
+        self.min_relevance = min(1.0, max(0.0, float(min_relevance)))
+
+    @classmethod
+    def clear(cls) -> None:
+        """Drop the active index so a refreshed empty snapshot cannot go stale."""
+        with cls._lock:
+            cls._ids = []
+            cls._documents = []
+            cls._vectorizer = None
+            cls._matrix = None
 
     def _ensure(self) -> bool:
         if self.__class__._matrix is not None:
@@ -37,6 +55,7 @@ class MitreRAG:
             if technique.get("id") and technique.get("name")
         ]
         if not clean:
+            self.clear()
             return 0
 
         from sklearn.feature_extraction.text import TfidfVectorizer
@@ -69,11 +88,15 @@ class MitreRAG:
         k = max(1, min(int(k), 20, len(self.__class__._ids)))
         query = self.__class__._vectorizer.transform([text[:8000]])
         scores = linear_kernel(query, self.__class__._matrix).ravel()
-        order = scores.argsort()[::-1][:k]
+        order = [
+            int(index) for index in scores.argsort()[::-1]
+            if float(scores[index]) >= self.min_relevance
+        ][:k]
         return [
             {
                 "id": self.__class__._ids[index],
                 "document": self.__class__._documents[index],
+                "score": float(scores[index]),
                 "distance": float(1.0 - scores[index]),
             }
             for index in order

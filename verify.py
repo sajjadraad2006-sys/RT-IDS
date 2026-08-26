@@ -41,9 +41,9 @@ try:
     from backend.detection.statistical import StatisticalFilter
     sf = StatisticalFilter(threshold=3.0).fit(np.random.randn(100, N_FEATURES))
     assert sf.fitted
-    checks.append(("Stage 2: Z-Score Filter", "PASS"))
+    checks.append(("Independent statistical evidence", "PASS"))
 except Exception as e:
-    checks.append(("Stage 2: Z-Score Filter", f"FAIL: {e}"))
+    checks.append(("Independent statistical evidence", f"FAIL: {e}"))
 
 # 4. Classifier
 try:
@@ -70,12 +70,39 @@ try:
 except Exception as e:
     checks.append(("Stage 4: Deep Autoencoder", f"FAIL: {e}"))
 
-# 6. Pipeline
+# 6. Strict schema + Pipeline v2 classifier-first invariant
 try:
-    from backend.detection.pipeline import DetectionPipeline, Alert, PipelineStats
-    checks.append(("Pipeline import", "PASS"))
+    from backend.detection.input_schema import validate_records
+    from backend.detection.pipeline import DetectionPipeline, PIPELINE_VERSION
+
+    rejected, schema = validate_records([{"message": "failed login"}])
+    assert rejected == [] and schema["supported"] is False
+
+    class CountingClassifier:
+        confidence_threshold = 0.9
+        classes_ = ["Benign"]
+
+        def __init__(self):
+            self.rows = 0
+
+        def predict_batch(self, matrix):
+            self.rows += len(matrix)
+            return np.array(["Benign"] * len(matrix)), np.full(len(matrix), 0.99)
+
+    class QuietAutoencoder:
+        threshold = 1e9
+
+        def score_batch(self, matrix):
+            return np.zeros(len(matrix))
+
+    classifier = CountingClassifier()
+    pipeline = DetectionPipeline(norm, sf, classifier, QuietAutoencoder())
+    rows = [{name: 0.0 for name in FEATURE_NAMES} for _ in range(3)]
+    assert len(pipeline.detect_batch(rows)) == classifier.rows == 3
+    assert PIPELINE_VERSION == "cyberguard-pipeline-v2"
+    checks.append(("Strict schema + Pipeline v2 classifier-first", "PASS"))
 except Exception as e:
-    checks.append(("Pipeline import", f"FAIL: {e}"))
+    checks.append(("Strict schema + Pipeline v2", f"FAIL: {e}"))
 
 # 7. MITRE mapper (bidirectional)
 try:
@@ -180,6 +207,14 @@ for name, status in checks:
 passed = sum(1 for _, s in checks if s == "PASS")
 skipped = sum(1 for _, s in checks if s.startswith("SKIP"))
 total = len(checks)
+failed = total - passed - skipped
 print(f"\n{'=' * 60}")
-print(f"  {passed}/{total} passed ({skipped} skipped) in {elapsed:.1f}s")
+print(
+    f"  {passed}/{total} passed ({skipped} skipped, {failed} failed) "
+    f"in {elapsed:.1f}s"
+)
 print(f"{'=' * 60}")
+
+# This script is a required startup/CI gate.  A displayed FAIL must therefore
+# also be observable by callers as a non-zero process status.
+raise SystemExit(1 if failed else 0)

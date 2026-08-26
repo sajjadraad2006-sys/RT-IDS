@@ -23,10 +23,28 @@ def _migrate_decision_cases(target_engine=engine) -> None:
                 )
 
 
+def _migrate_alerts(target_engine=engine) -> None:
+    """Add Pipeline v2 evidence columns without rewriting existing alerts."""
+    columns = {item["name"] for item in inspect(target_engine).get_columns("alerts")}
+    additions = {
+        "route": "VARCHAR(32) DEFAULT ''",
+        "pipeline_version": "VARCHAR(32) DEFAULT 'legacy-v1'",
+        "evidence_json": "TEXT DEFAULT '{}'",
+        "input_schema_json": "TEXT DEFAULT '{}'",
+    }
+    with target_engine.begin() as connection:
+        for name, ddl in additions.items():
+            if name not in columns:
+                connection.exec_driver_sql(
+                    f"ALTER TABLE alerts ADD COLUMN {name} {ddl}"
+                )
+
+
 def init_application_tables(target_engine=engine) -> None:
     """Create/migrate app tables; injectable engine keeps migrations testable."""
     Base.metadata.create_all(target_engine)
     _migrate_decision_cases(target_engine)
+    _migrate_alerts(target_engine)
     with target_engine.begin() as connection:
         connection.exec_driver_sql(
             "CREATE TRIGGER IF NOT EXISTS audit_events_no_update "

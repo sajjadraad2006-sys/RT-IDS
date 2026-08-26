@@ -38,6 +38,12 @@ cyberguard/datasets/*
 !cyberguard/datasets/manifest.json
 !cyberguard/datasets/*.py
 !cyberguard/datasets/*_sources.json
+# The default manifest references this small deterministic fixture.  Keep the
+# large generated benchmark fixture ignored; a clean checkout must still pass
+# manifest validation without downloading or generating hidden files.
+!cyberguard/datasets/cicids2017/
+cyberguard/datasets/cicids2017/*
+!cyberguard/datasets/cicids2017/sample_traffic.csv
 data/models/candidates/
 data/models/releases/
 data/models/active_bundle.json

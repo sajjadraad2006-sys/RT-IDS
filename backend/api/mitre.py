@@ -27,11 +27,18 @@ def techniques(
     q: str | None = Query(default=None, max_length=200),
     limit: int = Query(default=400, ge=1, le=500),
 ) -> list[dict]:
-    detected = attack_db.get_detected_techniques()
+    candidate_mapped = attack_db.get_candidate_mapped_techniques()
+    mappings = attack_db.get_candidate_mappings(limit=5000)
+    mapping_counts = {}
+    for mapping in mappings:
+        tid = mapping["technique_id"]
+        mapping_counts[tid] = mapping_counts.get(tid, 0) + 1
     rows = attack_db.list_techniques(tactic=tactic, q=q)[:limit]
     for r in rows:
         r["tactics"] = json.loads(r.get("tactics") or "[]")
-        r["detected"] = r["id"] in detected
+        r["candidate_mapping"] = r["id"] in candidate_mapped
+        r["candidate_mapping_count"] = mapping_counts.get(r["id"], 0)
+        r["mapping_semantics"] = "possible technique based on classifier label"
     return rows
 
 
@@ -41,7 +48,10 @@ def technique_detail(tid: str) -> dict:
     if not r:
         return {"error": "not found"}
     r["tactics"] = json.loads(r.get("tactics") or "[]")
-    r["detected"] = tid in attack_db.get_detected_techniques()
+    mappings = attack_db.get_candidate_mappings(tid)
+    r["candidate_mapping"] = bool(mappings)
+    r["candidate_mappings"] = mappings
+    r["mapping_semantics"] = "heuristic hypothesis, not observed evidence"
     return r
 
 
@@ -58,8 +68,10 @@ def sync(request: Request, force: bool = False) -> dict:
             # feed the same techniques into the RAG vector store so the
             # chat answers with live ATT&CK context right after a sync
             status["rag_indexed"] = _rag.index(attack_db.list_techniques(limit=5000))
+            status["rag_synchronized"] = status["rag_indexed"] == status["indexed"]
         except Exception as exc:
             status["rag_indexed"] = f"failed: {exc}"
+            status["rag_synchronized"] = False
     return status
 
 

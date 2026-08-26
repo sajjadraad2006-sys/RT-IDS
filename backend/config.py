@@ -1,16 +1,15 @@
 """CyberGuard central configuration.
-All values overridable via environment variables. Local-first: no cloud calls
-unless the user explicitly switches the LLM provider to API mode.
 
-Thesis fix: the thesis had no configurable thresholds. Everything here is
-tunable without code changes — env vars or the Settings UI.
+Operational limits/providers are environment-configurable and local-first.
+Serving detector thresholds come from the integrity-checked artifact manifest;
+changing legacy environment constants does not recalibrate a model.
 """
 from __future__ import annotations
 import os
 from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parent.parent          # ~/Desktop/project
+BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 MODELS_DIR = DATA_DIR / "models"
 UPLOADS_DIR = DATA_DIR / "uploads"

@@ -15,10 +15,12 @@
 
 ```text
 CSV/JSON flow
+  -> schema v1 validation (fail closed)
   -> feature extraction + normalization
-  -> statistical filter
-  -> known-attack classifier
-  -> autoencoder for ambiguous/unknown traffic
+  -> known-attack classifier on every accepted row
+  -> statistical evidence on every accepted row
+  -> autoencoder/OOD evidence when supported by the bundle
+  -> deterministic routing v2
   -> persist AlertRecord
   -> derive Smart Log + evidence fingerprint
        |
@@ -44,32 +46,56 @@ CSV/JSON flow
 
 ```json
 {
-  "schema_version": "smart-log-v1",
+  "schema_version": "smart-log-v2",
   "event_id": "cg-alert-42",
   "alert_id": 42,
   "created_at": 1770000000.0,
-  "source": {"kind": "uploaded-flow", "file": "capture.csv"},
+  "source": {"kind": "uploaded-flow", "profile": "cicids2017-cicflowmeter"},
   "detection": {
     "type": "unknown-anomaly",
     "severity": "high",
     "stage": "autoencoder",
+    "route": "unknown_anomaly_review",
     "confidence": 0.0,
     "anomaly_score": 9.5,
     "mitre_techniques": [],
-    "top_features": [["flow_duration", 8.2]]
+    "top_features": [["flow_duration", 8.2]],
+    "feature_evidence": [{
+      "name": "flow_duration",
+      "observed_value": 120000.0,
+      "normalized_value": 2.4,
+      "z_score": 8.2
+    }],
+    "signals": {
+      "classifier": {"label": "Benign", "confidence": 0.91},
+      "statistical": {"threshold": 8.0, "flagged": true},
+      "autoencoder": {"reconstruction_error": 9.5, "flagged": true}
+    }
   },
+  "operational_mode": "evaluation_only",
+  "artifact_approval_state": "evaluation_only",
+  "artifact_version": "<artifact-id>",
+  "pipeline_version": "cyberguard-pipeline-v2",
+  "feature_schema_version": "cyberguard-flow-features-v1",
+  "input_profile": "cicids2017-cicflowmeter",
+  "feature_coverage_percentage": 100.0,
+  "supported_classes": ["Benign", "Bot", "DDoS", "PortScan"],
+  "limitations": ["active artifact is evaluation-only"],
   "review_required": true,
   "review_reason": "unknown anomaly requires contextual AI and analyst review",
   "evidence_fingerprint": "<sha256>",
   "trust_boundaries": [
-    "source filename and uploaded flow are untrusted",
+    "uploaded flow fields and stored conversation content are untrusted",
     "LLM output is advisory and schema-validated",
     "no response action is executed by this service"
   ]
 }
 ```
 
-الـ prompt لا يستقبل `flow_json` الخام ولا اسم الملف. يستقبل نسخة مصغرة من Smart Log وسياق MITRE محدود الحجم، وكلاهما يعامل كبيانات غير موثوقة.
+الـ prompt لا يستقبل `flow_json` الخام ولا اسم الملف. يستقبل نسخة مصغرة من
+Smart Log وسياق MITRE محدود الحجم اجتاز minimum relevance، وكلاهما يعامل
+كبيانات غير موثوقة. fingerprint يشمل الأدلة الرقمية canonical، الإشارات،
+إصدار artifact/pipeline/schema، profile/coverage، نطاق الأصناف والحدود.
 
 ## بوابة القرار
 
@@ -127,7 +153,7 @@ CSV/JSON flow
 - لا يوجد Actuator للـ firewall أو EDR، لذلك لا يحدث block/quarantine فعليًا.
 - لا يوجد online learning أو model promotion تلقائي.
 - سياق MITRE وحقول السجل تُعامل كمدخل غير موثوق لمقاومة prompt injection.
-- لا يجوز اعتبار anomaly وحده دليل zero-day مؤكد؛ هو سبب للمراجعة فقط.
+- لا يجوز اعتبار anomaly وحده دليل استغلال؛ هو Unknown Anomaly للمراجعة فقط.
 - التغطية الحقيقية تساوي الفئات التي تدرب عليها artifact الفعّال، لا أسماء الفئات المذكورة في الوثائق.
 - يجب قياس الجودة على بيانات مستقلة قبل أي ادعاء إنتاجي.
 
@@ -135,7 +161,8 @@ CSV/JSON flow
 
 1. اكتمل إدخال ستة captures رسمية CSE-CIC-IDS2018 وتدقيقها واشتقاق hashes محلية.
 2. فشل المرشح الأول gates لأن statistical front gate أخفى الهجمات رغم جودة المصنف منفردًا؛ لم يُرقَّ.
-3. يجب تصميم v2 من training/calibration فقط، ثم فتح captures نهائية جديدة لم تستخدم في v1.
+3. اكتمل منطق Pipeline v2 واختباراته الحتمية؛ يلزم calibration وfinal جديدان
+   مستقلان قبل أي نتيجة أو ترقية إنتاجية.
 4. إضافة SSO/RBAC وهوية محلل فردية قبل الاستخدام متعدد المستخدمين.
 5. تصميم response simulator فقط؛ أي actuator حقيقي يحتاج صلاحية منفصلة، allowlist، TTL، idempotency، rollback، وtwo-person approval.
 

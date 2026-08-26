@@ -1,14 +1,10 @@
-"""Stage 2 — Z-Score statistical filter.
+"""Independent Z-score anomaly evidence for Pipeline v2.
 
-CPU-only, vectorized. Learns per-feature mean/std from BENIGN training traffic,
-then passes through only flows whose max |z| across features exceeds the
-threshold. Expected pass-through: ~20-30% of real traffic — the heavy stages
-below see a fraction of the load.
+CPU-only and vectorized. It learns a benign reference distribution and emits
+per-feature/max scores. Routing consumes this evidence after every row has
+already reached the classifier; it is no longer a benign fast-exit gate.
 
 Throughput is workload- and hardware-dependent and must be measured at runtime.
-
-This is the "speed gate" of the pipeline. It eliminates 70-80% of benign
-traffic before it reaches the expensive XGBoost and autoencoder stages.
 
 Thesis fix #1: The thesis used an LLM to read each log (~2-5 sec/log).
 This vectorized filter is designed for high-throughput CPU processing.
@@ -23,7 +19,7 @@ log = logging.getLogger("cyberguard.statistical")
 
 
 class StatisticalFilter:
-    """Z-Score based anomaly filter. Fast, interpretable, first line of defense."""
+    """Fast, interpretable Z-score evidence scorer for every validated row."""
 
     def __init__(self, threshold: float = 3.0) -> None:
         self.threshold = threshold
@@ -53,7 +49,7 @@ class StatisticalFilter:
         return np.clip(np.nan_to_num(z, nan=0.0, posinf=1e12), 0.0, 1e12)
 
     def is_anomalous(self, x: np.ndarray) -> bool:
-        """Single flow → True if it should pass to heavier stages.
+        """Single flow → whether statistical anomaly evidence is present.
 
         Args:
             x: 1D normalized feature vector.
@@ -81,15 +77,19 @@ class StatisticalFilter:
         return [(feature_names[i], float(zs[i])) for i in order]
 
     def filter_batch(self, X: np.ndarray) -> np.ndarray:
-        """Vectorized: returns boolean mask of anomalous rows. Fast path.
+        """Vectorized boolean anomaly evidence (never a routing fast-exit).
 
         Args:
             X: 2D feature matrix (N × features).
 
         Returns:
-            Boolean array of length N. True = anomalous (passes to next stage).
+            Boolean array of length N. True = statistical anomaly evidence.
         """
         return self._z(X).max(axis=1) > self.threshold
+
+    def z_scores_batch(self, X: np.ndarray) -> np.ndarray:
+        """Return the bounded per-feature evidence matrix for a batch."""
+        return self._z(X)
 
     def max_z_scores(self, X: np.ndarray) -> np.ndarray:
         """Return max Z-score per sample (for scoring/ranking)."""

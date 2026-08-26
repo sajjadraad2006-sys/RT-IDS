@@ -9,17 +9,39 @@ import json
 import os
 import time
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 
 from .autoencoder import AutoencoderDetector
-from .bundles import resolve_active_bundle_dir
+from .bundles import ACTIVE_POINTER, resolve_active_bundle_dir
 from .classifier import AttackClassifier
 from .features import FEATURE_NAMES
-from .integrity import ARTIFACT_FILENAMES, sha256_file, validate_artifact_bundle
+from .integrity import (
+    ARTIFACT_FILENAMES,
+    sha256_file,
+    validate_artifact_bundle,
+    validate_loaded_routing_calibration,
+)
 from .normalizer import Normalizer
 from .statistical import StatisticalFilter
+from ..config import DB_PATH
+
+
+SHADOW_REPORT_VERSION = "cyberguard-shadow-report-v2"
+
+
+def _file_snapshot(path: Path) -> dict:
+    if not path.exists():
+        return {"exists": False, "sha256": None, "bytes": 0}
+    if not path.is_file() or path.is_symlink():
+        return {"exists": True, "sha256": "unsafe-non-regular", "bytes": None}
+    return {
+        "exists": True,
+        "sha256": sha256_file(path),
+        "bytes": path.stat().st_size,
+    }
 
 
 def _load_bundle(root: Path):
@@ -31,6 +53,12 @@ def _load_bundle(root: Path):
     )
     clf.confidence_threshold = float(metadata["classifier"]["abstention_threshold"])
     ae = AutoencoderDetector(len(FEATURE_NAMES)).load(root / "autoencoder.pt")
+    validate_loaded_routing_calibration(
+        metadata,
+        classifier_threshold=clf.confidence_threshold,
+        statistical_threshold=stat.threshold,
+        autoencoder_threshold=ae.threshold,
+    )
     return metadata, norm, stat, clf, ae
 
 
@@ -38,21 +66,30 @@ def _route(bundle, X_raw):
     _, norm, stat, clf, ae = bundle
     start = time.perf_counter()
     X = norm.transform(X_raw)
-    anomalous = stat.filter_batch(X)
+    # Match serving Pipeline v2: every row reaches the classifier and the two
+    # anomaly detectors are independent evidence, never a pre-classifier gate.
     labels, confidences = clf.predict_batch(X)
-    errors = ae.score_batch(X)
-    accepted = anomalous & (labels != "Benign") & (
+    z_scores = stat.z_scores_batch(X)
+    anomalous = z_scores.max(axis=1) > float(stat.threshold)
+    if ae.threshold is None:
+        errors = np.zeros(len(X), dtype=float)
+        ae_flag = np.zeros(len(X), dtype=bool)
+    else:
+        errors = ae.score_batch(X)
+        ae_flag = errors > float(ae.threshold)
+    non_benign = np.char.lower(labels.astype("U32")) != "benign"
+    accepted = non_benign & (
         confidences >= clf.confidence_threshold
     )
-    ae_flag = anomalous & ~accepted & (errors > ae.threshold)
-    ambiguous = anomalous & ~accepted & ~ae_flag & (labels != "Benign")
-    routes = np.full(len(X), "none", dtype="U16")
-    routes[ambiguous] = "review"
-    routes[ae_flag] = "autoencoder"
-    routes[accepted] = "classifier"
+    review = non_benign & ~accepted
+    unknown = ~non_benign & (anomalous | ae_flag)
+    routes = np.full(len(X), "benign", dtype="U32")
+    routes[review] = "human_review"
+    routes[unknown] = "unknown_anomaly_review"
+    routes[accepted] = "known_attack"
     verdicts = np.full(len(X), "Benign", dtype="U32")
-    verdicts[ambiguous] = labels[ambiguous]
-    verdicts[ae_flag] = "unknown-anomaly"
+    verdicts[review] = labels[review]
+    verdicts[unknown] = "Unknown Anomaly"
     verdicts[accepted] = labels[accepted]
     elapsed = time.perf_counter() - start
     return {
@@ -73,9 +110,19 @@ def run_shadow(
 ) -> dict:
     active_dir = resolve_active_bundle_dir()
     candidate_dir = candidate_dir.resolve()
+    candidate_manifest_path = candidate_dir / "artifacts.json"
+    active_manifest_path = active_dir / "artifacts.json"
+    external_before = {
+        "active_pointer": _file_snapshot(ACTIVE_POINTER),
+        "database": _file_snapshot(DB_PATH),
+    }
     before = {
         "active": {name: sha256_file(active_dir / name) for name in ARTIFACT_FILENAMES},
         "candidate": {name: sha256_file(candidate_dir / name) for name in ARTIFACT_FILENAMES},
+    }
+    manifests_before = {
+        "active": sha256_file(active_manifest_path),
+        "candidate": sha256_file(candidate_manifest_path),
     }
     active = _load_bundle(active_dir)
     candidate = _load_bundle(candidate_dir)
@@ -84,6 +131,8 @@ def run_shadow(
         capture for capture in audit["captures"]
         if capture["intended_partition"] == "final_test"
     ]
+    if not final_captures:
+        raise ValueError("shadow audit has no final_test captures")
     X_parts, y_parts = [], []
     remaining = max_rows
     for capture in sorted(final_captures, key=lambda row: row["capture_id"]):
@@ -94,6 +143,8 @@ def run_shadow(
             X_parts.append(data["X"][:take])
             y_parts.append(data["y"][:take].astype("U32"))
             remaining -= take
+    if not X_parts or not sum(len(part) for part in X_parts):
+        raise ValueError("shadow audit produced no bounded final_test rows")
     X = np.concatenate(X_parts)
     y = np.concatenate(y_parts)
     active_result = _route(active, X)
@@ -113,9 +164,19 @@ def run_shadow(
             "candidate_correct": int((candidate_result["verdicts"][selected] == label).sum()),
         }
     result = {
-        "schema_version": "cyberguard-shadow-report-v1",
+        "schema_version": SHADOW_REPORT_VERSION,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "active_bundle": str(active_dir),
         "candidate_bundle": str(candidate_dir),
+        "candidate_manifest_sha256": manifests_before["candidate"],
+        "candidate_artifact_hashes": before["candidate"],
+        "active_manifest_sha256": manifests_before["active"],
+        "active_artifact_hashes": before["active"],
+        "audit_sha256": sha256_file(audit_path),
+        "candidate_pipeline_version": candidate[0].get("pipeline_version"),
+        "candidate_routing_schema_version": candidate[0].get(
+            "routing_schema_version"
+        ),
         "rows": int(len(y)),
         "verdict_disagreements": int(disagreements.sum()),
         "route_disagreements": int(route_disagreements.sum()),
@@ -148,15 +209,48 @@ def run_shadow(
         "drift": candidate[0].get("metrics", {}).get("drift", {}),
         "smart_log_schema_changed": False,
         "policy_behavior_changed": False,
+        # The shadow module contains no LLM/provider import or call path.
         "llm_calls": 0,
-        "database_mutations": 0,
-        "active_pointer_mutations": 0,
     }
     after = {
         "active": {name: sha256_file(active_dir / name) for name in ARTIFACT_FILENAMES},
         "candidate": {name: sha256_file(candidate_dir / name) for name in ARTIFACT_FILENAMES},
     }
+    manifests_after = {
+        "active": sha256_file(active_manifest_path),
+        "candidate": sha256_file(candidate_manifest_path),
+    }
+    external_after = {
+        "active_pointer": _file_snapshot(ACTIVE_POINTER),
+        "database": _file_snapshot(DB_PATH),
+    }
     result["artifact_hashes_unchanged"] = before == after
+    result["manifest_hashes_unchanged"] = manifests_before == manifests_after
+    result["database_mutations"] = int(
+        external_before["database"] != external_after["database"]
+    )
+    result["active_pointer_mutations"] = int(
+        external_before["active_pointer"] != external_after["active_pointer"]
+    )
+    result["state_invariants"] = {
+        "artifacts_before": before,
+        "artifacts_after": after,
+        "manifests_before": manifests_before,
+        "manifests_after": manifests_after,
+        "active_pointer_before": external_before["active_pointer"],
+        "active_pointer_after": external_after["active_pointer"],
+        "database_before": external_before["database"],
+        "database_after": external_after["database"],
+    }
+    result["shadow_status"] = (
+        "passed"
+        if result["artifact_hashes_unchanged"]
+        and result["manifest_hashes_unchanged"]
+        and result["llm_calls"] == 0
+        and result["database_mutations"] == 0
+        and result["active_pointer_mutations"] == 0
+        else "failed_invariants"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temporary = output_path.with_suffix(output_path.suffix + ".tmp")
     temporary.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")

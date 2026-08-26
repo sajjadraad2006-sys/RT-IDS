@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CyberGuard — AI Threat Detection</title>
-<meta name="description" content="CyberGuard: 4-stage ML pipeline for cyber threat detection. XGBoost + Deep Autoencoder + MITRE ATT&CK.">
+<title>CyberGuard — Uploaded Flow Analysis</title>
+<meta name="description" content="CyberGuard analyzes validated, precomputed network-flow records with classifier and anomaly evidence. It is not a live packet IDS.">
 <link rel="stylesheet" href="css/style.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -47,7 +47,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-mark"><svg><use href="#i-shield"/></svg></div>
-      <div class="brand-text"><strong>CyberGuard</strong><span class="brand-sub">IDS v2.0</span></div>
+      <div class="brand-text"><strong>CyberGuard</strong><span class="brand-sub">Flow Analyzer v2</span></div>
     </div>
     <nav class="nav" role="navigation" aria-label="Main">
       <button class="nav-item is-active" data-view="dashboard" id="nav-dashboard"><svg><use href="#i-chart"/></svg><span>Dashboard</span></button>
@@ -60,44 +60,48 @@
     <div class="sidebar-foot">
       <button class="provider-badge" id="provider-badge">
         <span class="dot dot-ok" id="provider-dot"></span>
-        <span id="provider-label">Local · Foundation-Sec-8B</span>
+        <span id="provider-label">Provider status unknown</span>
         <svg class="chev"><use href="#i-chev"/></svg>
       </button>
-      <div class="sys-line"><span class="dot dot-ok" id="engine-dot"></span><span id="engine-status">Pipeline online</span></div>
+      <div class="sys-line"><span class="dot dot-warn" id="engine-dot"></span><span id="engine-status">Checking pipeline state…</span></div>
     </div>
   </aside>
 
   <!-- ═══ Main Content ═══ -->
   <main class="main">
+    <div class="operational-banner mode-unavailable" id="operational-banner" role="status">
+      Checking operational mode and evaluated coverage…
+    </div>
     <!-- ── Dashboard ── -->
     <section class="view is-active" id="view-dashboard">
       <div class="view-head">
-        <div><h1 class="view-title">Detection Dashboard</h1><p class="view-sub">4-stage pipeline: Features → Z-Score → XGBoost → Autoencoder. Throughput is measured from each actual upload.</p></div>
+        <div><h1 class="view-title">Uploaded Flow Dashboard</h1><p class="view-sub">Pipeline v2 validates precomputed flow records, runs the known-attack classifier on every accepted row, then routes independent anomaly evidence. It is not live packet capture.</p></div>
         <div class="head-actions">
-          <input type="file" id="upload-input" hidden accept=".csv,.json,.log,.txt,.tsv,.dat">
-          <button class="btn btn-primary" id="btn-upload"><svg><use href="#i-upload"/></svg>Upload Log</button>
+          <input type="file" id="upload-input" hidden accept=".csv,.tsv,.json,.ndjson,.jsonl">
+          <button class="btn btn-primary" id="btn-upload"><svg><use href="#i-upload"/></svg>Upload Flow Records</button>
           <button class="btn" id="btn-export" title="Export alerts as CSV"><svg><use href="#i-doc"/></svg>Export</button>
         </div>
       </div>
       <div class="kpi-grid reveal-group">
         <div class="kpi reveal"><span class="kpi-label">Flows Analyzed</span><span class="kpi-value text-cyan mono" id="kpi-flows">0</span><span class="kpi-hint">total records processed</span></div>
         <div class="kpi reveal"><span class="kpi-label">Threats Detected</span><span class="kpi-value text-red mono" id="kpi-threats">0</span><span class="kpi-hint">classifier alerts</span></div>
-        <div class="kpi reveal"><span class="kpi-label">Zero-Day Signals</span><span class="kpi-value text-amber mono" id="kpi-zeroday">0</span><span class="kpi-hint">autoencoder anomalies</span></div>
+        <div class="kpi reveal"><span class="kpi-label">Unknown Anomalies</span><span class="kpi-value text-amber mono" id="kpi-unknown">0</span><span class="kpi-hint">review signals, not exploit proof</span></div>
         <div class="kpi reveal"><span class="kpi-label">Throughput</span><span class="kpi-value text-cyan mono" id="kpi-throughput">—</span><span class="kpi-hint">records / second</span></div>
       </div>
       <div class="panel reveal">
         <div class="panel-head"><h2 class="panel-title">Detection Pipeline</h2><span class="panel-note" id="pipeline-note">upload a log file to activate</span></div>
         <div class="pipeline">
-          <div class="stage" data-stage="extract"><div class="stage-num">Stage 1</div><div class="stage-icon"><svg><use href="#i-filter"/></svg></div><h3>Feature Extraction</h3><p>32 numeric features from raw traffic</p><span class="stage-count" id="count-extract">0 flows</span></div>
+          <div class="stage" data-stage="extract"><div class="stage-num">Stage 1</div><div class="stage-icon"><svg><use href="#i-filter"/></svg></div><h3>Schema + Features</h3><p>Validate supported flow columns before inference</p><span class="stage-count" id="count-extract">0 flows</span></div>
           <div class="pipe-arrow"><span></span></div>
-          <div class="stage" data-stage="statistical"><div class="stage-num">Stage 2</div><div class="stage-icon"><svg><use href="#i-cpu"/></svg></div><h3>Z-Score Filter</h3><p>Statistical anomaly gate (CPU-only)</p><span class="stage-count" id="count-statistical">0 flagged</span></div>
+          <div class="stage" data-stage="classifier"><div class="stage-num">Stage 2</div><div class="stage-icon"><svg><use href="#i-bolt"/></svg></div><h3>Known-Attack Classifier</h3><p>Runs on every validated flow</p><span class="stage-count" id="count-classifier">0 alerts</span></div>
           <div class="pipe-arrow"><span></span></div>
-          <div class="stage" data-stage="classifier"><div class="stage-num">Stage 3</div><div class="stage-icon"><svg><use href="#i-bolt"/></svg></div><h3>XGBoost Classifier</h3><p>Known attack classification</p><span class="stage-count" id="count-classifier">0 flagged</span></div>
+          <div class="stage" data-stage="statistical"><div class="stage-num">Stage 3</div><div class="stage-icon"><svg><use href="#i-cpu"/></svg></div><h3>Statistical Evidence</h3><p>Independent anomaly signal; never a benign fast-exit</p><span class="stage-count" id="count-statistical">0 signals</span></div>
           <div class="pipe-arrow"><span></span></div>
-          <div class="stage" data-stage="autoencoder"><div class="stage-num">Stage 4</div><div class="stage-icon"><svg><use href="#i-shield"/></svg></div><h3>Deep Autoencoder</h3><p>Zero-day reconstruction error</p><span class="stage-count" id="count-autoencoder">0 flagged</span></div>
+          <div class="stage" data-stage="autoencoder"><div class="stage-num">Stage 4</div><div class="stage-icon"><svg><use href="#i-shield"/></svg></div><h3>Autoencoder / OOD</h3><p>Independent unknown-behavior evidence</p><span class="stage-count" id="count-autoencoder">0 signals</span></div>
         </div>
         <div class="scanline"></div>
       </div>
+      <div class="panel upload-report" id="upload-report" hidden aria-live="polite"></div>
       <div class="chart-grid">
         <div class="panel reveal"><div class="panel-head"><h2 class="panel-title">Attack Distribution</h2></div><div class="chart-wrap" id="chart-distribution"></div></div>
         <div class="panel reveal"><div class="panel-head"><h2 class="panel-title">Alert Timeline</h2></div><div class="chart-wrap" id="chart-timeline"></div></div>
@@ -149,7 +153,7 @@
         <div class="chat-messages" id="chat-messages">
           <div class="msg msg-ai reveal is-in">
             <div class="msg-avatar"><svg><use href="#i-shield"/></svg></div>
-            <div class="msg-body"><h4>Welcome to CyberGuard Analyst</h4><p>I explain detection pipeline verdicts with MITRE ATT&CK context. I never override the pipeline — it's deterministic. Try the suggestions below, or upload a log file.</p></div>
+          <div class="msg-body"><h4>Welcome to CyberGuard Analyst</h4><p>I explain bounded model evidence with ATT&amp;CK references and operational limitations. I am advisory only and cannot execute or clear a detection.</p></div>
           </div>
         </div>
         <div class="chat-suggestions" id="chat-suggestions">
@@ -159,19 +163,19 @@
           <button class="chip chip-lg" data-q="Why was BERTScore the wrong metric for this system?">📏 Evaluation metrics</button>
         </div>
         <form class="chat-composer" id="chat-form">
-          <input type="file" id="chat-upload" hidden accept=".csv,.json">
-          <button type="button" class="icon-btn" id="btn-chat-upload" title="Attach log file"><svg><use href="#i-attach"/></svg></button>
+          <input type="file" id="chat-upload" hidden accept=".csv,.tsv,.json,.ndjson,.jsonl">
+          <button type="button" class="icon-btn" id="btn-chat-upload" title="Attach supported flow records"><svg><use href="#i-attach"/></svg></button>
           <input type="text" id="chat-input" placeholder="Ask about detections, MITRE techniques, or paste an alert…" autocomplete="off">
           <button type="submit" class="icon-btn icon-btn-primary" title="Send"><svg><use href="#i-send"/></svg></button>
         </form>
-        <p class="composer-note">Pipeline verdicts are ground truth. The LLM explains — never overrides.</p>
+        <p class="composer-note">Model outputs are bounded evidence, not unquestionable truth. The LLM is advisory and sees only recent messages from this session.</p>
       </div>
     </section>
 
     <!-- ── MITRE ATT&CK ── -->
     <section class="view" id="view-mitre">
       <div class="view-head">
-        <div><h1 class="view-title">MITRE ATT&CK Browser</h1><p class="view-sub">Enterprise techniques — synced via TAXII 2.1. Detected techniques are flagged from your uploaded logs.</p></div>
+        <div><h1 class="view-title">MITRE ATT&CK Browser</h1><p class="view-sub">Enterprise techniques synced from the active STIX snapshot. Badges indicate possible techniques inferred from classifier labels—not observed attacker behavior.</p></div>
         <div class="head-actions"><button class="btn" id="mitre-sync-btn"><svg><use href="#i-sync"/></svg>Sync ATT&CK</button><span class="sync-status" id="mitre-sync-status"></span></div>
       </div>
       <div class="mitre-toolbar">
@@ -180,20 +184,20 @@
       </div>
       <div class="mitre-layout">
         <div class="panel"><div class="mitre-list" id="mitre-list" role="list"></div></div>
-        <div class="panel mitre-detail" id="mitre-detail"><div class="mitre-detail-empty"><svg class="empty-icon"><use href="#i-search"/></svg><p>Select a technique to view details, detection mapping, and containment guidance.</p></div></div>
+        <div class="panel mitre-detail" id="mitre-detail"><div class="mitre-detail-empty"><svg class="empty-icon"><use href="#i-search"/></svg><p>Select a technique to view ATT&amp;CK details and candidate label mappings.</p></div></div>
       </div>
     </section>
 
     <!-- ── Models ── -->
     <section class="view" id="view-models">
-      <div class="view-head"><div><h1 class="view-title">Model Management</h1><p class="view-sub">Local GGUF models for security-focused explanations. The pipeline runs without any model loaded.</p></div></div>
+      <div class="view-head"><div><h1 class="view-title">Advisory Model Configuration</h1><p class="view-sub">Selecting a GGUF model changes configuration only. A model is shown as served only when provider health confirms its actual identity; detection does not depend on the LLM.</p></div></div>
       <div class="model-grid" id="model-cards"></div>
       <div class="panel reveal">
         <h2 class="panel-title">System Resources</h2>
         <div class="meters" style="margin-top:var(--s4)">
-          <div><div class="meter-head"><span>VRAM Usage</span><span class="mono" id="meter-vram-val">0 / 8.0 GB</span></div><div class="meter-track"><div class="meter-fill fill-cyan" id="meter-vram" style="width:0%"></div></div><small class="meter-hint">Estimated from loaded model Q4_K_M quantization</small></div>
-          <div><div class="meter-head"><span>RAM Usage</span><span class="mono">system</span></div><div class="meter-track"><div class="meter-fill fill-blue" style="width:35%"></div></div></div>
-          <div><div class="meter-head"><span>Pipeline Models</span><span class="mono">CPU</span></div><div class="meter-track"><div class="meter-fill fill-green" style="width:12%"></div></div><small class="meter-hint">XGBoost + Autoencoder run on CPU — no VRAM needed for detection</small></div>
+          <div><div class="meter-head"><span>Configured model VRAM estimate</span><span class="mono" id="meter-vram-val">No measurement</span></div><div class="meter-track"><div class="meter-fill fill-cyan" id="meter-vram" style="width:0%"></div></div><small class="meter-hint">Static catalog estimate only; this UI does not measure GPU memory.</small></div>
+          <div><div class="meter-head"><span>System RAM</span><span class="mono">Not measured</span></div><div class="meter-track"><div class="meter-fill fill-blue" style="width:0%"></div></div><small class="meter-hint">No host telemetry endpoint is implemented.</small></div>
+          <div><div class="meter-head"><span>Detection compute</span><span class="mono">Not measured here</span></div><div class="meter-track"><div class="meter-fill fill-green" style="width:0%"></div></div><small class="meter-hint">Use measured upload throughput and benchmark reports; this is not a utilization meter.</small></div>
         </div>
       </div>
     </section>
@@ -228,14 +232,14 @@
         <div class="panel">
           <h2 class="panel-title">Validated Detection Thresholds</h2>
           <p class="field-hint" style="margin-top:var(--s3)">Read-only serving values from the verified artifact manifest. Threshold changes require offline calibration and a new candidate bundle.</p>
-          <div class="field" style="margin-top:var(--s4)"><label class="field-label">Classifier abstention gate</label><div class="range-row"><input disabled type="range" id="set-threshold-conf" min="0.5" max="0.99" step="0.01" value="0.90"><span class="range-val mono" id="conf-val">0.90</span></div></div>
+          <div class="field" style="margin-top:var(--s4)"><label class="field-label">Known-attack confidence threshold</label><div class="range-row"><input disabled type="range" id="set-threshold-conf" min="0.5" max="0.99" step="0.01" value="0.90"><span class="range-val mono" id="conf-val">0.90</span></div></div>
           <div class="field"><label class="field-label">Autoencoder k (threshold = μ + k·σ)</label><div class="range-row"><input disabled type="range" id="set-threshold-k" min="1" max="5" step="0.1" value="3.0"><span class="range-val mono" id="k-val">3.0</span></div></div>
           <h3 style="margin-top:var(--s6);font-size:.95rem">Pipeline rules</h3>
           <ul class="rule-list" style="margin-top:var(--s3)">
             <li><svg><use href="#i-shield"/></svg>Detection is deterministic — no LLM in the hot path</li>
             <li><svg><use href="#i-shield"/></svg>Evaluation requires ≥ 10,000 test samples</li>
-            <li><svg><use href="#i-shield"/></svg>Metrics: sklearn precision / recall / F1 only</li>
-            <li><svg><use href="#i-shield"/></svg>Baselines: Z-Score alone + Isolation Forest alone</li>
+            <li><svg><use href="#i-shield"/></svg>Metrics include precision, recall, F1, PR-AUC, calibration, and routing counts</li>
+            <li><svg><use href="#i-shield"/></svg>Baselines: classifier, Z-score, autoencoder, and Isolation Forest</li>
             <li><svg><use href="#i-bolt"/></svg>LLM provides constrained decision support — policy owns disposition</li>
           </ul>
         </div>
@@ -261,7 +265,7 @@
         <div id="modal-features"></div>
       </div>
       <div class="modal-section">
-        <h3>MITRE ATT&CK Mapping</h3>
+        <h3>Candidate ATT&amp;CK Mapping</h3>
         <div id="modal-mitre"></div>
       </div>
       <div class="modal-section">

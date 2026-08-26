@@ -7,6 +7,8 @@ technique: reconstruction error alone cannot infer attacker behavior.
 """
 from __future__ import annotations
 
+MAPPING_VERSION = "classifier-label-candidate-v1"
+
 # ── Label → Technique mapping ─────────────────────────────────────────────────
 # Each CyberGuard detection class maps to the most relevant ATT&CK techniques.
 # These are used for:
@@ -33,7 +35,10 @@ for _label, _techs in _LABEL_TO_TECHNIQUES.items():
 
 
 def map_alert_to_techniques(label: str) -> list[str]:
-    """Map a detection label to relevant MITRE ATT&CK technique IDs.
+    """Map a classifier label to possible MITRE ATT&CK technique IDs.
+
+    This is a heuristic taxonomy hypothesis.  It is not evidence that an
+    attacker performed the mapped behavior.
 
     Args:
         label: Detection class (e.g., "DDoS", "PortScan").
@@ -76,7 +81,10 @@ def get_technique_context(label: str) -> str:
     techs = map_alert_to_techniques(label)
     if not techs:
         return f"No MITRE ATT&CK mapping for label '{label}'."
-    lines = [f"**{label}** maps to MITRE ATT&CK techniques:"]
+    lines = [
+        f"**Candidate ATT&CK mapping for classifier label {label}** "
+        f"(`{MAPPING_VERSION}`; heuristic, not observed behavior):"
+    ]
     for t in techs:
         lines.append(f"- `{t}` — see attack.mitre.org/techniques/{t.replace('.', '/')}")
     return "\n".join(lines)

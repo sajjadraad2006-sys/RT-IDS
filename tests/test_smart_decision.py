@@ -17,6 +17,7 @@ from backend.decision.engine import (
 )
 from backend.main import app
 from backend.limiter import limiter
+from tests.helpers import canonical_csv, canonical_flow
 
 init_all()
 client = TestClient(app)
@@ -34,7 +35,7 @@ def _record(**overrides):
         "id": 42,
         "created_at": 1234.5,
         "severity": "high",
-        "type": "zero-day",
+        "type": "unknown-anomaly",
         "confidence": 0.0,
         "anomaly_score": 9.5,
         "stage": "autoencoder",
@@ -49,7 +50,7 @@ def _record(**overrides):
 def test_smart_log_is_minimal_stable_and_marks_unknown_for_review():
     first = build_smart_log(_record())
     second = build_smart_log(_record())
-    assert first.schema_version == "smart-log-v1"
+    assert first.schema_version == "smart-log-v2"
     assert first.review_required is True
     assert first.evidence_fingerprint == second.evidence_fingerprint
     assert first.detection.top_features == [("flow_duration", 8.2)]
@@ -138,7 +139,7 @@ def test_golden_routing_known_and_benign_bypass_unknown_and_ambiguous_review():
     cases = [
         (dict(severity="critical", type="DDoS", confidence=.99, stage="classifier"), False),
         (dict(severity="none", type="Benign", confidence=.99, stage="none"), False),
-        (dict(severity="high", type="zero-day", confidence=0, stage="autoencoder"), True),
+        (dict(severity="high", type="unknown-anomaly", confidence=0, stage="autoencoder"), True),
         (dict(severity="medium", type="PortScan", confidence=.6, stage="classifier"), True),
     ]
     routed = [build_smart_log(_record(**values)).review_required for values, _ in cases]
@@ -166,8 +167,12 @@ def test_upload_creates_smart_log_and_stable_decision_links(reset_rate_limits):
         files={
             "file": (
                 "smart-log-test.csv",
-                b"Flow Duration,Total Fwd Packets,SYN Flag Count,Flow Bytes/s\n"
-                b"1000000,1000000,100000,10000000000\n",
+                canonical_csv(canonical_flow(
+                    flow_duration=1000000,
+                    total_fwd_packets=1000000,
+                    syn_flag_count=100000,
+                    bytes_per_sec=10000000000,
+                )),
                 "text/csv",
             )
         },
@@ -203,7 +208,7 @@ def test_unknown_endpoint_uses_structured_ai_but_never_executes(monkeypatch):
     monkeypatch.setattr(decision_api, "get_provider", lambda settings: FakeProvider())
     with SessionLocal() as session:
         record = AlertRecord(
-            severity="high", type="zero-day", confidence=0.0,
+            severity="high", type="unknown-anomaly", confidence=0.0,
             anomaly_score=5.2, stage="autoencoder",
             mitre_techniques='["T1203"]',
             top_features='[["flow_duration", 9.0]]',
@@ -272,7 +277,7 @@ def test_ai_provider_failure_falls_back_to_policy(monkeypatch, reset_rate_limits
     monkeypatch.setattr(decision_api, "get_provider", lambda settings: BrokenProvider())
     with SessionLocal() as session:
         record = AlertRecord(
-            severity="high", type="zero-day", confidence=0.0,
+            severity="high", type="unknown-anomaly", confidence=0.0,
             anomaly_score=7.0, stage="autoencoder",
             mitre_techniques="[]", top_features="[]",
             source_file="provider-fallback-test.csv",
@@ -344,7 +349,7 @@ def test_analyst_feedback_is_saved_but_does_not_train_online(reset_rate_limits):
 def test_response_simulator_is_allowlisted_idempotent_and_never_executes(reset_rate_limits):
     with SessionLocal() as session:
         record = AlertRecord(
-            severity="high", type="zero-day", confidence=0.0,
+            severity="high", type="unknown-anomaly", confidence=0.0,
             anomaly_score=4.2, stage="autoencoder", mitre_techniques="[]",
             top_features="[]", source_file="simulator-test.csv",
         )

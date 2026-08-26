@@ -12,14 +12,21 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from backend.detection.deduplication import (
+    EXACT_HASH_ALGORITHM,
+    FEATURE_HASH_SCHEMA_VERSION,
+    NEAR_HASH_ALGORITHM,
+    canonical_feature_hashes,
+    label_independent_duplicate_analysis,
+)
 from backend.detection.features import FEATURE_NAMES, _ALIASES, extract_features_dataframe
 from backend.detection.integrity import sha256_file
 from backend.detection.trainer import normalize_label
 from backend.config import CLASSES
 
 
-AUDIT_VERSION = "cyberguard-dataset-audit-v1"
-DERIVATION_VERSION = "cse-cic-ids2018-feature-derivation-v1"
+AUDIT_VERSION = "cyberguard-dataset-audit-v2"
+DERIVATION_VERSION = "cse-cic-ids2018-feature-derivation-v2"
 CHUNK_ROWS = 100_000
 
 
@@ -28,20 +35,6 @@ def _atomic_json(path: Path, payload: dict) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(temporary, path)
-
-
-def _canonical_hashes(X: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    frame = pd.DataFrame(X, columns=FEATURE_NAMES)
-    frame["__label"] = labels
-    exact = pd.util.hash_pandas_object(
-        frame, index=False, hash_key="cyberguard-audit"
-    ).to_numpy(dtype=np.uint64)
-    near_frame = pd.DataFrame(np.round(np.log1p(np.maximum(X, 0.0)), 3))
-    near_frame["__label"] = labels
-    near = pd.util.hash_pandas_object(
-        near_frame, index=False, hash_key="cyberguard-near1"
-    ).to_numpy(dtype=np.uint64)
-    return exact, near
 
 
 def _feature_compatibility(columns: list[str]) -> dict:
@@ -144,7 +137,7 @@ def audit_capture(item: dict, raw_dir: Path, derived_dir: Path) -> tuple[dict, d
         feature_frame = chunk.drop(columns=["Label", "Timestamp"]).loc[valid_label]
         X = extract_features_dataframe(feature_frame)
         labels = canonical_y.loc[valid_label].to_numpy(dtype="U32")
-        exact, near = _canonical_hashes(X, labels)
+        exact, near = canonical_feature_hashes(X)
         X_parts.append(X)
         y_parts.append(labels)
         time_parts.append(times[valid_label])
@@ -156,8 +149,9 @@ def audit_capture(item: dict, raw_dir: Path, derived_dir: Path) -> tuple[dict, d
     times_all = np.concatenate(time_parts)
     hashes = np.concatenate(hash_parts)
     near_hashes = np.concatenate(near_parts)
-    unique_hashes = np.unique(hashes)
-    unique_near = np.unique(near_hashes)
+    duplicate_analysis = label_independent_duplicate_analysis(
+        hashes, near_hashes, y_all
+    )
     derived_dir.mkdir(parents=True, exist_ok=True)
     derived_path = derived_dir / (Path(item["filename"]).stem + ".npz")
     temporary = derived_path.with_suffix(".npz.tmp")
@@ -202,9 +196,18 @@ def audit_capture(item: dict, raw_dir: Path, derived_dir: Path) -> tuple[dict, d
         "unknown_labels": dict(sorted(unknown_labels.items())),
         "feature_compatibility": compatibility,
         "field_quality": fields,
-        "exact_duplicate_rows": int(len(hashes) - len(unique_hashes)),
-        "near_duplicate_rows": int(len(near_hashes) - len(unique_near)),
-        "near_duplicate_strategy": "round(log1p(nonnegative 32-feature vector), 3) plus canonical label",
+        "duplicate_analysis": duplicate_analysis,
+        # Compatibility counters retain their old names, but are now correctly
+        # label-independent and the structured report above carries conflicts.
+        "exact_duplicate_rows": int(
+            len(hashes) - duplicate_analysis["exact"]["unique_feature_hashes"]
+        ),
+        "near_duplicate_rows": int(
+            len(near_hashes) - duplicate_analysis["near"]["unique_feature_hashes"]
+        ),
+        "near_duplicate_strategy": (
+            "round(log1p(nonnegative 32-feature vector), 3); label tracked separately"
+        ),
         "timestamp": {
             "column": "Timestamp",
             "parsed": timestamp_valid,
@@ -221,7 +224,10 @@ def audit_capture(item: dict, raw_dir: Path, derived_dir: Path) -> tuple[dict, d
             "sha256": sha256_file(derived_path),
             "parent_sha256": observed_sha,
             "transform_version": DERIVATION_VERSION,
-            "row_hash_algorithm": "pandas_hash_object_uint64_fixed_key",
+            "feature_hash_schema_version": FEATURE_HASH_SCHEMA_VERSION,
+            "label_included_in_feature_hash": False,
+            "row_hash_algorithm": EXACT_HASH_ALGORITHM,
+            "near_hash_algorithm": NEAR_HASH_ALGORITHM,
             "row_count": int(len(X_all)),
         },
     }
@@ -271,31 +277,62 @@ def run_audit(acquisition_path: Path, output_dir: Path) -> dict:
         entries.append(entry)
         print(f"audited {entry['id']}: {entry['row_count']} rows")
 
-    capture_sets = {}
-    hash_sets = {}
-    near_sets = {}
+    capture_sets: dict[str, set[str]] = {}
+    hash_labels: dict[str, dict[int, set[str]]] = {}
+    near_labels: dict[str, dict[int, set[str]]] = {}
     for report in reports:
         partition = report["intended_partition"]
         capture_sets.setdefault(partition, set()).add(report["capture_id"])
         with np.load(report["derived"]["path"], allow_pickle=False) as data:
-            hash_sets.setdefault(partition, set()).update(map(int, data["row_hashes"]))
-            near_sets.setdefault(partition, set()).update(map(int, data["near_hashes"]))
+            exact_map = hash_labels.setdefault(partition, {})
+            near_map = near_labels.setdefault(partition, {})
+            for raw_hash, raw_near, raw_label in zip(
+                data["row_hashes"], data["near_hashes"], data["y"]
+            ):
+                label = str(raw_label)
+                exact_map.setdefault(int(raw_hash), set()).add(label)
+                near_map.setdefault(int(raw_near), set()).add(label)
     partitions = sorted(capture_sets)
     overlaps = []
     for left_index, left in enumerate(partitions):
         for right in partitions[left_index + 1:]:
+            exact_shared = set(hash_labels[left]) & set(hash_labels[right])
+            near_shared = set(near_labels[left]) & set(near_labels[right])
+
+            def _overlap_label_counts(shared, left_map, right_map):
+                same = 0
+                conflicting = 0
+                for value in shared:
+                    left_labels = left_map[value]
+                    right_labels = right_map[value]
+                    same += int(bool(left_labels & right_labels))
+                    conflicting += int(len(left_labels | right_labels) > 1)
+                return same, conflicting
+
+            exact_same, exact_conflicting = _overlap_label_counts(
+                exact_shared, hash_labels[left], hash_labels[right]
+            )
+            near_same, near_conflicting = _overlap_label_counts(
+                near_shared, near_labels[left], near_labels[right]
+            )
             overlaps.append({
                 "left": left,
                 "right": right,
                 "capture_overlap": sorted(capture_sets[left] & capture_sets[right]),
-                "exact_hash_overlap": len(hash_sets[left] & hash_sets[right]),
-                "near_hash_overlap": len(near_sets[left] & near_sets[right]),
+                "exact_hash_overlap": len(exact_shared),
+                "exact_same_label_hash_overlap": exact_same,
+                "exact_conflicting_label_hash_overlap": exact_conflicting,
+                "near_hash_overlap": len(near_shared),
+                "near_same_label_hash_overlap": near_same,
+                "near_conflicting_label_hash_overlap": near_conflicting,
             })
 
     result = {
         "schema_version": AUDIT_VERSION,
         "dataset_id": acquisition["dataset_id"],
         "generated_date": date.today().isoformat(),
+        "feature_hash_schema_version": FEATURE_HASH_SCHEMA_VERSION,
+        "label_included_in_feature_hash": False,
         "captures": reports,
         "partition_overlap": overlaps,
         "leakage_review": {
@@ -304,6 +341,7 @@ def run_audit(acquisition_path: Path, output_dir: Path) -> dict:
             "filename_excluded_from_features": True,
             "network_identifiers_used_as_features": False,
             "deduplicate_before_fit_required": True,
+            "conflicting_label_duplicates_must_fail_candidate_gates": True,
             "unsupported_claims": [
                 "The 32 numerical flow features do not inspect SQL or XSS payload text.",
                 "An autoencoder reconstruction error does not prove a zero-day exploit.",

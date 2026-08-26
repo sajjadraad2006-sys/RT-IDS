@@ -9,6 +9,8 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -18,6 +20,11 @@ from .features import FEATURE_NAMES
 
 DATASET_MANIFEST_VERSION = "cyberguard-datasets-v1"
 ARTIFACT_MANIFEST_VERSION = "cyberguard-artifacts-v1"
+COVERAGE_CONTRACT_VERSION = "cyberguard-coverage-contract-v1"
+LEGACY_PIPELINE_VERSION = "cyberguard-pipeline-legacy-v1"
+PIPELINE_V2_VERSION = "cyberguard-pipeline-v2"
+LEGACY_ROUTING_SCHEMA_VERSION = "cyberguard-routing-legacy-v1"
+ROUTING_V2_SCHEMA_VERSION = "cyberguard-routing-v2"
 ARTIFACT_FILENAMES = (
     "normalizer.pkl",
     "statistical.pkl",
@@ -41,6 +48,230 @@ def sha256_file(path: str | Path) -> str:
 def feature_schema_hash() -> str:
     encoded = json.dumps(FEATURE_NAMES, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _string_set(value: Any, field: str, *, allow_empty: bool = True) -> set[str]:
+    if not isinstance(value, list) or (not allow_empty and not value):
+        raise IntegrityError(f"coverage contract {field} must be a list")
+    if any(not isinstance(item, str) or not item.strip() for item in value):
+        raise IntegrityError(f"coverage contract {field} contains an invalid label")
+    labels = [item.strip() for item in value]
+    if len(labels) != len(set(labels)):
+        raise IntegrityError(f"coverage contract {field} contains duplicate labels")
+    return set(labels)
+
+
+def validate_coverage_contract(
+    value: Any,
+    classes: list[str],
+    *,
+    require_supported_evaluated: bool = False,
+) -> dict[str, Any]:
+    """Validate the model's explicit, scoped telemetry/class coverage claim."""
+    if not isinstance(value, dict):
+        raise IntegrityError("artifact has no coverage contract")
+    required = {
+        "schema_version",
+        "trained_supported_labels",
+        "evaluated_labels",
+        "ood_only_labels",
+        "unsupported_labels",
+        "telemetry_profile",
+    }
+    missing = sorted(required - set(value))
+    if missing:
+        raise IntegrityError("coverage contract missing fields: " + ", ".join(missing))
+    if value.get("schema_version") != COVERAGE_CONTRACT_VERSION:
+        raise IntegrityError("unsupported coverage contract schema")
+    telemetry = value.get("telemetry_profile")
+    if not isinstance(telemetry, str) or not telemetry.strip():
+        raise IntegrityError("coverage contract telemetry_profile is invalid")
+
+    trained = _string_set(
+        value.get("trained_supported_labels"),
+        "trained_supported_labels",
+        allow_empty=False,
+    )
+    evaluated = _string_set(value.get("evaluated_labels"), "evaluated_labels")
+    ood = _string_set(value.get("ood_only_labels"), "ood_only_labels")
+    unsupported = _string_set(value.get("unsupported_labels"), "unsupported_labels")
+    declared_classes = {str(item) for item in classes}
+    if trained != declared_classes:
+        raise IntegrityError(
+            "artifact classes must exactly match coverage trained_supported_labels"
+        )
+    if not ood <= evaluated:
+        raise IntegrityError("coverage OOD-only labels must be independently evaluated")
+    if trained & ood:
+        raise IntegrityError("coverage labels cannot be both supported and OOD-only")
+    if not evaluated <= (trained | ood):
+        raise IntegrityError(
+            "coverage evaluated labels must be categorized as supported or OOD-only"
+        )
+    if unsupported & (trained | evaluated | ood):
+        raise IntegrityError("coverage unsupported labels overlap claimed coverage")
+    if require_supported_evaluated and not trained <= evaluated:
+        missing_evaluation = sorted(trained - evaluated)
+        raise IntegrityError(
+            "supported labels lack independent evaluation: "
+            + ", ".join(missing_evaluation)
+        )
+    return value
+
+
+def _finite_number(value: Any, field: str, *, lower: float = 0.0) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise IntegrityError(f"{field} is missing or invalid")
+    numeric = float(value)
+    if not math.isfinite(numeric) or numeric < lower:
+        raise IntegrityError(f"{field} is missing or invalid")
+    return numeric
+
+
+def _validate_pipeline_contract(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Normalize legacy metadata and fail closed for incomplete Pipeline v2."""
+    normalized = dict(manifest)
+    production_approved = bool(normalized.get("production_approved", False))
+    pipeline_version = normalized.get("pipeline_version")
+    if pipeline_version is None:
+        if production_approved:
+            raise IntegrityError(
+                "production-approved artifact cannot omit pipeline metadata"
+            )
+        normalized["pipeline_version"] = LEGACY_PIPELINE_VERSION
+        normalized["routing_schema_version"] = LEGACY_ROUTING_SCHEMA_VERSION
+        normalized["routing_calibration"] = {}
+        normalized["evaluation_only"] = True
+        normalized["legacy_metadata_inferred"] = True
+        return normalized
+
+    if pipeline_version == LEGACY_PIPELINE_VERSION:
+        if production_approved:
+            raise IntegrityError("legacy pipeline artifacts are evaluation-only")
+        if normalized.get("routing_schema_version") != LEGACY_ROUTING_SCHEMA_VERSION:
+            raise IntegrityError("legacy artifact routing schema is invalid")
+        if normalized.get("evaluation_only") is not True:
+            raise IntegrityError("legacy pipeline artifacts must be evaluation-only")
+        calibration = normalized.get("routing_calibration", {})
+        if not isinstance(calibration, dict):
+            raise IntegrityError("legacy routing calibration metadata is invalid")
+        return normalized
+
+    if pipeline_version != PIPELINE_V2_VERSION:
+        raise IntegrityError("unsupported artifact pipeline version")
+    if normalized.get("routing_schema_version") != ROUTING_V2_SCHEMA_VERSION:
+        raise IntegrityError("Pipeline v2 requires cyberguard-routing-v2")
+    if normalized.get("evaluation_only") != (not production_approved):
+        raise IntegrityError("artifact approval and evaluation-only states disagree")
+
+    calibration = normalized.get("routing_calibration")
+    if not isinstance(calibration, dict):
+        raise IntegrityError("Pipeline v2 routing calibration metadata is missing")
+    required = {
+        "known_attack_confidence_threshold",
+        "statistical_anomaly_threshold",
+        "autoencoder_error_threshold",
+        "calibration_source",
+        "calibration_dataset_hashes",
+    }
+    missing = sorted(required - set(calibration))
+    if missing:
+        raise IntegrityError(
+            "Pipeline v2 routing calibration missing fields: " + ", ".join(missing)
+        )
+    confidence = _finite_number(
+        calibration["known_attack_confidence_threshold"],
+        "known-attack confidence threshold",
+    )
+    if confidence > 1.0:
+        raise IntegrityError("known-attack confidence threshold is missing or invalid")
+    classifier_threshold = _finite_number(
+        normalized.get("classifier", {}).get("abstention_threshold"),
+        "artifact abstention threshold",
+    )
+    if not math.isclose(confidence, classifier_threshold, rel_tol=0.0, abs_tol=1e-12):
+        raise IntegrityError("Pipeline v2 classifier threshold metadata mismatch")
+    _finite_number(
+        calibration["statistical_anomaly_threshold"],
+        "statistical anomaly threshold",
+    )
+    ae_threshold = _finite_number(
+        calibration["autoencoder_error_threshold"],
+        "autoencoder error threshold",
+    )
+    artifact_ae_threshold = _finite_number(
+        normalized.get("autoencoder", {}).get("threshold"),
+        "artifact autoencoder threshold",
+    )
+    if not math.isclose(ae_threshold, artifact_ae_threshold, rel_tol=0.0, abs_tol=1e-12):
+        raise IntegrityError("Pipeline v2 autoencoder threshold metadata mismatch")
+    source = calibration.get("calibration_source")
+    if not isinstance(source, str) or not source.strip():
+        raise IntegrityError("Pipeline v2 calibration_source is missing or invalid")
+    hashes = calibration.get("calibration_dataset_hashes")
+    if not isinstance(hashes, dict) or not hashes:
+        raise IntegrityError("Pipeline v2 calibration dataset hashes are missing")
+    sha_pattern = re.compile(r"^[0-9a-f]{64}$")
+    if any(
+        not isinstance(name, str)
+        or not name.strip()
+        or not isinstance(digest, str)
+        or not sha_pattern.fullmatch(digest)
+        for name, digest in hashes.items()
+    ):
+        raise IntegrityError("Pipeline v2 calibration dataset hashes are invalid")
+    declared_hashes = normalized.get("dataset_hashes")
+    if not isinstance(declared_hashes, dict) or any(
+        declared_hashes.get(name) != digest for name, digest in hashes.items()
+    ):
+        raise IntegrityError(
+            "Pipeline v2 calibration hashes are not bound to declared datasets"
+        )
+    validate_coverage_contract(
+        normalized.get("coverage_contract"),
+        list(normalized.get("classes", [])),
+        require_supported_evaluated=production_approved,
+    )
+    return normalized
+
+
+def validate_loaded_routing_calibration(
+    metadata: dict[str, Any],
+    *,
+    classifier_threshold: Any,
+    statistical_threshold: Any,
+    autoencoder_threshold: Any,
+) -> None:
+    """Ensure a loaded Pipeline v2 component matches signed-off metadata."""
+    if metadata.get("pipeline_version") != PIPELINE_V2_VERSION:
+        return
+    calibration = metadata.get("routing_calibration", {})
+    checks = (
+        (
+            "classifier",
+            classifier_threshold,
+            calibration.get("known_attack_confidence_threshold"),
+        ),
+        (
+            "statistical",
+            statistical_threshold,
+            calibration.get("statistical_anomaly_threshold"),
+        ),
+        (
+            "autoencoder",
+            autoencoder_threshold,
+            calibration.get("autoencoder_error_threshold"),
+        ),
+    )
+    for name, loaded, declared in checks:
+        loaded_value = _finite_number(loaded, f"loaded {name} threshold")
+        declared_value = _finite_number(declared, f"declared {name} threshold")
+        if not math.isclose(
+            loaded_value, declared_value, rel_tol=0.0, abs_tol=1e-12
+        ):
+            raise IntegrityError(
+                f"loaded {name} threshold does not match routing calibration"
+            )
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:
@@ -157,6 +388,8 @@ def validate_artifact_bundle(directory: str | Path) -> dict[str, Any]:
     """Verify metadata, feature schema, and every executable artifact checksum."""
     root = Path(directory).resolve()
     manifest_path = root / "artifacts.json"
+    if not manifest_path.is_file() or manifest_path.is_symlink():
+        raise IntegrityError("artifact manifest must be a regular non-symlink file")
     manifest = _load_json_object(manifest_path)
     if manifest.get("schema_version") != ARTIFACT_MANIFEST_VERSION:
         raise IntegrityError("unsupported artifact manifest schema")
@@ -171,13 +404,24 @@ def validate_artifact_bundle(directory: str | Path) -> dict[str, Any]:
         path = root / filename
         if not path.is_file() or path.is_symlink():
             raise IntegrityError(f"artifact must be a regular non-symlink file: {path}")
-        expected = artifacts[filename].get("sha256")
+        declaration = artifacts[filename]
+        if not isinstance(declaration, dict):
+            raise IntegrityError(f"artifact checksum declaration is invalid: {filename}")
+        expected = declaration.get("sha256")
         if not isinstance(expected, str) or sha256_file(path) != expected:
             raise IntegrityError(f"artifact SHA-256 mismatch: {filename}")
     threshold = manifest.get("classifier", {}).get("abstention_threshold")
     if not isinstance(threshold, (int, float)) or not 0.0 < float(threshold) <= 1.0:
         raise IntegrityError("artifact abstention threshold is missing or invalid")
-    return manifest
+    normalized = _validate_pipeline_contract(manifest)
+    coverage = normalized.get("coverage_contract")
+    if coverage is not None:
+        validate_coverage_contract(
+            coverage,
+            list(normalized.get("classes", [])),
+            require_supported_evaluated=bool(normalized.get("production_approved")),
+        )
+    return normalized
 
 
 def write_artifact_manifest(
@@ -192,6 +436,11 @@ def write_artifact_manifest(
     autoencoder_metadata: dict[str, Any] | None = None,
     reproducibility: dict[str, Any] | None = None,
     candidate_status: str = "shadow_only_not_promoted",
+    coverage_contract: dict[str, Any] | None = None,
+    pipeline_version: str = LEGACY_PIPELINE_VERSION,
+    routing_schema_version: str = LEGACY_ROUTING_SCHEMA_VERSION,
+    routing_calibration: dict[str, Any] | None = None,
+    evaluation_only: bool | None = None,
 ) -> Path:
     """Write reproducibility metadata after all candidate files are saved."""
     root = Path(directory)
@@ -205,6 +454,13 @@ def write_artifact_manifest(
         "feature_schema_hash": feature_schema_hash(),
         "code_revision": code_revision,
         "production_approved": bool(production_approved),
+        "evaluation_only": (
+            not bool(production_approved)
+            if evaluation_only is None else bool(evaluation_only)
+        ),
+        "pipeline_version": pipeline_version,
+        "routing_schema_version": routing_schema_version,
+        "routing_calibration": dict(routing_calibration or {}),
         "dataset_hashes": {
             str(item["id"]): str(item["sha256"]) for item in dataset_entries
         },
@@ -214,6 +470,7 @@ def write_artifact_manifest(
         "metrics": metrics,
         "reproducibility": dict(reproducibility or {}),
         "candidate_status": candidate_status,
+        "coverage_contract": coverage_contract,
         "artifacts": artifacts,
     }
     path = root / "artifacts.json"

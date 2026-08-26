@@ -1,5 +1,5 @@
-/* MITRE ATT&CK browser — techniques with tactic filter, full-text search,
-   detected-in-your-logs badges, detail panel, TAXII sync status. */
+/* ATT&CK browser — technique reference plus explicitly heuristic classifier
+   label mappings, detail panel, and snapshot/RAG synchronization status. */
 (function () {
   const list = document.getElementById("mitre-list");
   const detail = document.getElementById("mitre-detail");
@@ -36,7 +36,7 @@
       <button class="tech-item" data-id="${CG.util.esc(t.id)}" role="listitem">
         <span class="tid">${CG.util.esc(t.id)}</span>
         <span class="tname">${CG.util.esc(t.name)}</span>
-        ${t.detected ? `<span class="tdetected">detected</span>` : ""}
+        ${t.candidate_mapping ? `<span class="tdetected">candidate map</span>` : ""}
       </button>`).join("");
     list.querySelectorAll(".tech-item").forEach((b) =>
       b.addEventListener("click", () => select(b.dataset.id)));
@@ -54,9 +54,10 @@
       <div class="detail-tactics">${t.tactics.map((x) => `<span class="chip">${CG.util.esc(titleCase(x))}</span>`).join("")}</div>
       <div class="detail-meta">
         <span>Source: MITRE ATT&amp;CK Enterprise v19.1 (TAXII 2.1)</span>
-        ${t.detected
-          ? `<span style="color:var(--red)">Detected in your uploaded logs — see Dashboard alerts.</span>`
-          : `<span>Not seen in current uploads.</span>`}
+        ${t.candidate_mapping
+          ? `<span style="color:var(--amber)">Possible technique based on a persisted classifier label (${Number(t.candidate_mapping_count || 1)} mapping records). This is not observed behavior.</span>`
+          : `<span>No persisted classifier-label hypothesis points to this technique.</span>`}
+        <span>Mapping semantics: heuristic hypothesis; unknown-anomaly evidence creates no mapping.</span>
         <span>attack.mitre.org/techniques/${CG.util.esc(t.id.replace(".", "/"))}</span>
       </div>`;
   }
@@ -74,7 +75,7 @@
     try {
       const res = await CG.api.mitreSync();
       syncStatus.textContent = res.status === "synced"
-        ? `ATT&CK ${res.version} · synced ${res.indexed ?? ""} techniques`
+        ? `ATT&CK ${res.version} · ${res.indexed ?? ""} techniques · RAG ${res.rag_synchronized ? "synchronized" : "not synchronized"}`
         : `ATT&CK ${res.version || "v19.1"} · ${res.note || res.status}`;
       CG.util.toast(res.status === "synced" ? "ATT&CK snapshot updated." : "Sync skipped — using cached snapshot.");
     } catch {

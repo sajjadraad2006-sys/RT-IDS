@@ -6,7 +6,8 @@ This is what the thesis completely skipped: the LLM never sees raw text here.
 Thesis fix #4: "No feature extraction — Logs are converted to text and fed
 directly to the LLM. No numeric features are computed."
 
-We extract 30 scientifically validated features from CICIDS2017:
+We extract 32 fixed numerical flow features compatible with the documented
+CICFlowMeter adapters:
 - Flow statistics (duration, packet/byte rates)
 - Packet size distribution (mean, std, min, max)
 - TCP flag counts (SYN, ACK, RST, FIN, PSH, URG)
@@ -40,7 +41,7 @@ FEATURE_NAMES: list[str] = [
 ]
 
 # ── CICIDS2017 column aliases → canonical names ──────────────────────────────
-_ALIASES: dict[str, str] = {
+FEATURE_ALIASES: dict[str, str] = {
     # Flow stats
     "Flow Duration": "flow_duration",
     "Total Fwd Packets": "total_fwd_packets",
@@ -88,6 +89,13 @@ _ALIASES: dict[str, str] = {
     # Window / timing
     "Init_Win_bytes_forward": "init_win_bytes_fwd",
     "Init_Win_bytes_backward": "init_win_bytes_bwd",
+    # CICIDS2017 releases use both the ``forward`` spelling and the shorter
+    # ``fwd`` spelling.  The latter was missing from the serving extractor and
+    # silently became zero at inference time.
+    "Init_Win_bytes_fwd": "init_win_bytes_fwd",
+    "Init_Win_bytes_bwd": "init_win_bytes_bwd",
+    "Init Win bytes forward": "init_win_bytes_fwd",
+    "Init Win bytes backward": "init_win_bytes_bwd",
     "Flow IAT Mean": "flow_iat_mean",
     "Flow IAT Std": "flow_iat_std",
     "Flow IAT Max": "flow_iat_max",
@@ -106,11 +114,31 @@ _ALIASES: dict[str, str] = {
     "Idle Mean": "idle_mean",
 }
 
+# Backwards-compatible private name for older callers.  New schema-validation
+# code imports the public constant so aliases and coverage cannot drift apart.
+_ALIASES = FEATURE_ALIASES
+
+
+def canonical_feature_name(raw_name: Any) -> str | None:
+    """Return the canonical model feature represented by a column name.
+
+    Recognition is deliberately schema-based: a present zero-valued column is
+    still present.  Unknown columns return ``None`` instead of being confused
+    with a missing model feature.
+    """
+    if not isinstance(raw_name, str):
+        return None
+    stripped = raw_name.strip().lstrip("\ufeff")
+    canonical = FEATURE_ALIASES.get(stripped, stripped)
+    return canonical if canonical in FEATURE_NAMES else None
+
 
 def _num(v: Any) -> float:
     """Safely convert any value to a finite float.
-    Missing values, infinities, and garbage strings become 0.0.
-    This is critical — the thesis crashed on dirty input."""
+    Missing values, infinities, and garbage strings become 0.0 for trusted
+    offline transforms. Untrusted uploads must first pass input_schema.py,
+    which rejects and reports invalid cells before this fallback is reachable.
+    """
     try:
         f = float(v)
         if not math.isfinite(f) or f < 0:
@@ -123,8 +151,8 @@ def _num(v: Any) -> float:
 def extract_features(flow: dict) -> dict[str, float]:
     """Map one flow record to the fixed 32-feature vector.
 
-    Missing values and infinities become 0.0 — RobustScaler in Stage 1b
-    handles the rest. Never raises on dirty input.
+    Trusted callers retain a total transform. API uploads are validated
+    fail-closed before reaching this function.
 
     Args:
         flow: Raw network flow record (column name → value).
@@ -133,11 +161,13 @@ def extract_features(flow: dict) -> dict[str, float]:
         Dictionary of canonical feature name → numeric value.
     """
     out: dict[str, float] = {name: 0.0 for name in FEATURE_NAMES}
+    provided: set[str] = set()
 
     for raw_key, value in flow.items():
-        canon = _ALIASES.get(raw_key.strip() if isinstance(raw_key, str) else raw_key, raw_key)
+        canon = canonical_feature_name(raw_key)
         if canon in out:
             out[canon] = _num(value)
+            provided.add(canon)
 
     # ── Derived features (computed if not already present) ────────────────
     dur = out["flow_duration"]
@@ -145,23 +175,23 @@ def extract_features(flow: dict) -> dict[str, float]:
     total_bytes = out["total_fwd_bytes"] + out["total_bwd_bytes"]
 
     # Packets per second
-    if dur > 0 and out["packets_per_sec"] == 0.0:
+    if dur > 0 and "packets_per_sec" not in provided:
         out["packets_per_sec"] = total_pkts / max(dur / 1e6, 1e-9)
 
     # Bytes per second
-    if dur > 0 and out["bytes_per_sec"] == 0.0:
+    if dur > 0 and "bytes_per_sec" not in provided:
         out["bytes_per_sec"] = total_bytes / max(dur / 1e6, 1e-9)
 
     # Down/Up ratio
-    if out["down_up_ratio"] == 0.0 and out["total_fwd_bytes"] > 0:
+    if "down_up_ratio" not in provided and out["total_fwd_bytes"] > 0:
         out["down_up_ratio"] = out["total_bwd_bytes"] / max(out["total_fwd_bytes"], 1e-9)
 
     # Average packet size
-    if out["avg_pkt_size"] == 0.0 and total_pkts > 0:
+    if "avg_pkt_size" not in provided and total_pkts > 0:
         out["avg_pkt_size"] = total_bytes / total_pkts
 
     # Flow bytes ratio: fwd/total — asymmetry reveals exfiltration (thesis fix #4)
-    if out["flow_bytes_ratio"] == 0.0 and total_bytes > 0:
+    if "flow_bytes_ratio" not in provided and total_bytes > 0:
         out["flow_bytes_ratio"] = out["total_fwd_bytes"] / total_bytes
 
     return out
@@ -183,43 +213,51 @@ def extract_features_matrix(flows: list[dict]) -> np.ndarray:
     n = len(flows)
     n_feats = len(FEATURE_NAMES)
     arr = np.zeros((n, n_feats), dtype=np.float32)
+    provided = np.zeros((n, n_feats), dtype=bool)
 
     # Cache feature index mapping for O(1) assignments
     feat_to_idx = {name: i for i, name in enumerate(FEATURE_NAMES)}
 
     for row_idx, flow in enumerate(flows):
         for raw_key, val in flow.items():
-            canon = _ALIASES.get(raw_key.strip() if isinstance(raw_key, str) else raw_key, raw_key)
+            canon = canonical_feature_name(raw_key)
             col_idx = feat_to_idx.get(canon)
             if col_idx is not None:
                 arr[row_idx, col_idx] = _num(val)
+                provided[row_idx, col_idx] = True
 
-    return _derive_matrix(arr, feat_to_idx)
+    return _derive_matrix(arr, feat_to_idx, provided)
 
 
-def _derive_matrix(arr: np.ndarray, feat_to_idx: dict[str, int]) -> np.ndarray:
+def _derive_matrix(
+    arr: np.ndarray,
+    feat_to_idx: dict[str, int],
+    provided: np.ndarray | None = None,
+) -> np.ndarray:
     """Apply the same derived-feature rules to an already populated matrix."""
     idx = feat_to_idx
+    if provided is None:
+        provided = arr != 0
     duration = arr[:, idx["flow_duration"]]
     total_packets = (
         arr[:, idx["total_fwd_packets"]] + arr[:, idx["total_bwd_packets"]]
     )
     total_bytes = arr[:, idx["total_fwd_bytes"]] + arr[:, idx["total_bwd_bytes"]]
     seconds = np.maximum(duration / 1e6, 1e-9)
-    missing = (duration > 0) & (arr[:, idx["packets_per_sec"]] == 0)
+    missing = (duration > 0) & ~provided[:, idx["packets_per_sec"]]
     arr[missing, idx["packets_per_sec"]] = total_packets[missing] / seconds[missing]
-    missing = (duration > 0) & (arr[:, idx["bytes_per_sec"]] == 0)
+    missing = (duration > 0) & ~provided[:, idx["bytes_per_sec"]]
     arr[missing, idx["bytes_per_sec"]] = total_bytes[missing] / seconds[missing]
-    missing = (arr[:, idx["down_up_ratio"]] == 0) & (
+    missing = ~provided[:, idx["down_up_ratio"]] & (
         arr[:, idx["total_fwd_bytes"]] > 0
     )
     arr[missing, idx["down_up_ratio"]] = (
         arr[missing, idx["total_bwd_bytes"]]
         / np.maximum(arr[missing, idx["total_fwd_bytes"]], 1e-9)
     )
-    missing = (arr[:, idx["avg_pkt_size"]] == 0) & (total_packets > 0)
+    missing = ~provided[:, idx["avg_pkt_size"]] & (total_packets > 0)
     arr[missing, idx["avg_pkt_size"]] = total_bytes[missing] / total_packets[missing]
-    missing = (arr[:, idx["flow_bytes_ratio"]] == 0) & (total_bytes > 0)
+    missing = ~provided[:, idx["flow_bytes_ratio"]] & (total_bytes > 0)
     arr[missing, idx["flow_bytes_ratio"]] = (
         arr[missing, idx["total_fwd_bytes"]] / total_bytes[missing]
     )
@@ -232,12 +270,10 @@ def extract_features_dataframe(frame) -> np.ndarray:
     """Vectorized Pandas-to-feature conversion for large training captures."""
     n = len(frame)
     arr = np.zeros((n, len(FEATURE_NAMES)), dtype=np.float32)
+    provided = np.zeros((n, len(FEATURE_NAMES)), dtype=bool)
     feat_to_idx = {name: index for index, name in enumerate(FEATURE_NAMES)}
     for raw_name in frame.columns:
-        canonical = _ALIASES.get(
-            raw_name.strip() if isinstance(raw_name, str) else raw_name,
-            raw_name,
-        )
+        canonical = canonical_feature_name(raw_name)
         index = feat_to_idx.get(canonical)
         if index is None:
             continue
@@ -253,4 +289,5 @@ def extract_features_dataframe(frame) -> np.ndarray:
         converted[~np.isfinite(converted)] = 0.0
         converted[converted < 0] = 0.0
         arr[:, index] = np.minimum(converted, 1e15).astype(np.float32)
-    return _derive_matrix(arr, feat_to_idx)
+        provided[:, index] = True
+    return _derive_matrix(arr, feat_to_idx, provided)

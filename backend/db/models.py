@@ -2,7 +2,7 @@
 from __future__ import annotations
 import os, stat, time
 from sqlalchemy import (create_engine, Column, Integer, String, Float,
-                        Text, Boolean)
+                        Text, Boolean, UniqueConstraint, event)
 from sqlalchemy.orm import declarative_base, sessionmaker
 from ..config import DB_PATH
 
@@ -66,6 +66,81 @@ class AlertRecord(Base):
     flow_json = Column(Text, default="{}")
     explanation = Column(Text, default="")          # LLM-generated, cached
     top_features = Column(Text, default="[]")       # JSON array of [name, z_score]
+    route = Column(String(32), default="")
+    pipeline_version = Column(String(32), default="legacy-v1")
+    evidence_json = Column(Text, default="{}")
+    input_schema_json = Column(Text, default="{}")
+
+
+class AlertTechniqueMapping(Base):
+    """Classifier-label hypothesis; never represented as observed behavior."""
+    __tablename__ = "alert_technique_mappings"
+    __table_args__ = (
+        UniqueConstraint(
+            "alert_id", "technique_id", "mapping_version",
+            name="uq_alert_technique_mapping_version",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True)
+    technique_id = Column(String(32), index=True, nullable=False)
+    alert_id = Column(Integer, index=True, nullable=False)
+    created_at = Column(Float, default=time.time, nullable=False)
+    classifier_label = Column(String(64), nullable=False)
+    mapping_version = Column(String(64), nullable=False)
+    confidence = Column(Float, default=0.0, nullable=False)
+    evidence_kind = Column(String(32), default="heuristic_hypothesis", nullable=False)
+    observed_evidence = Column(Boolean, default=False, nullable=False)
+
+
+@event.listens_for(AlertRecord, "after_insert")
+def _persist_candidate_attack_mappings(mapper, connection, target) -> None:
+    """Write mapping provenance in the same transaction as its alert.
+
+    Only classifier labels can create a candidate mapping.  Autoencoder/OOD
+    alerts intentionally create no ATT&CK row, even if legacy JSON happens to
+    contain a technique id.
+    """
+    del mapper
+    # SQLite may reuse an alert row id after legacy/bulk deletions that bypass
+    # ORM ``after_delete`` hooks. Clearing the id first is a recoverable
+    # consistency repair and prevents stale provenance from attaching to a
+    # newly inserted benign/unknown alert.
+    connection.execute(
+        AlertTechniqueMapping.__table__.delete().where(
+            AlertTechniqueMapping.alert_id == int(target.id)
+        )
+    )
+    if str(target.stage or "").lower() != "classifier":
+        return
+    from ..mitre.mapper import MAPPING_VERSION, map_alert_to_techniques
+
+    techniques = map_alert_to_techniques(str(target.type or ""))
+    if not techniques:
+        return
+    confidence = min(1.0, max(0.0, float(target.confidence or 0.0)))
+    rows = [{
+        "technique_id": technique_id,
+        "alert_id": int(target.id),
+        "created_at": float(target.created_at or time.time()),
+        "classifier_label": str(target.type or "unknown")[:64],
+        "mapping_version": MAPPING_VERSION,
+        "confidence": confidence,
+        "evidence_kind": "heuristic_hypothesis",
+        "observed_evidence": False,
+    } for technique_id in techniques]
+    connection.execute(AlertTechniqueMapping.__table__.insert(), rows)
+
+
+@event.listens_for(AlertRecord, "after_delete")
+def _delete_candidate_attack_mappings(mapper, connection, target) -> None:
+    """Keep provenance recoverably consistent when an alert is deleted."""
+    del mapper
+    connection.execute(
+        AlertTechniqueMapping.__table__.delete().where(
+            AlertTechniqueMapping.alert_id == int(target.id)
+        )
+    )
 
 
 class Setting(Base):

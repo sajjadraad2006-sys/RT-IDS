@@ -158,36 +158,86 @@ window.CG = window.CG || {};
 
   /* ---------------- provider badge + boot ---------------- */
   async function paintProvider() {
-    const s = await CG.api.getSettings();
+    const [s, health] = await Promise.all([
+      CG.api.getSettings(),
+      CG.api.health().catch(() => ({ ok: false, status: "unreachable" })),
+    ]);
     const label = document.getElementById("provider-label");
     const dot = document.getElementById("provider-dot");
     const tag = document.getElementById("chat-provider-tag");
+    if (CG.api.mode === "demo") {
+      label.textContent = "Demo · provider simulated";
+      tag.textContent = "demo · no provider call";
+      dot.className = "dot dot-warn";
+      return;
+    }
     if (s.llm_provider === "local") {
-      const m = s.local_model === "redsage" ? "RedSage-8B" : "Foundation-Sec-8B";
-      label.textContent = "Local · " + m;
-      tag.textContent = "local · " + m.toLowerCase();
-      dot.className = "dot dot-ok";
+      const configured = s.local_model === "redsage" ? "RedSage-8B" : "Foundation-Sec-8B";
+      const actual = health.identity_verified && health.model ? health.model : null;
+      label.textContent = health.ok
+        ? actual ? "Local ready · " + actual : "Local reachable · identity unknown"
+        : "Local unavailable · selected " + configured;
+      tag.textContent = health.ok
+        ? actual ? "local · " + actual : "local · identity unverified"
+        : "local unavailable";
+      dot.className = health.ok ? "dot dot-ok" : "dot dot-err";
     } else {
-      label.textContent = "API · " + (s.api_model || "external");
-      tag.textContent = "api · " + (s.api_model || "external");
-      dot.className = s.api_key_set ? "dot dot-ok" : "dot dot-warn";
+      label.textContent = health.configured
+        ? "API configured · reachability unverified"
+        : "API not configured";
+      tag.textContent = "api · " + (s.api_model || "model unset") + " · unverified";
+      dot.className = "dot dot-warn";
+    }
+  }
+
+  async function paintOperationalState(prefetched) {
+    const banner = document.getElementById("operational-banner");
+    const engine = document.getElementById("engine-status");
+    const dot = document.getElementById("engine-dot");
+    if (CG.api.mode === "demo") {
+      banner.className = "operational-banner mode-demo";
+      banner.textContent = "Demo — all alerts and upload results are simulated and kept separate from backend records.";
+      engine.textContent = "Demo · no backend inference";
+      dot.className = "dot dot-warn";
+      return;
+    }
+    try {
+      const health = prefetched || await CG.api.pipelineHealth();
+      const classes = health.supported_classes || health.trained_classes || [];
+      const scope = classes.length ? classes.join(", ") : "no independently supported class scope reported";
+      if (!health.ready || !health.integrity_verified) {
+        banner.className = "operational-banner mode-unavailable";
+        banner.textContent = "Unavailable — artifact integrity/readiness failed; inference is blocked closed.";
+        engine.textContent = "Pipeline unavailable";
+        dot.className = "dot dot-err";
+      } else if (health.production_approved) {
+        banner.className = "operational-banner mode-production";
+        banner.textContent = `Production-approved for explicit scope only: ${scope}. Uploaded flow analysis; no live ingestion.`;
+        engine.textContent = "Production-approved · scoped";
+        dot.className = "dot dot-ok";
+      } else {
+        banner.className = "operational-banner";
+        banner.textContent = `Evaluation-only — active artifact is not production approved. Trained scope: ${scope}. Results require validation.`;
+        engine.textContent = "Evaluation-only artifacts";
+        dot.className = "dot dot-warn";
+      }
+    } catch {
+      banner.className = "operational-banner mode-unavailable";
+      banner.textContent = "Unavailable — backend health could not be read; no readiness claim is made.";
+      engine.textContent = "Health unavailable";
+      dot.className = "dot dot-err";
     }
   }
 
   document.getElementById("provider-badge").addEventListener("click", () => route("settings"));
 
-  CG.util = { esc, fmtNum, fmtTime, timeAgo, toast, md, watchReveals, paintProvider, route };
+  CG.util = { esc, fmtNum, fmtTime, timeAgo, toast, md, watchReveals, paintProvider, paintOperationalState, route };
   CG.onView = {};
 
   document.addEventListener("DOMContentLoaded", async () => {
     initParticles();
     const mode = await CG.api.init();
-    if (mode === "demo") {
-      const es = document.getElementById("engine-status");
-      es.textContent = "Demo mode — start backend for live data";
-      document.getElementById("engine-dot").className = "dot dot-warn";
-    }
-    await paintProvider();
+    await Promise.all([paintProvider(), paintOperationalState()]);
     route(location.hash.slice(1) || "dashboard");
     watchReveals();
     // dismiss loading screen

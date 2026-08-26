@@ -19,7 +19,7 @@ def test_autoencoder_flags_unseen_pattern():
     unseen = rng.normal(6, 1, size=(1, N_FEATURES))[0]  # distribution shift = attack
     benign_err = ae.score(rng.normal(0, 1, size=(1, N_FEATURES))[0])
     assert ae.score(unseen) > benign_err
-    flagged, err = ae.is_zero_day(unseen)
+    flagged, err = ae.is_unknown_anomaly(unseen)
     assert flagged and err > ae.threshold
 
 

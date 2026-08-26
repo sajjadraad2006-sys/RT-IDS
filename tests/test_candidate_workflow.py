@@ -8,21 +8,33 @@ import numpy as np
 from backend.detection.candidate_workflow import (
     _calibrate_classifier,
     _load_partitions,
+    _pipeline_v2_routes,
     _sample_training,
+)
+from backend.detection.deduplication import (
+    FEATURE_HASH_SCHEMA_VERSION,
+    canonical_feature_hashes,
+    label_independent_duplicate_analysis,
 )
 from backend.detection.features import FEATURE_NAMES, extract_features_dataframe
 from backend.detection.trainer import normalize_label
 
 
-def _capture(tmp_path, name, partition, hashes, near_hashes):
+def _rows(*values):
+    return np.array([
+        np.full(len(FEATURE_NAMES), value, dtype=np.float32) for value in values
+    ])
+
+
+def _capture(tmp_path, name, partition, X, labels=None):
     path = tmp_path / f"{name}.npz"
-    rows = len(hashes)
+    rows = len(X)
+    labels = labels or ["Benign"] * rows
+    hashes, near_hashes = canonical_feature_hashes(X)
     np.savez_compressed(
         path,
-        X=np.arange(rows * len(FEATURE_NAMES), dtype=np.float32).reshape(
-            rows, len(FEATURE_NAMES)
-        ),
-        y=np.array(["Benign"] * rows, dtype="U32"),
+        X=X,
+        y=np.array(labels, dtype="U32"),
         timestamps=np.arange(rows, dtype=np.int64),
         row_hashes=np.array(hashes, dtype=np.uint64),
         near_hashes=np.array(near_hashes, dtype=np.uint64),
@@ -30,17 +42,24 @@ def _capture(tmp_path, name, partition, hashes, near_hashes):
     return {
         "capture_id": name,
         "intended_partition": partition,
-        "derived": {"path": str(path)},
+        "derived": {
+            "path": str(path),
+            "feature_hash_schema_version": FEATURE_HASH_SCHEMA_VERSION,
+            "label_included_in_feature_hash": False,
+        },
     }
 
 
 def test_split_loader_removes_exact_and_near_overlap_before_fit(tmp_path):
     audit = {
+        "schema_version": "cyberguard-dataset-audit-v2",
+        "feature_hash_schema_version": FEATURE_HASH_SCHEMA_VERSION,
+        "label_included_in_feature_hash": False,
         "captures": [
-            _capture(tmp_path, "train", "training", [1, 2], [11, 12]),
-            _capture(tmp_path, "cal", "calibration", [2, 3, 30], [20, 13, 12]),
-            _capture(tmp_path, "final", "final_test", [3, 4], [13, 14]),
-            _capture(tmp_path, "ood", "ood_test", [5, 6], [15, 14]),
+            _capture(tmp_path, "train", "training", _rows(1.0, 2.0)),
+            _capture(tmp_path, "cal", "calibration", _rows(2.0, 3.0, 1.0001)),
+            _capture(tmp_path, "final", "final_test", _rows(3.0, 4.0)),
+            _capture(tmp_path, "ood", "ood_test", _rows(5.0, 4.0001)),
         ]
     }
     audit_path = tmp_path / "audit.json"
@@ -56,6 +75,47 @@ def test_split_loader_removes_exact_and_near_overlap_before_fit(tmp_path):
             assert left.isdisjoint(right)
     assert partitions["calibration"]["removed_exact_overlap"] == 1
     assert partitions["calibration"]["removed_near_overlap"] == 1
+
+
+def test_feature_hash_excludes_label_and_conflicts_are_reported_and_not_split(tmp_path):
+    same_features = _rows(7.0, 7.0)
+    exact, near = canonical_feature_hashes(same_features)
+    assert exact[0] == exact[1]
+    assert near[0] == near[1]
+    report = label_independent_duplicate_analysis(
+        exact, near, np.array(["Benign", "DoS"])
+    )
+    assert report["label_included_in_feature_hash"] is False
+    assert report["exact"]["conflicting_label_feature_groups"] == 1
+    assert report["exact"]["conflicting_label_rows"] == 2
+    assert report["near"]["conflicting_label_feature_groups"] == 1
+
+    audit = {
+        "schema_version": "cyberguard-dataset-audit-v2",
+        "feature_hash_schema_version": FEATURE_HASH_SCHEMA_VERSION,
+        "label_included_in_feature_hash": False,
+        "captures": [
+            _capture(tmp_path, "train", "training", _rows(7.0), ["Benign"]),
+            _capture(tmp_path, "cal", "calibration", _rows(8.0)),
+            _capture(
+                tmp_path,
+                "final",
+                "final_test",
+                _rows(7.0, 9.0),
+                ["DoS", "Benign"],
+            ),
+            _capture(tmp_path, "ood", "ood_test", _rows(10.0)),
+        ],
+    }
+    audit_path = tmp_path / "conflicts.json"
+    audit_path.write_text(json.dumps(audit), encoding="utf-8")
+    partitions, _ = _load_partitions(audit_path)
+    assert partitions["final_test"]["removed_exact_conflicting_label"] == 1
+    assert partitions["final_test"]["exact_conflicting_label_feature_groups"] == 1
+    assert len(partitions["final_test"]["y"]) == 1
+    assert set(map(int, partitions["training"]["row_hashes"])).isdisjoint(
+        set(map(int, partitions["final_test"]["row_hashes"]))
+    )
 
 
 def test_training_sampling_is_deterministic_and_never_samples_other_partitions():
@@ -88,6 +148,23 @@ def test_classifier_threshold_calibration_has_no_test_set_parameter():
     assert result["validation_samples"] == 3
     assert 0.5 <= result["threshold"] <= 0.995
     assert "heldout" in result["method"]
+
+
+def test_candidate_pipeline_v2_routing_never_uses_statistical_gate():
+    labels = np.array(["DDoS", "PortScan", "Benign", "Benign"])
+    routed = _pipeline_v2_routes(
+        labels,
+        np.array([0.99, 0.50, 0.99, 0.99]),
+        classifier_threshold=0.90,
+        statistical_flags=np.array([False, False, True, False]),
+        autoencoder_flags=np.array([False, True, False, False]),
+    )
+    assert routed["routes"].tolist() == [
+        "known_attack", "human_review", "unknown_anomaly_review", "benign"
+    ]
+    assert routed["verdicts"].tolist() == [
+        "DDoS", "PortScan", "Unknown Anomaly", "Benign"
+    ]
 
 
 def test_cse_cic_ids2018_columns_map_to_nonzero_canonical_features():

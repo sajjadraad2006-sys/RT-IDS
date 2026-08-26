@@ -29,12 +29,34 @@ class LocalClient:
             return r.json()["choices"][0]["message"]["content"]
 
     async def health(self) -> dict:
-        """Check if the local llama.cpp server is running."""
+        """Check reachability and report the server's actual model when exposed."""
         try:
             async with httpx.AsyncClient(timeout=5) as c:
                 r = await c.get(f"{self.base_url}/health")
-                return {"ok": r.status_code == 200, "model": self.model,
-                        "url": self.base_url}
+                ok = r.status_code == 200
+                actual_model = None
+                identity_verified = False
+                if ok:
+                    try:
+                        models = await c.get(f"{self.base_url}/v1/models")
+                        if models.status_code == 200:
+                            data = models.json().get("data", [])
+                            if isinstance(data, list) and data and isinstance(data[0], dict):
+                                actual_model = str(data[0].get("id") or "")[:256] or None
+                                identity_verified = actual_model is not None
+                    except Exception as exc:
+                        # Model identity is optional provider metadata. Keep
+                        # reachability truthful and leave identity unverified.
+                        log.debug("llama.cpp model identity unavailable: %s", exc)
+                return {
+                    "ok": ok,
+                    "status": "reachable" if ok else "unreachable",
+                    "model": actual_model,
+                    "configured_model": self.model,
+                    "identity_verified": identity_verified,
+                    "url": self.base_url,
+                }
         except Exception as exc:
-            return {"ok": False, "model": self.model, "url": self.base_url,
-                    "error": str(exc)}
+            return {"ok": False, "status": "unreachable", "model": None,
+                    "configured_model": self.model, "identity_verified": False,
+                    "url": self.base_url, "error": type(exc).__name__}

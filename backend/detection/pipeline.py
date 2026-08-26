@@ -1,50 +1,67 @@
-"""The 4-stage detection pipeline. THE CORE of CyberGuard (90% of value).
-Works with zero LLM. The LLM layer only explains alerts afterwards.
+"""CyberGuard Pipeline v2: classifier-first, evidence-fusion routing.
 
-    flow → features → [Z-filter] → [XGBoost] → [Autoencoder] → Alert
-
-Pipeline logic:
-1. Stage 1: Extract 32 numeric features, normalize with RobustScaler
-2. Stage 2: Z-Score filter — if max|z| < threshold, flow is benign (fast exit)
-3. Stage 3: XGBoost classifies into 8 attack types with confidence
-4. Stage 4: Autoencoder flags unknown anomalies via reconstruction error
-
-Each stage is independently testable and replaceable.
+Every validated flow reaches the known-attack classifier. Statistical and
+autoencoder scores are calculated independently and may add review evidence;
+neither signal is a pre-classifier benign gate. The LLM is never used here.
 """
 from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+import threading
 import time
-import logging
-from dataclasses import dataclass, field, asdict
+from typing import Any
+
 import numpy as np
-from .features import extract_features, FEATURE_NAMES
+
+from .autoencoder import AutoencoderDetector
+from .classifier import AttackClassifier
+from .features import FEATURE_NAMES, extract_features_matrix
 from .normalizer import Normalizer
 from .statistical import StatisticalFilter
-from .classifier import AttackClassifier
-from .autoencoder import AutoencoderDetector
 from ..mitre.mapper import map_alert_to_techniques
 
-log = logging.getLogger("cyberguard.pipeline")
+
+PIPELINE_VERSION = "cyberguard-pipeline-v2"
+ROUTING_SCHEMA_VERSION = "cyberguard-routing-v2"
+LEGACY_PIPELINE_VERSION = "cyberguard-pipeline-legacy-v1"
+
+
+def _finite(value: Any, default: float = 0.0) -> float:
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return default
+    return result if np.isfinite(result) else default
 
 
 @dataclass
 class Alert:
-    """Detection result from the pipeline."""
-    severity: str                     # none | low | medium | high | critical
-    type: str                         # Benign | DDoS | ... | unknown-anomaly
+    """One deterministic Pipeline v2 routing result."""
+
+    severity: str
+    type: str
     confidence: float = 0.0
     anomaly_score: float = 0.0
-    stage: str = "none"               # statistical | classifier | autoencoder
+    stage: str = "none"
+    route: str = "benign"
     mitre_techniques: list[str] = field(default_factory=list)
     latency_ms: float = 0.0
     note: str = ""
     top_features: list[tuple[str, float]] = field(default_factory=list)
+    feature_evidence: list[dict[str, float | str]] = field(default_factory=list)
+    evidence: dict[str, Any] = field(default_factory=dict)
+    pipeline_version: str = PIPELINE_VERSION
+    routing_schema_version: str = ROUTING_SCHEMA_VERSION
+    artifact_pipeline_version: str = LEGACY_PIPELINE_VERSION
 
-    def to_dict(self) -> dict:
-        def json_safe(value):
-            if isinstance(value, float):
-                return value if np.isfinite(value) else 0.0
+    def to_dict(self) -> dict[str, Any]:
+        def json_safe(value: Any) -> Any:
+            if isinstance(value, (float, np.floating)):
+                return float(value) if np.isfinite(value) else 0.0
+            if isinstance(value, (int, np.integer)):
+                return int(value)
             if isinstance(value, dict):
-                return {key: json_safe(item) for key, item in value.items()}
+                return {str(key): json_safe(item) for key, item in value.items()}
             if isinstance(value, (list, tuple)):
                 return [json_safe(item) for item in value]
             return value
@@ -54,238 +71,292 @@ class Alert:
 
 @dataclass
 class PipelineStats:
-    """Cumulative pipeline statistics."""
+    """Bounded process-lifetime counters; memory is O(1), not O(flows)."""
+
     total_flows: int = 0
-    benign_filtered: int = 0         # dropped at Stage 2
-    classifier_alerts: int = 0       # caught at Stage 3
-    autoencoder_alerts: int = 0      # caught at Stage 4
-    low_confidence: int = 0          # uncertain classifications
+    benign_decisions: int = 0
+    classifier_alerts: int = 0
+    unknown_anomaly_reviews: int = 0
+    human_reviews: int = 0
+    total_latency_ms: float = 0.0
     mean_latency_ms: float = 0.0
-    _latencies: list[float] = field(default_factory=list, repr=False)
 
     def record(self, alert: Alert) -> None:
         self.total_flows += 1
-        self._latencies.append(alert.latency_ms)
-        if alert.severity == "none":
-            self.benign_filtered += 1
-        elif alert.stage == "classifier":
+        self.total_latency_ms += max(0.0, _finite(alert.latency_ms))
+        self.mean_latency_ms = self.total_latency_ms / self.total_flows
+        if alert.route == "benign":
+            self.benign_decisions += 1
+        elif alert.route == "known_attack":
             self.classifier_alerts += 1
-        elif alert.stage == "autoencoder":
-            self.autoencoder_alerts += 1
-        if alert.severity == "medium":
-            self.low_confidence += 1
-        if self._latencies:
-            self.mean_latency_ms = sum(self._latencies) / len(self._latencies)
+        elif alert.route == "unknown_anomaly_review":
+            self.unknown_anomaly_reviews += 1
+        elif alert.route == "human_review":
+            self.human_reviews += 1
 
 
 class DetectionPipeline:
-    """4-stage detection pipeline orchestrator."""
+    """Versioned classifier-first orchestrator for validated flow records."""
 
-    def __init__(self, normalizer: Normalizer, stat: StatisticalFilter,
-                 clf: AttackClassifier, ae: AutoencoderDetector) -> None:
+    def __init__(
+        self,
+        normalizer: Normalizer,
+        stat: StatisticalFilter,
+        clf: AttackClassifier,
+        ae: AutoencoderDetector,
+        *,
+        artifact_metadata: dict[str, Any] | None = None,
+    ) -> None:
         self.normalizer = normalizer
         self.stat = stat
         self.clf = clf
         self.ae = ae
-        self.stats = PipelineStats()
-
-    def detect(self, flow: dict) -> Alert:
-        """Run one flow through all 4 stages.
-
-        Args:
-            flow: Raw flow record (column name → value).
-
-        Returns:
-            Alert with severity, type, confidence, and MITRE mapping.
-        """
-        t0 = time.perf_counter()
-
-        # ── Stage 1: Feature extraction + normalization ──────────────────
-        feats = extract_features(flow)
-        x = self.normalizer.transform_one(feats)
-
-        # ── Stage 2: Statistical filter ──────────────────────────────────
-        if not self.stat.is_anomalous(x[0]):
-            alert = Alert(severity="none", type="Benign",
-                         note="passed statistical filter", stage="none")
-            self._finish(alert, t0)
-            self.stats.record(alert)
-            return alert
-
-        # Get top anomalous features for explainability
-        top_feats = self.stat.top_anomalous_features(x[0], FEATURE_NAMES, top=5)
-
-        # ── Stage 3: XGBoost classifier ──────────────────────────────────
-        label, conf = self.clf.predict(x[0])
-        if self.clf.is_confident_attack(label, conf):
-            sev = "critical" if conf > 0.98 else "high"
-            alert = Alert(
-                severity=sev, type=label, confidence=conf,
-                stage="classifier",
-                mitre_techniques=map_alert_to_techniques(label),
-                top_features=top_feats)
-            self._finish(alert, t0)
-            self.stats.record(alert)
-            return alert
-
-        # ── Stage 4: Autoencoder (unknown anomaly) ──────────────────────
-        is_zd, err = self.ae.is_zero_day(x[0])
-        if is_zd:
-            alert = Alert(
-                severity="high", type="unknown-anomaly",
-                anomaly_score=round(err, 4),
-                stage="autoencoder",
-                # Reconstruction error cannot identify an ATT&CK technique.
-                mitre_techniques=[],
-                top_features=top_feats)
-            self._finish(alert, t0)
-            self.stats.record(alert)
-            return alert
-
-        # ── Low-confidence known attack ──────────────────────────────────
-        if label.lower() != "benign":
-            alert = Alert(
-                severity="medium", type=label, confidence=conf,
-                stage="classifier",
-                mitre_techniques=map_alert_to_techniques(label),
-                top_features=top_feats)
-            self._finish(alert, t0)
-            self.stats.record(alert)
-            return alert
-
-        # ── Passed all stages ────────────────────────────────────────────
-        alert = Alert(severity="low", type="Benign",
-                     note="passed all stages", stage="none")
-        self._finish(alert, t0)
-        self.stats.record(alert)
-        return alert
-
-    def _create_classifier_alert(self, label: str, conf: float, orig_i: int, X_norm: np.ndarray, n: int, t0: float) -> Alert:
-        sev = "critical" if conf > 0.98 else "high"
-        top_feats = self.stat.top_anomalous_features(X_norm[orig_i], FEATURE_NAMES, top=5)
-        a = Alert(
-            severity=sev, type=label, confidence=float(conf),
-            stage="classifier",
-            mitre_techniques=map_alert_to_techniques(label),
-            top_features=top_feats,
+        self.artifact_metadata = dict(artifact_metadata or {})
+        self.artifact_pipeline_version = str(
+            self.artifact_metadata.get("pipeline_version", LEGACY_PIPELINE_VERSION)
         )
-        a.latency_ms = round(((time.perf_counter() - t0) / n) * 1000, 3)
-        self.stats.record(a)
-        return a
-
-    def _process_autoencoder_batch(self, sub_orig_indices: list[int], stage4_sub_indices: list[int],
-                                   labels: list[str], confs: list[float], X_norm: np.ndarray,
-                                   alerts: list[Alert | None], n: int, t0: float) -> None:
-        X_stage4 = X_norm[sub_orig_indices]
-        ae_errors = self.ae.score_batch(X_stage4)
-
-        for orig_i, err, sub_i in zip(sub_orig_indices, ae_errors, stage4_sub_indices):
-            label, conf = labels[sub_i], confs[sub_i]
-            top_feats = self.stat.top_anomalous_features(X_norm[orig_i], FEATURE_NAMES, top=5)
-            is_zd = (self.ae.threshold is not None) and (err > self.ae.threshold)
-
-            if is_zd:
-                a = Alert(
-                    severity="high", type="unknown-anomaly",
-                    anomaly_score=round(float(err), 4),
-                    stage="autoencoder",
-                    mitre_techniques=[],
-                    top_features=top_feats,
-                )
-            elif label.lower() != "benign":
-                a = Alert(
-                    severity="medium", type=label, confidence=float(conf),
-                    stage="classifier",
-                    mitre_techniques=map_alert_to_techniques(label),
-                    top_features=top_feats,
-                )
-            else:
-                a = Alert(severity="low", type="Benign", note="passed all stages", stage="none")
-
-            a.latency_ms = round(((time.perf_counter() - t0) / n) * 1000, 3)
-            self.stats.record(a)
-            alerts[orig_i] = a
-
-    def detect_batch(self, flows: list[dict]) -> list[Alert]:
-        """Run multiple flows through the pipeline in fully vectorized batches."""
-        if not flows:
-            return []
-
-        t0 = time.perf_counter()
-        n = len(flows)
-
-        # 1. Matrix feature extraction & normalization
-        from .features import extract_features_matrix
-        X_raw = extract_features_matrix(flows)
-        X_norm = self.normalizer.transform(X_raw)
-
-        # 2. Stage 2 Z-score filter
-        anom_mask = self.stat.filter_batch(X_norm)
-        alerts: list[Alert | None] = [None] * n
-
-        benign_indices = np.where(~anom_mask)[0]
-        for orig_i in benign_indices:
-            alert = Alert(
-                severity="none", type="Benign",
-                note="passed statistical filter", stage="none",
+        self.artifact_routing_schema_version = str(
+            self.artifact_metadata.get(
+                "routing_schema_version", "cyberguard-routing-legacy-v1"
             )
-            alert.latency_ms = round(((time.perf_counter() - t0) / n) * 1000, 3)
-            self.stats.record(alert)
-            alerts[orig_i] = alert
+        )
+        self.production_approved = bool(
+            self.artifact_metadata.get("production_approved", False)
+        )
+        coverage = self.artifact_metadata.get("coverage_contract")
+        coverage = coverage if isinstance(coverage, dict) else {}
+        declared_supported = coverage.get(
+            "trained_supported_labels", self.artifact_metadata.get("classes", [])
+        )
+        self.supported_labels = {
+            str(item) for item in declared_supported
+            if isinstance(item, str) and item.strip()
+        }
+        # Unit callers without artifact metadata use their fake classifier's
+        # declared universe. Serving always receives integrity-checked classes.
+        if not self.supported_labels and not self.artifact_metadata:
+            self.supported_labels = {
+                str(item) for item in getattr(self.clf, "classes_", [])
+            }
+        self.calibration_status = (
+            "calibrated_pipeline_v2"
+            if self.artifact_pipeline_version == PIPELINE_VERSION
+            else "legacy_unvalidated_evaluation_only"
+        )
+        self.stats = PipelineStats()
+        self._stats_lock = threading.Lock()
 
-        anom_indices = np.where(anom_mask)[0]
-        if len(anom_indices) == 0:
-            return [a for a in alerts if a is not None]
+    def _feature_evidence(
+        self, raw: np.ndarray, normalized: np.ndarray, z_values: np.ndarray,
+        *, top: int = 5,
+    ) -> tuple[list[tuple[str, float]], list[dict[str, float | str]]]:
+        order = np.argsort(z_values)[::-1][:top]
+        pairs: list[tuple[str, float]] = []
+        detailed: list[dict[str, float | str]] = []
+        for index in order:
+            name = FEATURE_NAMES[int(index)]
+            z_score = max(0.0, _finite(z_values[index]))
+            observed = _finite(raw[index])
+            normalized_value = _finite(normalized[index])
+            pairs.append((name, z_score))
+            detailed.append({
+                "name": name,
+                "observed_value": observed,
+                "normalized_value": normalized_value,
+                "z_score": z_score,
+            })
+        return pairs, detailed
 
-        X_anom = X_norm[anom_indices]
-
-        # 3. Stage 3 XGBoost classification
-        labels, confs = self.clf.predict_batch(X_anom)
-        stage4_sub_indices = []
-
-        for idx_in_anom, (orig_i, label, conf) in enumerate(zip(anom_indices, labels, confs)):
-            if self.clf.is_confident_attack(label, conf):
-                alerts[orig_i] = self._create_classifier_alert(label, conf, orig_i, X_norm, n, t0)
-            else:
-                stage4_sub_indices.append(idx_in_anom)
-
-        if not stage4_sub_indices:
-            for orig_i, label, conf in zip(anom_indices, labels, confs):
-                if alerts[orig_i] is None:
-                    top_feats = self.stat.top_anomalous_features(X_norm[orig_i], FEATURE_NAMES, top=5)
-                    sev = "medium" if label.lower() != "benign" else "low"
-                    a = Alert(
-                        severity=sev, type=label, confidence=float(conf),
-                        stage="classifier" if label.lower() != "benign" else "none",
-                        mitre_techniques=map_alert_to_techniques(label) if label.lower() != "benign" else [],
-                        top_features=top_feats,
-                    )
-                    a.latency_ms = round(((time.perf_counter() - t0) / n) * 1000, 3)
-                    self.stats.record(a)
-                    alerts[orig_i] = a
-            return [a for a in alerts if a is not None]
-
-        # 4. Stage 4 Autoencoder unknown-anomaly processing
-        sub_orig_indices = [anom_indices[sub_i] for sub_i in stage4_sub_indices]
-        self._process_autoencoder_batch(sub_orig_indices, stage4_sub_indices, labels, confs, X_norm, alerts, n, t0)
-
-        return [a for a in alerts if a is not None]
-
-    def get_stats(self) -> dict:
-        """Return pipeline statistics as a dict."""
-        s = self.stats
-        drop_rate = (s.benign_filtered / max(s.total_flows, 1)) * 100
-        return {
-            "total_flows": s.total_flows,
-            "benign_filtered": s.benign_filtered,
-            "classifier_alerts": s.classifier_alerts,
-            "autoencoder_alerts": s.autoencoder_alerts,
-            "low_confidence": s.low_confidence,
-            "mean_latency_ms": round(s.mean_latency_ms, 3),
-            "drop_rate_pct": round(drop_rate, 1),
+    def _route_one(
+        self,
+        *,
+        label: str,
+        confidence: float,
+        max_z: float,
+        stat_flag: bool,
+        ae_error: float,
+        ae_flag: bool,
+        top_features: list[tuple[str, float]],
+        feature_evidence: list[dict[str, float | str]],
+    ) -> Alert:
+        label = str(label)
+        confidence = min(1.0, max(0.0, _finite(confidence)))
+        max_z = max(0.0, _finite(max_z))
+        ae_error = max(0.0, _finite(ae_error))
+        classifier_threshold = _finite(
+            getattr(self.clf, "confidence_threshold", 1.0), 1.0
+        )
+        stat_threshold = max(0.0, _finite(getattr(self.stat, "threshold", 0.0)))
+        ae_threshold_value = getattr(self.ae, "threshold", None)
+        ae_threshold = (
+            max(0.0, _finite(ae_threshold_value))
+            if ae_threshold_value is not None else None
+        )
+        evidence = {
+            "classifier": {
+                "label": label,
+                "confidence": confidence,
+                "known_attack_threshold": classifier_threshold,
+                "supported_label": bool(
+                    not self.supported_labels or label in self.supported_labels
+                ),
+                "is_confident_known_attack": bool(
+                    label.lower() != "benign"
+                    and (not self.supported_labels or label in self.supported_labels)
+                    and confidence >= classifier_threshold
+                ),
+                "calibration_status": self.calibration_status,
+            },
+            "statistical": {
+                "max_z_score": max_z,
+                "threshold": stat_threshold,
+                "flagged": bool(stat_flag),
+                "role": "independent_evidence_not_a_gate",
+                "calibration_status": self.calibration_status,
+            },
+            "autoencoder": {
+                "available": ae_threshold is not None,
+                "reconstruction_error": ae_error,
+                "threshold": ae_threshold,
+                "flagged": bool(ae_flag),
+                "role": "unknown_anomaly_signal_not_exploit_proof",
+                "calibration_status": self.calibration_status,
+            },
+            "artifact": {
+                "pipeline_version": self.artifact_pipeline_version,
+                "routing_schema_version": self.artifact_routing_schema_version,
+                "production_approved": self.production_approved,
+            },
         }
 
-    @staticmethod
-    def _finish(alert: Alert, t0: float) -> Alert:
-        alert.latency_ms = round((time.perf_counter() - t0) * 1000, 2)
-        return alert
+        supported_label = not self.supported_labels or label in self.supported_labels
+        confident_attack = (
+            label.lower() != "benign"
+            and supported_label
+            and confidence >= classifier_threshold
+        )
+        if confident_attack:
+            return Alert(
+                severity="critical" if confidence > 0.98 else "high",
+                type=label, confidence=confidence, anomaly_score=ae_error,
+                stage="classifier", route="known_attack",
+                mitre_techniques=map_alert_to_techniques(label),
+                note="supported known-label classifier evidence",
+                top_features=top_features, feature_evidence=feature_evidence,
+                evidence=evidence,
+                artifact_pipeline_version=self.artifact_pipeline_version,
+            )
+
+        # A non-benign classifier output is never silently converted to benign.
+        if label.lower() != "benign":
+            evidence["routing_reason"] = (
+                "classifier_label_outside_declared_supported_scope"
+                if not supported_label else
+                "uncertain_classifier_with_anomaly_evidence"
+                if stat_flag or ae_flag else "uncertain_non_benign_classifier"
+            )
+            return Alert(
+                severity="medium", type=label, confidence=confidence,
+                anomaly_score=ae_error, stage="classifier", route="human_review",
+                mitre_techniques=(
+                    map_alert_to_techniques(label) if supported_label else []
+                ),
+                note="uncertain classifier evidence requires analyst review",
+                top_features=top_features, feature_evidence=feature_evidence,
+                evidence=evidence,
+                artifact_pipeline_version=self.artifact_pipeline_version,
+            )
+
+        if stat_flag or ae_flag:
+            evidence["routing_reason"] = "classifier_benign_with_independent_anomaly"
+            return Alert(
+                severity="high" if stat_flag and ae_flag else "medium",
+                type="unknown-anomaly", confidence=confidence,
+                anomaly_score=ae_error,
+                stage="autoencoder" if ae_flag else "statistical",
+                route="unknown_anomaly_review", mitre_techniques=[],
+                note="unknown behavior signal; not proof of an exploit",
+                top_features=top_features, feature_evidence=feature_evidence,
+                evidence=evidence,
+                artifact_pipeline_version=self.artifact_pipeline_version,
+            )
+
+        evidence["routing_reason"] = "classifier_and_independent_signals_non_actionable"
+        return Alert(
+            severity="none", type="Benign", confidence=confidence,
+            anomaly_score=ae_error, stage="none", route="benign",
+            note="classifier and calibrated anomaly signals found no actionable evidence",
+            top_features=top_features, feature_evidence=feature_evidence,
+            evidence=evidence,
+            artifact_pipeline_version=self.artifact_pipeline_version,
+        )
+
+    def _detect_rows(self, flows: list[dict]) -> list[Alert]:
+        if not flows:
+            return []
+        started = time.perf_counter()
+        raw = extract_features_matrix(flows)
+        normalized = self.normalizer.transform(raw)
+
+        # Pipeline v2 invariant: classification happens before routing for all
+        # rows. Statistical evidence cannot short-circuit this call.
+        labels, confidences = self.clf.predict_batch(normalized)
+        z_matrix = self.stat.z_scores_batch(normalized)
+        max_z_scores = z_matrix.max(axis=1)
+        stat_flags = max_z_scores > float(self.stat.threshold)
+        if getattr(self.ae, "threshold", None) is None:
+            ae_errors = np.zeros(len(normalized), dtype=float)
+            ae_flags = np.zeros(len(normalized), dtype=bool)
+        else:
+            ae_errors = self.ae.score_batch(normalized)
+            ae_flags = ae_errors > float(self.ae.threshold)
+
+        elapsed_per_row_ms = (time.perf_counter() - started) * 1000 / len(flows)
+        alerts: list[Alert] = []
+        for index in range(len(flows)):
+            top, detailed = self._feature_evidence(
+                raw[index], normalized[index], z_matrix[index]
+            )
+            alert = self._route_one(
+                label=str(labels[index]), confidence=float(confidences[index]),
+                max_z=float(max_z_scores[index]), stat_flag=bool(stat_flags[index]),
+                ae_error=float(ae_errors[index]), ae_flag=bool(ae_flags[index]),
+                top_features=top, feature_evidence=detailed,
+            )
+            alert.latency_ms = round(max(0.0, elapsed_per_row_ms), 4)
+            alerts.append(alert)
+        with self._stats_lock:
+            for alert in alerts:
+                self.stats.record(alert)
+        return alerts
+
+    def detect(self, flow: dict) -> Alert:
+        """Run one already-validated record with the same logic as a batch."""
+        return self._detect_rows([flow])[0]
+
+    def detect_batch(self, flows: list[dict]) -> list[Alert]:
+        """Return exactly one ordered result for every validated input row."""
+        return self._detect_rows(flows)
+
+    def get_stats(self) -> dict[str, Any]:
+        """Return bounded process-lifetime statistics (not upload statistics)."""
+        with self._stats_lock:
+            s = self.stats
+            benign_rate = s.benign_decisions / max(s.total_flows, 1) * 100
+            review_count = s.human_reviews + s.unknown_anomaly_reviews
+            return {
+                "scope": "process_lifetime",
+                "pipeline_version": PIPELINE_VERSION,
+                "total_flows": s.total_flows,
+                "benign_decisions": s.benign_decisions,
+                "benign_filtered": s.benign_decisions,
+                "classifier_alerts": s.classifier_alerts,
+                "autoencoder_alerts": s.unknown_anomaly_reviews,
+                "unknown_anomaly_reviews": s.unknown_anomaly_reviews,
+                "human_reviews": s.human_reviews,
+                "review_count": review_count,
+                "mean_latency_ms": round(s.mean_latency_ms, 4),
+                "benign_rate_pct": round(benign_rate, 2),
+                "drop_rate_pct": 0.0,
+                "latency_samples_retained": 0,
+            }

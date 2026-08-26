@@ -37,9 +37,13 @@ from .limiter import limiter
 app = FastAPI(
     title="CyberGuard",
     version="2.0.0",
-    description="Multi-layer AI cyber threat detection — "
-                "4-stage pipeline first, LLM explains. "
-                "Built on CICIDS2017, MITRE ATT&CK, XGBoost, deep autoencoder.",
+    description=(
+        "Evaluation-stage analyzer for validated, uploaded flow records. "
+        "Pipeline v2 runs a known-attack classifier on every accepted row and "
+        "uses statistical/autoencoder signals as independent review evidence. "
+        "The LLM is advisory; live packet ingestion and automated response are "
+        "not implemented."
+    ),
     lifespan=_lifespan,
 )
 

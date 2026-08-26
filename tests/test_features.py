@@ -37,6 +37,17 @@ def test_derived_features_computed():
     assert out["avg_pkt_size"] > 0
 
 
+def test_explicit_zero_derived_feature_is_preserved_as_legitimate_value():
+    row = {
+        "Flow Duration": "1000000",
+        "Total Fwd Packets": "10",
+        "Total Backward Packets": "5",
+        "Flow Packets/s": "0",
+    }
+    out = extract_features(row)
+    assert out["packets_per_sec"] == 0.0
+
+
 def test_flow_bytes_ratio_computed():
     """flow_bytes_ratio = fwd_bytes / total_bytes — critical for exfiltration detection."""
     row = {"Total Length of Fwd Packets": "7000",

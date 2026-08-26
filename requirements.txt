@@ -1,27 +1,34 @@
-# CyberGuard — pinned, offline-installable with pip --no-index if you pre-fetch wheels
+# CyberGuard runtime dependencies.
+#
+# Every direct dependency is exact-pinned. Update these pins deliberately,
+# run the complete verification workflow, and review ``pip-audit`` before
+# committing an upgrade. Development/security tooling lives in
+# ``requirements-dev.txt`` so normal launches do not install it.
 
-# Web framework
-fastapi>=0.110
-uvicorn[standard]>=0.29
-python-multipart>=0.0.9
-pydantic>=2.6
-httpx>=0.27
-sqlalchemy>=2.0
-cryptography>=42.0
-slowapi>=0.1.10
+# Complete CPython 3.12 transitive constraints shared by runtime and CI.
+-c requirements.lock
+# Prefer the official CPU wheel for reproducible CI and machines without a
+# configured accelerator. Operators may install a compatible accelerator build
+# explicitly; the application never requires GPU execution.
+--extra-index-url https://download.pytorch.org/whl/cpu
 
-# Detection core (the 90%)
-numpy>=1.26
-pandas>=2.2
-scikit-learn>=1.4
-xgboost>=2.0
-torch>=2.5          # GPU (CUDA 12.6) acceleration for Autoencoder & XGBoost
-joblib>=1.3
-
-# MITRE ATT&CK + RAG (optional until first sync — app runs without them)
-taxii2-client>=2.3
-stix2>=3.0
-requests>=2.31
-
-# Dev / tests
-pytest>=8.0
+cryptography==50.0.0
+fastapi==0.141.1
+httpx==0.28.1
+joblib==1.5.3
+numpy==2.5.2
+packaging==26.3
+pandas==3.0.5
+pydantic==2.13.4
+python-multipart==0.0.32
+requests==2.34.2
+scikit-learn==1.9.0
+scipy==1.18.0
+slowapi==0.1.10
+SQLAlchemy==2.0.51
+stix2==3.0.2
+taxii2-client==2.3.0
+torch==2.13.0
+uvicorn[standard]==0.52.1
+xgboost-cpu==3.4.0 ; sys_platform == "linux"
+xgboost==3.4.0 ; sys_platform != "linux"

@@ -4,6 +4,7 @@ Also: alert explanation (LLM layer), CSV export, pipeline health.
 """
 from __future__ import annotations
 import json, csv, io, time, logging, re
+from collections import Counter
 from typing import Literal
 from fastapi import APIRouter, UploadFile, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -45,7 +46,10 @@ def _get_pipeline():
     from ..detection.classifier import AttackClassifier
     from ..detection.autoencoder import AutoencoderDetector
     from ..detection.features import FEATURE_NAMES
-    from ..detection.integrity import validate_artifact_bundle
+    from ..detection.integrity import (
+        validate_artifact_bundle,
+        validate_loaded_routing_calibration,
+    )
     try:
         metadata = validate_artifact_bundle(model_root)
         norm = Normalizer().load(model_root / "normalizer.pkl")
@@ -69,7 +73,15 @@ def _get_pipeline():
             raise IntegrityError("autoencoder feature count does not match running schema")
         if list(clf.classes_) != list(metadata.get("classes", [])):
             raise IntegrityError("classifier classes do not match artifact manifest")
-        _pipeline = DetectionPipeline(norm, stat, clf, ae)
+        validate_loaded_routing_calibration(
+            metadata,
+            classifier_threshold=clf.confidence_threshold,
+            statistical_threshold=stat.threshold,
+            autoencoder_threshold=ae.threshold,
+        )
+        _pipeline = DetectionPipeline(
+            norm, stat, clf, ae, artifact_metadata=metadata
+        )
         _pipeline_metadata = metadata
         _pipeline_root = model_root
         log.info(
@@ -85,218 +97,258 @@ def _get_pipeline():
     return _pipeline
 
 
-def _parse_upload_streaming(name: str, raw: bytes) -> list[dict]:
-    """Parse uploaded file into flow dicts.
-
-    For CSV files, uses streaming DictReader. For JSON, decodes in one shot.
-    Handles CSV, TSV, semicolon-delimited, JSON arrays, and NDJSON.
-    """
-    text = raw.decode("utf-8-sig", errors="replace").strip()
-    if not text:
-        return []
-
-    # Reject obviously binary content (contains null bytes or too many
-    # replacement characters — signals a binary file, not a log)
-    null_ratio = text.count('\x00') / max(len(text), 1)
-    replace_ratio = text.count('\ufffd') / max(len(text), 1)
-    if null_ratio > 0.01 or replace_ratio > 0.2:
-        return []
-
-    # 1. Try JSON / NDJSON first
-    if name.lower().endswith(".json") or text.startswith(("{", "[")):
-        try:
-            # Handle line-delimited JSON (NDJSON)
-            if "\n" in text and not text.startswith("["):
-                rows = []
-                for line in text.splitlines():
-                    line = line.strip()
-                    if line.startswith("{") and line.endswith("}"):
-                        try:
-                            rows.append(json.loads(line))
-                        except (json.JSONDecodeError, TypeError):
-                            continue
-                if rows:
-                    return rows
-            data = json.loads(text)
-            return data if isinstance(data, list) else [data]
-        except Exception as e:
-            log.debug("JSON parse fallback: %s", e)
-
-    # 2. Delimiter auto-detection: Tab, Semicolon, or Comma
-    first_line = text.split("\n")[0]
-    delimiter = "\t" if "\t" in first_line else ";" if ";" in first_line else ","
-
-    stream = io.StringIO(text)
-    reader = csv.DictReader(stream, delimiter=delimiter)
-    rows = []
-    for r in reader:
-        clean_row = { (k.strip() if k else ""): (v.strip() if v else "") for k, v in r.items() if k }
-        if any(clean_row.values()):
-            rows.append(clean_row)
-
-    # 3. Fallback for raw headerless log lines
-    if not rows:
-        lines = [l.strip() for l in text.splitlines() if l.strip()]
-        for line in lines:
-            parts = [p.strip() for p in line.replace("\t", ",").split(",") if p.strip()]
-            if parts:
-                rows.append({f"col_{i}": p for i, p in enumerate(parts)})
-
-    return rows
-
-
 @router.post("/upload")
 @limiter.limit("10/minute")
 async def upload(request: Request, file: UploadFile) -> dict:
-    """Upload a log file and run it through the 4-stage detection pipeline.
+    """Stream supported flow records through strict validation and Pipeline v2."""
+    from ..config import MAX_UPLOAD_MB, MAX_UPLOAD_ROWS
+    from .upload_stream import RejectedRow, UploadParseError, prepare_upload
+    from ..detection.input_schema import FEATURE_SCHEMA_VERSION
+    from ..detection.pipeline import PIPELINE_VERSION
 
-    Handles large files (1M+ rows) via:
-    - Streaming read with size limit enforcement
-    - Batch processing (5000 rows per batch)
-    - Batch DB inserts instead of per-row commits
-    - Capped alert response (max 500 in JSON payload)
-    """
-    from ..config import MAX_UPLOAD_MB
-
-    filename = (file.filename or "upload.log").strip()
-    filename = re.sub(r"[\x00-\x1f\x7f]", "_", filename)[:255] or "upload.log"
-
-    # ── Read with size limit ──────────────────────────────────────────────
-    max_bytes = MAX_UPLOAD_MB * 1024 * 1024
-    chunks = []
-    total_read = 0
-    while True:
-        chunk = await file.read(8 * 1024 * 1024)  # 8 MB chunks
-        if not chunk:
-            break
-        total_read += len(chunk)
-        if total_read > max_bytes:
+    filename = (file.filename or "upload").strip()
+    filename = re.sub(r"[\x00-\x1f\x7f]", "_", filename)[:255] or "upload"
+    try:
+        prepared = prepare_upload(
+            file.file, filename, max_bytes=MAX_UPLOAD_MB * 1024 * 1024
+        )
+    except UploadParseError as exc:
+        reason = str(exc)
+        if reason == "upload_byte_limit_exceeded":
+            raise HTTPException(413, f"File exceeds {MAX_UPLOAD_MB} MB limit") from exc
+        if reason == "unsupported_file_extension":
             raise HTTPException(
-                413,
-                f"File exceeds {MAX_UPLOAD_MB} MB limit. "
-                f"Split the file or increase CG_MAX_UPLOAD_MB."
-            )
-        chunks.append(chunk)
+                422,
+                "Supported uploaded flow containers are .csv, .tsv, .json, "
+                ".ndjson, and .jsonl",
+            ) from exc
+        raise HTTPException(400, f"Upload rejected: {reason}") from exc
 
-    raw_content = b"".join(chunks)
-    del chunks  # free memory early
+    validator = prepared.validator
+    pipe = None
+    accepted_batch: list[dict[str, float]] = []
+    returned_alerts: list[dict] = []
+    persist_records: list[AlertRecord] = []
+    route_counts: Counter[str] = Counter()
+    stage_counts: Counter[str] = Counter()
+    evidence_signal_counts: Counter[str] = Counter()
+    alerts_generated = 0
+    analyzed = 0
+    latency_total = 0.0
+    max_db_alerts = 5000
+    started = time.perf_counter()
 
-    if not raw_content or len(raw_content.strip()) == 0:
-        raise HTTPException(400, "Uploaded file is empty (0 bytes)")
+    def process_batch() -> None:
+        nonlocal alerts_generated, analyzed, latency_total, pipe
+        if not accepted_batch:
+            return
+        if pipe is None:
+            pipe = _get_pipeline()
+        batch_results = pipe.detect_batch(accepted_batch)
+        if len(batch_results) != len(accepted_batch):
+            raise RuntimeError("Pipeline v2 violated ordered one-result-per-row contract")
+        analyzed += len(batch_results)
+        schema_payload = validator.report.to_dict()
+        for alert in batch_results:
+            route_counts[alert.route] += 1
+            stage_counts[alert.stage if alert.stage in {
+                "classifier", "statistical", "autoencoder", "none"
+            } else "none"] += 1
+            latency_total += max(0.0, float(alert.latency_ms))
+            for signal in ("statistical", "autoencoder"):
+                if alert.evidence.get(signal, {}).get("flagged"):
+                    evidence_signal_counts[signal] += 1
+            if alert.route == "benign":
+                continue
+            alerts_generated += 1
+            payload = alert.to_dict()
+            if len(returned_alerts) < MAX_RETURN_ALERTS:
+                returned_alerts.append(payload)
+            if len(persist_records) < max_db_alerts:
+                evidence_payload = {
+                    **alert.evidence,
+                    "feature_evidence": alert.feature_evidence,
+                    "artifact_version": alert.artifact_pipeline_version,
+                    "production_approved": bool(
+                        _pipeline_metadata and _pipeline_metadata.get("production_approved")
+                    ),
+                    "supported_classes": list(
+                        (_pipeline_metadata or {}).get("coverage_contract", {}).get(
+                            "trained_supported_labels",
+                            (_pipeline_metadata or {}).get("classes", []),
+                        )
+                    ),
+                    "feature_schema_version": FEATURE_SCHEMA_VERSION,
+                }
+                record_kwargs = {
+                    "severity": alert.severity,
+                    "type": alert.type,
+                    "confidence": alert.confidence,
+                    "anomaly_score": alert.anomaly_score,
+                    "stage": alert.stage,
+                    "mitre_techniques": json.dumps(alert.mitre_techniques),
+                    "latency_ms": alert.latency_ms,
+                    "source_file": filename,
+                    # Raw flows may contain sensitive identifiers and are not
+                    # needed for the bounded Smart Log evidence contract.
+                    "flow_json": "",
+                    "top_features": json.dumps(alert.top_features),
+                }
+                # Forward-compatible with the migration owned by the Smart Log
+                # subsystem; tests can still import this module during edits.
+                for key, value in {
+                    "route": alert.route,
+                    "pipeline_version": PIPELINE_VERSION,
+                    "evidence_json": json.dumps(evidence_payload, sort_keys=True),
+                    "input_schema_json": json.dumps(schema_payload, sort_keys=True),
+                }.items():
+                    if hasattr(AlertRecord, key):
+                        record_kwargs[key] = value
+                persist_records.append(AlertRecord(**record_kwargs))
+        accepted_batch.clear()
 
-    # ── Parse all flows ───────────────────────────────────────────────────
-    flows = _parse_upload_streaming(filename, raw_content)
-    del raw_content  # free raw bytes
-
-    if not flows:
+    try:
+        for row in prepared.rows:
+            if validator.report.total_parsed >= MAX_UPLOAD_ROWS:
+                raise HTTPException(
+                    413,
+                    detail={
+                        "message": f"File exceeds {MAX_UPLOAD_ROWS} row limit",
+                        "schema_validation": validator.report.to_dict(),
+                    },
+                )
+            if isinstance(row, RejectedRow):
+                validator.reject_structural_row(row.reason)
+                continue
+            canonical = validator.validate_row(row)
+            if canonical is not None:
+                accepted_batch.append(canonical)
+                if len(accepted_batch) >= BATCH_SIZE:
+                    process_batch()
+        process_batch()
+    except UploadParseError as exc:
         raise HTTPException(
             400,
-            "Could not parse flow entries from uploaded file. "
-            "Please ensure it contains CSV, JSON, TSV, or log rows."
+            detail={
+                "message": f"Upload parse failed: {exc}",
+                "schema_validation": validator.report.to_dict(),
+            },
+        ) from exc
+
+    schema_report = validator.report.to_dict()
+    if not validator.report.supported:
+        raise HTTPException(
+            422,
+            detail={
+                "message": "Uploaded columns do not satisfy the 32-feature flow contract",
+                "schema_validation": schema_report,
+            },
+        )
+    if validator.report.usable_row_count == 0:
+        raise HTTPException(
+            422,
+            detail={
+                "message": "No usable rows remained after numeric validation",
+                "schema_validation": schema_report,
+            },
         )
 
-    from ..config import MAX_UPLOAD_ROWS
-    flows = [row for row in flows if isinstance(row, dict)]
-    if not flows:
-        raise HTTPException(400, "Uploaded data must contain JSON objects or tabular rows")
-    total_flows = len(flows)
-    if total_flows > MAX_UPLOAD_ROWS:
-        raise HTTPException(413, f"File exceeds {MAX_UPLOAD_ROWS} row limit")
-    log.info("Parsed %d flows from %s (%d bytes)", total_flows, filename, total_read)
+    if pipe is None:  # Defensive: usable rows imply process_batch initialized it.
+        pipe = _get_pipeline()
 
-    pipe = _get_pipeline()
+    # Early batches were processed before final row counters were known. Store
+    # the complete per-upload validation report on every bounded DB record.
+    if hasattr(AlertRecord, "input_schema_json"):
+        final_schema_json = json.dumps(schema_report, sort_keys=True)
+        for record in persist_records:
+            record.input_schema_json = final_schema_json
 
-    # ── Process in batches ────────────────────────────────────────────────
-    all_alerts = []
-    stage_counts = {"statistical": 0, "classifier": 0, "autoencoder": 0, "none": 0}
-    total_alert_count = 0
-    db_records = []
-    max_db_alerts = 5000  # cap DB inserts to avoid SQLite slowdown
-    t0 = time.perf_counter()
-
-    for batch_start in range(0, total_flows, BATCH_SIZE):
-        batch_flows = flows[batch_start:batch_start + BATCH_SIZE]
-        batch_alerts = pipe.detect_batch(batch_flows)
-
-        for flow, a in zip(batch_flows, batch_alerts):
-            stage_key = a.stage if a.stage in stage_counts else "none"
-            stage_counts[stage_key] += 1
-
-            if a.severity == "none":
-                continue
-
-            total_alert_count += 1
-
-            # Only keep alerts for the response up to the cap
-            if len(all_alerts) < MAX_RETURN_ALERTS:
-                all_alerts.append(a.to_dict())
-
-            # Cap DB inserts to avoid massive slowdown on large files
-            if len(db_records) < max_db_alerts:
-                db_records.append(AlertRecord(
-                    severity=a.severity, type=a.type,
-                    confidence=a.confidence,
-                    anomaly_score=a.anomaly_score, stage=a.stage,
-                    mitre_techniques=json.dumps(a.mitre_techniques),
-                    latency_ms=a.latency_ms,
-                    source_file=filename,
-                    flow_json="" if total_flows > 10000 else json.dumps(flow)[:8000],
-                    top_features=json.dumps(a.top_features)
-                ))
-
-        # Log progress for large files
-        processed = min(batch_start + BATCH_SIZE, total_flows)
-        if total_flows > BATCH_SIZE and processed % (BATCH_SIZE * 10) == 0:
-            log.info("Progress: %d / %d flows (%.0f%%)",
-                     processed, total_flows, processed / total_flows * 100)
-
-    # ── Batch-insert all DB records at once ────────────────────────────────
     smart_logs_created = 0
-    if db_records:
+    if persist_records:
         from ..decision.engine import build_smart_log
 
-        with SessionLocal() as s:
-            s.add_all(db_records)
-            s.flush()
-            for record in db_records:
+        with SessionLocal() as session:
+            session.add_all(persist_records)
+            session.flush()
+            for record in persist_records:
                 smart = build_smart_log(record)
-                s.add(DecisionCase(
-                    alert_id=record.id,
-                    smart_log_json=smart.model_dump_json(),
+                session.add(DecisionCase(
+                    alert_id=record.id, smart_log_json=smart.model_dump_json()
                 ))
                 smart_logs_created += 1
-            s.commit()
-
-        # Response alerts are the first records in the same detection order.
-        # Attach stable DB ids so the UI can request Smart Log/AI decisions.
-        for payload, record in zip(all_alerts, db_records):
+            session.commit()
+        for payload, record in zip(returned_alerts, persist_records):
             payload["id"] = record.id
             payload["smart_log_url"] = f"/api/decision/smart-log/{record.id}"
             payload["decision_url"] = f"/api/decision/evaluate/{record.id}"
 
-        log.info("Saved %d alerts and Smart Logs to DB (capped from %d total)",
-                 len(db_records), total_alert_count)
-
-    elapsed = time.perf_counter() - t0
-    throughput = round(total_flows / max(elapsed, 1e-6))
-
-    log.info("Upload complete: %d flows, %d alerts, %d rec/s in %.1fs",
-             total_flows, len(all_alerts), throughput, elapsed)
-
+    elapsed = time.perf_counter() - started
+    throughput = round(analyzed / max(elapsed, 1e-9))
+    upload_stats = {
+        "scope": "this_upload",
+        "total_parsed": validator.report.total_parsed,
+        "accepted": validator.report.usable_row_count,
+        "rejected": validator.report.rows_rejected,
+        "analyzed": analyzed,
+        "alerts_generated": alerts_generated,
+        "alerts_returned": len(returned_alerts),
+        "alerts_persisted": len(persist_records),
+        "mean_latency_ms": round(latency_total / max(analyzed, 1), 4),
+        "route_counts": dict(route_counts),
+        "review_rate_pct": round(
+            100.0 * (
+                route_counts["human_review"]
+                + route_counts["unknown_anomaly_review"]
+            ) / max(analyzed, 1),
+            2,
+        ),
+    }
+    log.info(
+        "Upload %s: parsed=%d accepted=%d rejected=%d alerts=%d persisted=%d",
+        filename, validator.report.total_parsed, validator.report.usable_row_count,
+        validator.report.rows_rejected, alerts_generated, len(persist_records),
+    )
     return {
         "file": filename,
-        "flows": total_flows,
-        "alerts": all_alerts,
-        "total_alerts": stage_counts["classifier"] + stage_counts["autoencoder"],
-        "alerts_capped": len(all_alerts) >= MAX_RETURN_ALERTS,
-        "stage_counts": stage_counts,
+        "flows": analyzed,
+        "alerts": returned_alerts,
+        "total_parsed": validator.report.total_parsed,
+        "accepted": validator.report.usable_row_count,
+        "rejected": validator.report.rows_rejected,
+        "analyzed": analyzed,
+        "alerts_generated": alerts_generated,
+        "alerts_returned": len(returned_alerts),
+        "alerts_persisted": len(persist_records),
+        "total_alerts": alerts_generated,
+        "alerts_capped": alerts_generated > len(returned_alerts),
+        "persistence_capped": alerts_generated > len(persist_records),
+        "caps": {
+            "max_upload_bytes": MAX_UPLOAD_MB * 1024 * 1024,
+            "max_upload_rows": MAX_UPLOAD_ROWS,
+            "max_alerts_returned": MAX_RETURN_ALERTS,
+            "max_alerts_persisted": max_db_alerts,
+        },
+        "schema_validation": schema_report,
+        "stage_counts": dict(stage_counts),
+        "route_counts": dict(route_counts),
+        "evidence_signal_counts": dict(evidence_signal_counts),
+        "component_execution_counts": {
+            "normalizer": analyzed,
+            "classifier": analyzed,
+            "statistical": analyzed,
+            "autoencoder": analyzed if getattr(pipe.ae, "threshold", None) is not None else 0,
+        },
         "throughput_rps": throughput,
         "feature_importance": pipe.clf.feature_importance(10),
-        "pipeline_stats": pipe.get_stats(),
-        "elapsed_seconds": round(elapsed, 2),
+        "pipeline_stats": upload_stats,
+        "process_lifetime_stats": pipe.get_stats(),
+        "elapsed_seconds": round(elapsed, 3),
         "smart_logs_created": smart_logs_created,
+        "pipeline_version": PIPELINE_VERSION,
+        "artifact_pipeline_version": pipe.artifact_pipeline_version,
         "operational_mode": (
-            "production" if _pipeline_metadata and _pipeline_metadata.get("production_approved")
+            "production_approved"
+            if _pipeline_metadata and _pipeline_metadata.get("production_approved")
             else "evaluation_only"
         ),
     }
@@ -314,6 +366,8 @@ def list_alerts(
         return [{"id": r.id, "created_at": r.created_at, "severity": r.severity,
                  "type": r.type, "confidence": r.confidence,
                  "anomaly_score": r.anomaly_score, "stage": r.stage,
+                 "route": getattr(r, "route", ""),
+                 "pipeline_version": getattr(r, "pipeline_version", "legacy-v1"),
                  "mitre_techniques": json.loads(r.mitre_techniques),
                  "latency_ms": r.latency_ms, "source_file": r.source_file}
                 for r in q.limit(limit).all()]
@@ -345,8 +399,16 @@ def pipeline_health() -> dict:
         for name in ARTIFACT_FILENAMES
     }
     trained_classes = metadata.get("classes", [])
+    coverage = metadata.get("coverage_contract")
+    coverage = coverage if isinstance(coverage, dict) else {}
+    supported_classes = coverage.get("trained_supported_labels", trained_classes)
+    evaluated_classes = coverage.get("evaluated_labels", [])
+    ood_only_classes = coverage.get("ood_only_labels", [])
     from ..config import CLASSES
-    missing_classes = sorted(set(CLASSES) - set(trained_classes))
+    unsupported_classes = coverage.get(
+        "unsupported_labels", sorted(set(CLASSES) - set(supported_classes))
+    )
+    missing_classes = sorted(set(CLASSES) - set(supported_classes))
     integrity_ok = bool(metadata) and not integrity_error
     serving_ready = False
     if integrity_ok:
@@ -372,6 +434,11 @@ def pipeline_health() -> dict:
                         candidate_meta.get("production_approved", False)
                     ),
                     "classes": candidate_meta.get("classes", []),
+                    "coverage_contract": candidate_meta.get("coverage_contract"),
+                    "pipeline_version": candidate_meta.get("pipeline_version"),
+                    "routing_schema_version": candidate_meta.get(
+                        "routing_schema_version"
+                    ),
                     "quality_gate_results": candidate_meta.get(
                         "metrics", {}
                     ).get("quality_gate_results", {}),
@@ -385,13 +452,30 @@ def pipeline_health() -> dict:
             break
     return {
         "ready": serving_ready,
-        "operational_mode": "production" if production_approved else "evaluation_only",
+        "operational_mode": (
+            "production_approved" if production_approved else "evaluation_only"
+        ),
         "production_approved": production_approved,
         "integrity_verified": integrity_ok,
         "integrity_error": integrity_error,
-        "coverage_complete": integrity_ok and not missing_classes,
+        "coverage_contract_present": bool(coverage),
+        "coverage_complete": bool(
+            integrity_ok
+            and coverage
+            and set(supported_classes) <= set(evaluated_classes)
+        ),
         "trained_classes": trained_classes,
+        "supported_classes": supported_classes,
+        "evaluated_classes": evaluated_classes,
+        "ood_only_classes": ood_only_classes,
+        "unsupported_classes": unsupported_classes,
+        "telemetry_profile": coverage.get(
+            "telemetry_profile", "legacy_fixture_shape_unknown_profile"
+        ),
         "missing_classes": missing_classes,
+        "pipeline_version": metadata.get("pipeline_version"),
+        "routing_schema_version": metadata.get("routing_schema_version"),
+        "evaluation_only": bool(metadata.get("evaluation_only", True)),
         "classifier_abstention_threshold": metadata.get("classifier", {}).get("abstention_threshold"),
         "autoencoder_threshold": metadata.get("autoencoder", {}).get("threshold"),
         "autoencoder_k": metadata.get("autoencoder", {}).get("k"),
@@ -409,8 +493,8 @@ def pipeline_health() -> dict:
             if not serving_ready else
             "Verified fixture artifacts only; not approved for production"
             if not production_approved else
-            "Production-approved artifacts have incomplete class coverage"
-            if missing_classes else "Production-approved artifact bundle is ready"
+            "Production-approved artifact bundle is ready only for its declared "
+            "telemetry and supported-class scope"
         ),
     }
 
@@ -418,8 +502,7 @@ def pipeline_health() -> dict:
 @router.post("/explain/{alert_id}")
 @limiter.limit("20/minute")
 async def explain_alert(request: Request, alert_id: int) -> dict:
-    """Use the LLM (10%) to explain a pipeline verdict (ground truth).
-    The pipeline detected it — the LLM only explains WHY."""
+    """Ask the advisory LLM to explain bounded, unverified model evidence."""
     with SessionLocal() as s:
         rec = s.get(AlertRecord, alert_id)
         if not rec:
@@ -432,8 +515,14 @@ async def explain_alert(request: Request, alert_id: int) -> dict:
         "type": rec.type, "severity": rec.severity,
         "confidence": rec.confidence, "anomaly_score": rec.anomaly_score,
         "stage": rec.stage,
+        "route": getattr(rec, "route", ""),
+        "pipeline_version": getattr(rec, "pipeline_version", "legacy-v1"),
         "mitre_techniques": json.loads(rec.mitre_techniques),
         "top_features": json.loads(rec.top_features),
+        "evidence": json.loads(getattr(rec, "evidence_json", "{}") or "{}"),
+        "input_schema": json.loads(
+            getattr(rec, "input_schema_json", "{}") or "{}"
+        ),
     }
 
     from ..llm.provider import get_provider
