@@ -10,12 +10,20 @@ window.CG = window.CG || {};
 
   async function tryFetch(path, opts = {}, timeoutMs = 2500, retried = false) {
     const ctrl = new AbortController();
+    const externalSignal = opts.signal;
+    const fetchOptions = { ...opts };
+    delete fetchOptions.signal;
+    const abortFromExternal = () => ctrl.abort();
+    if (externalSignal) {
+      if (externalSignal.aborted) ctrl.abort();
+      else externalSignal.addEventListener("abort", abortFromExternal, { once: true });
+    }
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
       const headers = new Headers(opts.headers || {});
       const token = sessionStorage.getItem("cg-api-token");
       if (token) headers.set("X-CyberGuard-Token", token);
-      const res = await fetch(API.base + path, { ...opts, headers, signal: ctrl.signal });
+      const res = await fetch(API.base + path, { ...fetchOptions, headers, signal: ctrl.signal });
       clearTimeout(t);
       if (res.status === 401 && !retried) {
         const entered = window.prompt("CyberGuard API token:");
@@ -41,6 +49,8 @@ window.CG = window.CG || {};
     } catch (e) {
       clearTimeout(t);
       throw e;
+    } finally {
+      externalSignal?.removeEventListener("abort", abortFromExternal);
     }
   }
 
@@ -242,12 +252,33 @@ window.CG = window.CG || {};
     Promise.resolve(["reconnaissance", "resource-development", "initial-access", "execution", "persistence", "privilege-escalation", "defense-evasion", "credential-access", "discovery", "lateral-movement", "collection", "command-and-control", "exfiltration", "impact"]);
 
   API.mitreTechniques = (tactic, q) => {
+    if (API.mode === "live") {
+      const params = new URLSearchParams();
+      if (tactic) params.set("tactic", tactic);
+      if (q) params.set("q", q);
+      params.set("limit", "500");
+      return tryFetch(`/api/mitre/techniques?${params.toString()}`);
+    }
     const candidateMapped = new Set(DEMO_ALERTS.filter((a) => a.stage === "classifier").flatMap((a) => a.mitre_techniques));
     let rows = TECHS.map(([id, name, tac, desc]) => ({ id, name, description: desc, tactics: [tac], candidate_mapping: candidateMapped.has(id), mapping_semantics: "demo heuristic classifier-label hypothesis" }));
     if (tactic) rows = rows.filter((t) => t.tactics.includes(tactic));
     if (q) { const s = q.toLowerCase(); rows = rows.filter((t) => t.id.toLowerCase().includes(s) || t.name.toLowerCase().includes(s)); }
     return Promise.resolve(rows);
   };
+
+  API.mitreTechnique = (id) =>
+    API.mode === "live"
+      ? tryFetch(`/api/mitre/techniques/${encodeURIComponent(id)}`)
+      : API.mitreTechniques("", id).then((rows) => ({
+          ...rows[0],
+          d3fend: {
+            candidates: [], mapping_semantics: "candidate defensive techniques",
+            originating_attack_validation: "demo_unverified",
+            source_health: { available: false, active_version: null },
+            operational_limitation: "Demo mode has no indexed D3FEND relationships.",
+            executed_action: "none",
+          },
+        }));
 
   API.mitreSync = () =>
     API.mode === "live"
@@ -321,6 +352,127 @@ window.CG = window.CG || {};
           body: JSON.stringify({ verdict, notes }),
         })
       : Promise.resolve({ status: "demo_not_persisted", reviewed_by: "demo" });
+
+  /* ---------------- Suricata Evidence API ---------------- */
+  API.uploadSuricataEve = async (file, sensorId = "suricata-default") => {
+    if (API.mode !== "live") {
+      return Promise.resolve({
+        ingestion_id: "demo-suricata-ingest",
+        source_file: file.name,
+        sensor_id: sensorId,
+        adapter_version: "cyberguard-suricata-eve-v1",
+        schema_version: "cyberguard-security-event-v1",
+        status: "completed",
+        total_parsed: 10,
+        accepted: 10,
+        rejected_lines: 0,
+        ignored_unsupported_types: 0,
+        counts_by_event_type: { alert: 4, flow: 2, dns: 2, tls: 2 },
+        alert_events_accepted: 4,
+        eligible_for_persistence: 10,
+        persisted: 10,
+        omitted_due_to_persistence_cap: 0,
+        duplicates_in_upload: 0,
+        duplicates_already_persisted: 0,
+        newly_persisted_events: 10,
+        returned_events_count: 10,
+        caps: { max_persist_events: 10000, max_return_events: 500 },
+        rejection_reasons: {},
+        active_attack_snapshot: { version: "v19.1", version_status: "demo" },
+        events: [],
+        elapsed_seconds: 0.12,
+        executed_action: "none",
+      });
+    }
+    const form = new FormData();
+    form.append("file", file);
+    const q = sensorId ? `?sensor_id=${encodeURIComponent(sensorId)}` : "";
+    return tryFetch(`/api/events/suricata/upload${q}`, { method: "POST", body: form }, 120000);
+  };
+
+  API.listSuricataEvents = (params = {}) => {
+    if (API.mode !== "live") {
+      return Promise.resolve({
+        total: 0,
+        limit: 100,
+        offset: 0,
+        events: [],
+        executed_action: "none",
+      });
+    }
+    const query = new URLSearchParams(params).toString();
+    return tryFetch(`/api/events/suricata/events${query ? "?" + query : ""}`);
+  };
+
+  API.getSuricataEvent = (id) => {
+    if (API.mode !== "live") {
+      return Promise.resolve(null);
+    }
+    return tryFetch(`/api/events/suricata/events/${id}`);
+  };
+
+  API.explainSuricataEvent = (id) => {
+    if (API.mode !== "live") {
+      return Promise.resolve({
+        explanation: "Demo mode — start backend for live advisory analysis.",
+        cached: false,
+        degraded: true,
+        provider: "demo",
+        executed_action: "none",
+      });
+    }
+    return tryFetch(`/api/events/suricata/explain/${id}`, { method: "POST" }, 60000);
+  };
+
+  API.suricataStats = () => {
+    if (API.mode !== "live") {
+      return Promise.resolve({
+        total_events: 0,
+        counts_by_type: { alert: 0, flow: 0, dns: 0, tls: 0 },
+        total_ingestions: 0,
+        unique_techniques_mapped: 0,
+        active_attack_snapshot: { version: null, version_status: "demo" },
+        adapter_version: "cyberguard-suricata-eve-v1",
+        schema_version: "cyberguard-security-event-v1",
+        executed_action: "none",
+      });
+    }
+    return tryFetch("/api/events/suricata/stats");
+  };
+
+  API.suricataAttackStatus = () => {
+    if (API.mode !== "live") {
+      return Promise.resolve({
+        available: false,
+        version: null,
+        version_status: "demo",
+      });
+    }
+    return tryFetch("/api/events/suricata/attack-status");
+  };
+
+  API.operationsSnapshot = ({ signal } = {}) => {
+    if (API.mode !== "live") {
+      return Promise.resolve({
+        snapshot_version: "live-operations-v1-demo",
+        sequence: { uploaded_flow_records: 0, suricata_eve: 0 },
+        generated_at: Date.now() / 1000,
+        refresh_mode: "bounded_polling",
+        poll_interval_seconds: 4,
+        operational_mode: "demo",
+        evidence_by_source: {
+          uploaded_flow_records: { status: "backend_unavailable", records: [] },
+          suricata_eve: { status: "backend_unavailable", records: [] },
+          demo_data: { status: "simulated_separate", records: structuredClone(DEMO_ALERTS) },
+          future_adapters: { status: "not_configured", records: [] },
+        },
+        incidents: [], review_exceptions: 0, source_health: {},
+        limitations: ["Demo data is simulated and separate from persisted evidence."],
+        executed_action: "none",
+      });
+    }
+    return tryFetch("/api/operations/refresh", { method: "POST", signal }, 10000);
+  };
 
   CG.api = API;
 })();

@@ -15,6 +15,7 @@ from .integrity import (
     PIPELINE_V2_VERSION,
     ROUTING_V2_SCHEMA_VERSION,
     IntegrityError,
+    canonical_json_sha256,
     sha256_file,
     validate_artifact_bundle,
     validate_coverage_contract,
@@ -103,6 +104,12 @@ def verify_promotion(candidate: Path) -> dict:
         "routing_schema_version"
     ):
         raise IntegrityError("candidate shadow report routing schema does not match")
+    calibration_digest = canonical_json_sha256(metadata.get("routing_calibration"))
+    if shadow.get("candidate_routing_calibration_sha256") != calibration_digest:
+        raise IntegrityError("candidate shadow report calibration metadata does not match")
+    coverage_digest = canonical_json_sha256(metadata.get("coverage_contract"))
+    if shadow.get("candidate_coverage_contract_sha256") != coverage_digest:
+        raise IntegrityError("candidate shadow report coverage contract does not match")
     audit_digest = shadow.get("audit_sha256")
     if not isinstance(audit_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", audit_digest):
         raise IntegrityError("candidate shadow report audit digest is invalid")

@@ -10,11 +10,15 @@ from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Tests and verification can place the generated SQLite database/key outside
+# the checkout without changing bundled, read-only fixtures or model artifacts.
 DATA_DIR = BASE_DIR / "data"
+BUNDLED_DATA_DIR = BASE_DIR / "data"
+BUNDLED_MITRE_DIR = BUNDLED_DATA_DIR / "mitre"
 MODELS_DIR = DATA_DIR / "models"
 UPLOADS_DIR = DATA_DIR / "uploads"
 MITRE_DIR = DATA_DIR / "mitre"
-DB_PATH = DATA_DIR / "cyberguard.db"
+DB_PATH = Path(os.getenv("CG_DB_PATH", str(DATA_DIR / "cyberguard.db"))).resolve()
 TRAINED_DIR = MODELS_DIR / "trained"                       # trained ML artifacts
 LLM_MODELS_DIR = BASE_DIR / "models"                       # GGUF files
 

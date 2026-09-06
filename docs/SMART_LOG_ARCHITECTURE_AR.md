@@ -159,10 +159,12 @@ Smart Log وسياق MITRE محدود الحجم اجتاز minimum relevance، 
 
 ## خطة الإنجاز التالية
 
-1. اكتمل إدخال ستة captures رسمية CSE-CIC-IDS2018 وتدقيقها واشتقاق hashes محلية.
+1. أُدخلت ستة captures من CSE-CIC-IDS2018 تاريخيًا للمرشح v1 فقط؛ أصبحت
+   final captures مفحوصة ومجمّدة ولا يجوز إعادة استخدامها لضبط أو ادعاء v2.
 2. فشل المرشح الأول gates لأن statistical front gate أخفى الهجمات رغم جودة المصنف منفردًا؛ لم يُرقَّ.
 3. اكتمل منطق Pipeline v2 واختباراته الحتمية؛ يلزم calibration وfinal جديدان
-   مستقلان قبل أي نتيجة أو ترقية إنتاجية.
+   مستقلان ومرخصان يمران بعقد `INDEPENDENT_EVALUATION.md` قبل أي نتيجة أو
+   ترقية إنتاجية.
 4. إضافة SSO/RBAC وهوية محلل فردية قبل الاستخدام متعدد المستخدمين.
 5. تصميم response simulator فقط؛ أي actuator حقيقي يحتاج صلاحية منفصلة، allowlist، TTL، idempotency، rollback، وtwo-person approval.
 
@@ -174,3 +176,25 @@ Smart Log وسياق MITRE محدود الحجم اجتاز minimum relevance، 
 - جميع feedback قابلة للتدقيق ولا تؤثر في النموذج online.
 - فشل AI لا يكسر detection ويؤدي إلى policy fallback.
 - الاختبارات تغطي JSON الخاطئ، benign override، التوصيات التدميرية، fallback، feedback، وrate limits.
+
+## الربط والفرز والمخاطر الشفافة
+
+أضيفت طبقة `backend.operations` مستقلة عن مسار inference:
+
+- تجمع مراجع الأدلة حتميًا ضمن نافذة افتراضية 300 ثانية، وبحد 500 مرجعًا
+  فريدًا للحادث و10,000 حادث. عند امتلاء الحادث يبدأ حادث جديد كي لا تضيع
+  روابط الأدلة.
+- تحفظ حالات `triage-policy-v1` الصريحة، ومنها
+  `review_required_unknown_anomaly` و`review_required_conflicting_evidence`
+  و`insufficient_evidence` و`resolved_by_analyst`.
+- لا يُغلق benign آليًا إلا إذا كان artifact معتمدًا للإنتاج وكانت policy
+  الموثقة تسمح بذلك. artifact الحالي evaluation-only، لذلك تبقى الحالات
+  الملتبسة للمحلل.
+- تحفظ قرارات المحلل في سجل append-only مترابط بالـhash؛ لا تُستخدم للتعلم
+  online ولا تنفذ containment.
+- يعيد `transparent-risk-v1` مساهمة كل مصدر على حدة، ويطبق عقوبة freshness
+  وuncertainty. القيم الإحصائية المشبعة غير المعايرة تساهم بصفر مع تحذير بدل
+  تقديمها كدليل هجوم.
+
+كل النتائج تبقى `executed_action=none`، وأي firewall أو quarantine أو EDR أو
+عزل مضيف يتطلب تفويضًا بشريًا ونظام actuator منفصل غير موجود حاليًا.

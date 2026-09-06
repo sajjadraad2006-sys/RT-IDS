@@ -1,0 +1,1 @@
+"""Bounded security-intelligence adapters."""

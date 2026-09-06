@@ -750,6 +750,27 @@ tr.row-in { animation: rowin var(--d-base) var(--ease-out) both; }
   .review-layout { grid-template-columns: 1fr; }
 }
 
+/* ---------- live operations ---------- */
+.operations-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s6);
+  align-items: center;
+  padding: var(--s3) var(--s4);
+  margin-bottom: var(--s3);
+  font-size: var(--step--1);
+  color: var(--text-2);
+}
+.operations-status strong {
+  color: var(--cyan);
+  text-transform: capitalize;
+}
+.operations-status strong[data-status="degraded"],
+.operations-status strong[data-status^="paused"] { color: var(--amber); }
+.operations-status strong[data-status="disconnected"] { color: var(--red); }
+#view-operations > .panel { margin-top: var(--s4); }
+#view-operations > .field-hint { margin-bottom: var(--s4); }
+
 /* ---------- reduced motion: global switch ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

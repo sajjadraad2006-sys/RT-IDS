@@ -60,6 +60,33 @@ def test_html_download_is_rejected_even_if_declared(tmp_path):
         validate_dataset_manifest(manifest, tmp_path)
 
 
+def test_plain_404_placeholder_is_rejected_even_when_manifest_hash_matches(tmp_path):
+    dataset = tmp_path / "placeholder.csv"
+    dataset.write_bytes(b"404: Not Found\n")
+    payload = {
+        "schema_version": "cyberguard-datasets-v1",
+        "datasets": [{
+            "id": "placeholder", "path": dataset.name,
+            "source_url": "https://example.invalid/data.csv",
+            "publisher": "test", "publisher_page": "https://example.invalid",
+            "license": "unknown", "access_date": "2026-08-31",
+            "bytes": dataset.stat().st_size,
+            "sha256": hashlib.sha256(dataset.read_bytes()).hexdigest(),
+            "checksum_provenance": "test", "capture_id": "test-capture",
+            "time_range": {"start": None, "end": None, "timezone": None},
+            "schema_version": "bad-v1", "row_count": 0, "labels": {},
+            "columns": ["Label"], "label_column": "Label",
+            "training_approved": False,
+            "transformation_lineage": {"parent_sha256": None, "transform": "none"},
+            "allowed_uses": ["negative_test"], "minimum_bytes": 1,
+        }],
+    }
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(IntegrityError, match="error.*document|placeholder"):
+        validate_dataset_manifest(manifest, tmp_path)
+
+
 def test_artifact_checksum_is_verified_before_deserialization(tmp_path):
     artifacts = {}
     for name in ARTIFACT_FILENAMES:

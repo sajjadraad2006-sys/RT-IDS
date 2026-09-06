@@ -45,6 +45,21 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def canonical_json_sha256(value: Any) -> str:
+    """Hash deterministic JSON metadata, rejecting non-finite numbers."""
+    try:
+        encoded = json.dumps(
+            value,
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise IntegrityError("metadata is not canonical finite JSON") from exc
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def feature_schema_hash() -> str:
     encoded = json.dumps(FEATURE_NAMES, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()

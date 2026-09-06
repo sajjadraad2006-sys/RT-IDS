@@ -13,7 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .db.init_db import init_all
-from .api import chat, decision, detection, mitre, settings
+from .api import chat, decision, detection, events, mitre, operations, settings
 from .config import ALLOWED_HOSTS, ALLOWED_ORIGINS, BASE_DIR, LOG_LEVEL
 from .security import ApiAccessMiddleware, RequestLimitsMiddleware, SecurityHeadersMiddleware
 
@@ -66,7 +66,9 @@ app.add_middleware(
 app.include_router(chat.router)
 app.include_router(decision.router)
 app.include_router(detection.router)
+app.include_router(events.router)
 app.include_router(mitre.router)
+app.include_router(operations.router)
 app.include_router(settings.router)
 
 

@@ -77,9 +77,12 @@ window.CG = window.CG || {};
   }
 
   /* ---------------- router ---------------- */
-  const views = ["dashboard", "review", "chat", "mitre", "models", "settings"];
+  const views = ["dashboard", "operations", "suricata", "review", "chat", "mitre", "models", "settings"];
+  let currentView = null;
   function route(view) {
     if (!views.includes(view)) view = "dashboard";
+    if (currentView && currentView !== view) CG.onLeave?.[currentView]?.();
+    currentView = view;
     document.querySelectorAll(".nav-item").forEach((b) =>
       b.classList.toggle("is-active", b.dataset.view === view));
     document.querySelectorAll(".view").forEach((v) =>
@@ -233,6 +236,7 @@ window.CG = window.CG || {};
 
   CG.util = { esc, fmtNum, fmtTime, timeAgo, toast, md, watchReveals, paintProvider, paintOperationalState, route };
   CG.onView = {};
+  CG.onLeave = {};
 
   document.addEventListener("DOMContentLoaded", async () => {
     initParticles();

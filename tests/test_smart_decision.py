@@ -39,6 +39,7 @@ def _record(**overrides):
         "confidence": 0.0,
         "anomaly_score": 9.5,
         "stage": "autoencoder",
+        "route": "unknown_anomaly_review",
         "mitre_techniques": '["T1203"]',
         "top_features": '[["flow_duration", 8.2]]',
         "source_file": "untrusted.csv",
@@ -60,7 +61,7 @@ def test_smart_log_is_minimal_stable_and_marks_unknown_for_review():
 def test_known_high_confidence_attack_uses_policy_without_execution():
     smart = build_smart_log(_record(
         severity="critical", type="DDoS", confidence=0.995,
-        anomaly_score=0.0, stage="classifier",
+        anomaly_score=0.0, stage="classifier", route="known_attack",
     ))
     decision = policy_decision(smart)
     assert smart.review_required is False
@@ -137,13 +138,21 @@ def test_excessive_ai_output_is_rejected_by_schema():
 
 def test_golden_routing_known_and_benign_bypass_unknown_and_ambiguous_review():
     cases = [
-        (dict(severity="critical", type="DDoS", confidence=.99, stage="classifier"), False),
-        (dict(severity="none", type="Benign", confidence=.99, stage="none"), False),
-        (dict(severity="high", type="unknown-anomaly", confidence=0, stage="autoencoder"), True),
-        (dict(severity="medium", type="PortScan", confidence=.6, stage="classifier"), True),
+        (dict(severity="critical", type="DDoS", confidence=.99, stage="classifier", route="known_attack"), False),
+        (dict(severity="none", type="Benign", confidence=.99, stage="none", route="benign"), False),
+        (dict(severity="high", type="unknown-anomaly", confidence=0, stage="autoencoder", route="unknown_anomaly_review"), True),
+        (dict(severity="medium", type="PortScan", confidence=.6, stage="classifier", route="human_review"), True),
     ]
     routed = [build_smart_log(_record(**values)).review_required for values, _ in cases]
     assert routed == [expected for _, expected in cases]
+
+
+def test_legacy_record_without_route_fails_closed_without_reimplementing_router():
+    record = _record(severity="critical", type="DDoS", stage="classifier")
+    del record.route
+    smart = build_smart_log(record)
+    assert smart.detection.route == "legacy_route_requires_review"
+    assert smart.review_required is True
 
 
 def test_ai_output_schema_rejects_unexpected_fields():
@@ -210,6 +219,7 @@ def test_unknown_endpoint_uses_structured_ai_but_never_executes(monkeypatch):
         record = AlertRecord(
             severity="high", type="unknown-anomaly", confidence=0.0,
             anomaly_score=5.2, stage="autoencoder",
+            route="unknown_anomaly_review",
             mitre_techniques='["T1203"]',
             top_features='[["flow_duration", 9.0]]',
             source_file="decision-endpoint-test.csv",
@@ -244,6 +254,7 @@ def test_known_endpoint_bypasses_ai_provider(monkeypatch, reset_rate_limits):
         record = AlertRecord(
             severity="critical", type="DDoS", confidence=0.99,
             anomaly_score=0.0, stage="classifier",
+            route="known_attack",
             mitre_techniques='["T1498"]', top_features="[]",
             source_file="known-policy-test.csv",
         )
@@ -279,6 +290,7 @@ def test_ai_provider_failure_falls_back_to_policy(monkeypatch, reset_rate_limits
         record = AlertRecord(
             severity="high", type="unknown-anomaly", confidence=0.0,
             anomaly_score=7.0, stage="autoencoder",
+            route="unknown_anomaly_review",
             mitre_techniques="[]", top_features="[]",
             source_file="provider-fallback-test.csv",
         )
@@ -308,6 +320,7 @@ def test_analyst_feedback_is_saved_but_does_not_train_online(reset_rate_limits):
         record = AlertRecord(
             severity="medium", type="unknown", confidence=0.4,
             anomaly_score=2.2, stage="autoencoder",
+            route="human_review",
             mitre_techniques="[]", top_features="[]",
             source_file="feedback-test.csv",
         )
@@ -350,7 +363,8 @@ def test_response_simulator_is_allowlisted_idempotent_and_never_executes(reset_r
     with SessionLocal() as session:
         record = AlertRecord(
             severity="high", type="unknown-anomaly", confidence=0.0,
-            anomaly_score=4.2, stage="autoencoder", mitre_techniques="[]",
+            anomaly_score=4.2, stage="autoencoder",
+            route="unknown_anomaly_review", mitre_techniques="[]",
             top_features="[]", source_file="simulator-test.csv",
         )
         session.add(record)

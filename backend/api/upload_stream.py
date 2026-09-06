@@ -8,6 +8,7 @@ import itertools
 import json
 from pathlib import Path
 from typing import Any, BinaryIO, Iterator
+import unicodedata
 
 from ..detection.input_schema import FlowSchemaValidator
 
@@ -22,6 +23,22 @@ class UploadParseError(ValueError):
     """A supported container is malformed or violates a bounded parser rule."""
 
 
+class DuplicateJsonKeyError(ValueError):
+    """A JSON object repeated the same raw member name."""
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    normalized_keys: set[str] = set()
+    for key, value in pairs:
+        normalized = unicodedata.normalize("NFC", key)
+        if normalized in normalized_keys:
+            raise DuplicateJsonKeyError("duplicate_json_key")
+        normalized_keys.add(normalized)
+        result[key] = value
+    return result
+
+
 @dataclass(frozen=True)
 class RejectedRow:
     reason: str
@@ -33,6 +50,12 @@ class PreparedUpload:
     validator: FlowSchemaValidator
     rows: Iterator[dict[str, Any] | RejectedRow]
     bytes_read: int
+
+    def close(self) -> None:
+        """Release parser wrappers without closing Starlette's upload stream."""
+        close_rows = getattr(self.rows, "close", None)
+        if callable(close_rows):
+            close_rows()
 
 
 def enforce_byte_limit(stream: BinaryIO, max_bytes: int) -> int:
@@ -122,7 +145,11 @@ def _iter_ndjson(text: io.TextIOWrapper) -> Iterator[Any | RejectedRow]:
                 yield RejectedRow("json_row_too_large")
                 continue
             try:
-                yield json.loads(stripped)
+                yield json.loads(
+                    stripped, object_pairs_hook=_reject_duplicate_json_keys
+                )
+            except DuplicateJsonKeyError:
+                yield RejectedRow("duplicate_json_key")
             except json.JSONDecodeError:
                 yield RejectedRow("invalid_ndjson_line")
     except UnicodeDecodeError as exc:
@@ -131,7 +158,7 @@ def _iter_ndjson(text: io.TextIOWrapper) -> Iterator[Any | RejectedRow]:
 
 def _iter_json_values(text: io.TextIOWrapper) -> Iterator[Any]:
     """Incrementally decode a top-level JSON object or array."""
-    decoder = json.JSONDecoder()
+    decoder = json.JSONDecoder(object_pairs_hook=_reject_duplicate_json_keys)
     buffer = ""
     position = 0
     eof = False
@@ -191,6 +218,8 @@ def _iter_json_values(text: io.TextIOWrapper) -> Iterator[Any]:
                 yield value
                 first = False
                 break
+            except DuplicateJsonKeyError as exc:
+                raise UploadParseError("duplicate_json_key") from exc
             except json.JSONDecodeError as exc:
                 if eof:
                     raise UploadParseError("malformed_json") from exc

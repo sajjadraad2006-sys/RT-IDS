@@ -20,16 +20,18 @@ from .classifier import AttackClassifier
 from .features import FEATURE_NAMES
 from .integrity import (
     ARTIFACT_FILENAMES,
+    canonical_json_sha256,
     sha256_file,
     validate_artifact_bundle,
     validate_loaded_routing_calibration,
 )
 from .normalizer import Normalizer
+from .router import PIPELINE_VERSION, ROUTING_SCHEMA_VERSION, route_signals
 from .statistical import StatisticalFilter
 from ..config import DB_PATH
 
 
-SHADOW_REPORT_VERSION = "cyberguard-shadow-report-v2"
+SHADOW_REPORT_VERSION = "cyberguard-shadow-report-v3"
 
 
 def _file_snapshot(path: Path) -> dict:
@@ -63,38 +65,46 @@ def _load_bundle(root: Path):
 
 
 def _route(bundle, X_raw):
-    _, norm, stat, clf, ae = bundle
+    metadata, norm, stat, clf, ae = bundle
     start = time.perf_counter()
     X = norm.transform(X_raw)
     # Match serving Pipeline v2: every row reaches the classifier and the two
     # anomaly detectors are independent evidence, never a pre-classifier gate.
     labels, confidences = clf.predict_batch(X)
     z_scores = stat.z_scores_batch(X)
-    anomalous = z_scores.max(axis=1) > float(stat.threshold)
+    max_z_scores = z_scores.max(axis=1)
+    anomalous = max_z_scores > float(stat.threshold)
     if ae.threshold is None:
         errors = np.zeros(len(X), dtype=float)
         ae_flag = np.zeros(len(X), dtype=bool)
     else:
         errors = ae.score_batch(X)
         ae_flag = errors > float(ae.threshold)
-    non_benign = np.char.lower(labels.astype("U32")) != "benign"
-    accepted = non_benign & (
-        confidences >= clf.confidence_threshold
+    coverage = metadata.get("coverage_contract")
+    coverage = coverage if isinstance(coverage, dict) else {}
+    if "trained_supported_labels" in coverage:
+        supported_labels = coverage["trained_supported_labels"]
+    elif "classes" in metadata:
+        supported_labels = metadata["classes"]
+    else:
+        supported_labels = None
+    routed = route_signals(
+        labels,
+        confidences,
+        classifier_threshold=clf.confidence_threshold,
+        supported_labels=supported_labels,
+        statistical_flags=anomalous,
+        statistical_scores=max_z_scores,
+        autoencoder_available=np.full(len(X), ae.threshold is not None, dtype=bool),
+        autoencoder_flags=ae_flag,
+        autoencoder_scores=errors,
+        pipeline_version=PIPELINE_VERSION,
+        routing_schema_version=ROUTING_SCHEMA_VERSION,
     )
-    review = non_benign & ~accepted
-    unknown = ~non_benign & (anomalous | ae_flag)
-    routes = np.full(len(X), "benign", dtype="U32")
-    routes[review] = "human_review"
-    routes[unknown] = "unknown_anomaly_review"
-    routes[accepted] = "known_attack"
-    verdicts = np.full(len(X), "Benign", dtype="U32")
-    verdicts[review] = labels[review]
-    verdicts[unknown] = "Unknown Anomaly"
-    verdicts[accepted] = labels[accepted]
     elapsed = time.perf_counter() - start
     return {
-        "routes": routes,
-        "verdicts": verdicts,
+        "routes": routed.routes,
+        "verdicts": routed.verdicts,
         "confidence": confidences,
         "anomaly_score": errors,
         "seconds": elapsed,
@@ -176,6 +186,12 @@ def run_shadow(
         "candidate_pipeline_version": candidate[0].get("pipeline_version"),
         "candidate_routing_schema_version": candidate[0].get(
             "routing_schema_version"
+        ),
+        "candidate_routing_calibration_sha256": canonical_json_sha256(
+            candidate[0].get("routing_calibration")
+        ),
+        "candidate_coverage_contract_sha256": canonical_json_sha256(
+            candidate[0].get("coverage_contract")
         ),
         "rows": int(len(y)),
         "verdict_disagreements": int(disagreements.sum()),

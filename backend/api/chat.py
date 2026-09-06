@@ -8,17 +8,20 @@ from fastapi import APIRouter, HTTPException, Path, Query, Request
 from pydantic import BaseModel, Field
 from ..llm.provider import get_provider
 from ..llm.prompts import SYSTEM_ANALYST
-from ..llm.rag import MitreRAG
+from ..llm.mitre_index import get_mitre_rag
 from ..db.models import ChatMessage, SessionLocal, Setting, AlertRecord
 from ..limiter import limiter
 from ..security import safe_llm_url
 from ..operational import current_artifact_context
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
-_rag = MitreRAG()
 _HISTORY_MESSAGES = 10
 _HISTORY_TOTAL_CHARS = 12_000
 _HISTORY_MESSAGE_CHARS = 2_000
+
+
+def _get_rag():
+    return get_mitre_rag()
 
 
 def _resolve_mitre(ids: list) -> list:
@@ -77,7 +80,7 @@ async def chat(request: Request, req: ChatRequest) -> dict:
         raise HTTPException(422, "message contains no usable text")
     settings = _load_llm_settings()
     provider = get_provider(settings)
-    context_docs = _rag.query(message, k=3)
+    context_docs = _get_rag().query(message, k=3)
     context = "\n\n".join(d["document"] for d in context_docs) or (
         "(No ATT&CK reference met the minimum relevance threshold.)"
     )

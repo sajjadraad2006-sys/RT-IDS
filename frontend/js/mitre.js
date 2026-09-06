@@ -42,23 +42,37 @@
       b.addEventListener("click", () => select(b.dataset.id)));
   }
 
-  function select(id) {
+  async function select(id) {
     list.querySelectorAll(".tech-item").forEach((b) =>
       b.classList.toggle("is-active", b.dataset.id === id));
-    const t = techniques.find((x) => x.id === id);
+    let t = techniques.find((x) => x.id === id);
     if (!t) return;
+    try { t = await CG.api.mitreTechnique(id); }
+    catch { /* retain list summary and display degraded context */ }
+    const d3fend = t.d3fend || { candidates: [], source_health: {}, executed_action: "none" };
+    const defenses = (d3fend.candidates || []).slice(0, 12);
+    const attackSource = d3fend.originating_attack_validation === "active_validated"
+      ? "Source: active verified official MITRE ATT&CK Enterprise release snapshot"
+      : `Source: ATT&CK snapshot is ${d3fend.originating_attack_validation || "unverified"}; defensive candidates are suppressed`;
     detail.innerHTML = `
       <span class="detail-id">${CG.util.esc(t.id)}</span>
       <h3 class="detail-name">${CG.util.esc(t.name)}</h3>
       <p class="detail-desc">${CG.util.esc(t.description)}</p>
       <div class="detail-tactics">${t.tactics.map((x) => `<span class="chip">${CG.util.esc(titleCase(x))}</span>`).join("")}</div>
       <div class="detail-meta">
-        <span>Source: MITRE ATT&amp;CK Enterprise v19.1 (TAXII 2.1)</span>
+        <span>${CG.util.esc(attackSource)}</span>
         ${t.candidate_mapping
           ? `<span style="color:var(--amber)">Possible technique based on a persisted classifier label (${Number(t.candidate_mapping_count || 1)} mapping records). This is not observed behavior.</span>`
           : `<span>No persisted classifier-label hypothesis points to this technique.</span>`}
         <span>Mapping semantics: heuristic hypothesis; unknown-anomaly evidence creates no mapping.</span>
         <span>attack.mitre.org/techniques/${CG.util.esc(t.id.replace(".", "/"))}</span>
+        <strong>MITRE D3FEND candidate defensive techniques</strong>
+        <span>Snapshot ${CG.util.esc(d3fend.source_health?.active_version || "unavailable")} · originating ATT&amp;CK status ${CG.util.esc(d3fend.originating_attack_validation || "unverified")}</span>
+        ${defenses.length
+          ? `<ul class="rule-list">${defenses.map((item) => `<li><strong>${CG.util.esc(item.d3fend_technique_id)}</strong> ${CG.util.esc(item.name)} <small>${CG.util.esc(item.relationship_type || "official relationship")}</small></li>`).join("")}</ul>`
+          : `<span>No verified D3FEND relationship candidate is available for this technique.</span>`}
+        <span>${CG.util.esc(d3fend.operational_limitation || "Candidate display does not mean execution.")}</span>
+        <span>CyberGuard executed action: ${CG.util.esc(d3fend.executed_action || "none")}</span>
       </div>`;
   }
 
@@ -71,7 +85,7 @@
 
   syncBtn.addEventListener("click", async () => {
     syncBtn.disabled = true;
-    syncStatus.textContent = "syncing from attack-taxii.mitre.org…";
+    syncStatus.textContent = "syncing pinned official ATT&CK release…";
     try {
       const res = await CG.api.mitreSync();
       syncStatus.textContent = res.status === "synced"
@@ -80,7 +94,7 @@
       CG.util.toast(res.status === "synced" ? "ATT&CK snapshot updated." : "Sync skipped — using cached snapshot.");
     } catch {
       syncStatus.textContent = "sync failed — cached data active";
-      CG.util.toast("TAXII sync failed; local snapshot remains available offline.");
+      CG.util.toast("Official release sync failed; last-known-good snapshot remains active.");
     } finally {
       syncBtn.disabled = false;
     }

@@ -2,8 +2,20 @@
 """Quick verification that all CyberGuard modules import correctly.
 Run with:  python verify.py
 """
-import sys, os, time
+import os
+from pathlib import Path
+import sys
+import tempfile
+import time
+
 sys.path.insert(0, os.path.dirname(__file__))
+
+# Verification must prove a fresh database state. Keep all generated SQLite/key
+# files outside the checkout and alive for the duration of this process only.
+_verification_data = tempfile.TemporaryDirectory(prefix="cyberguard-verify-")
+os.environ["CG_DB_PATH"] = str(
+    Path(_verification_data.name) / "application-verification.sqlite"
+)
 
 t_start = time.perf_counter()
 
@@ -117,14 +129,53 @@ try:
 except Exception as e:
     checks.append(("MITRE Mapper", f"FAIL: {e}"))
 
-# 8. MITRE attack_db
+# 8. MITRE snapshot -> isolated SQLite -> local RAG
+mitre_stage_names = {
+    "snapshot_validation": "MITRE snapshot validation",
+    "sqlite_indexing": "MITRE SQLite indexing",
+    "technique_count": "MITRE technique count + T1498 retrieval",
+    "rag_retrieval": "MITRE RAG indexing + T1498 retrieval",
+}
 try:
-    from backend.mitre.attack_db import init, get_stats
-    init()
-    stats = get_stats()
-    checks.append((f"MITRE Attack DB (techniques={stats.get('techniques', 0)})", "PASS"))
+    from backend.mitre.verification import verify_snapshot_index
+
+    mitre = verify_snapshot_index(
+        Path(_verification_data.name) / "mitre-verification.sqlite"
+    )
+    checks.extend([
+        (
+            f"MITRE snapshot validation (objects={mitre['snapshot_objects']})",
+            "PASS",
+        ),
+        (f"MITRE SQLite indexing (indexed={mitre['sqlite_indexed']})", "PASS"),
+        (
+            "MITRE technique count + T1498 retrieval "
+            f"(techniques={mitre['technique_count']})",
+            "PASS",
+        ),
+        (
+            f"MITRE RAG indexing + T1498 retrieval (indexed={mitre['rag_indexed']})",
+            "PASS",
+        ),
+    ])
 except Exception as e:
-    checks.append(("MITRE Attack DB", f"FAIL: {e}"))
+    failed_stage = getattr(e, "stage", "snapshot_validation")
+    partial = getattr(e, "partial", {})
+    completed = {
+        "snapshot_validation": "snapshot_objects" in partial,
+        "sqlite_indexing": "sqlite_indexed" in partial,
+        "technique_count": "technique_count" in partial,
+        "rag_retrieval": "rag_indexed" in partial,
+    }
+    failed_seen = False
+    for stage, label in mitre_stage_names.items():
+        if completed[stage]:
+            checks.append((label, "PASS"))
+        elif stage == failed_stage and not failed_seen:
+            checks.append((label, f"FAIL: {e}"))
+            failed_seen = True
+        else:
+            checks.append((label, "SKIP: prerequisite MITRE stage failed"))
 
 # 9. LLM provider
 try:
@@ -191,6 +242,30 @@ try:
     checks.append((f"Dataset manifest ({len(datasets)} fixtures, 0 production)", "PASS"))
 except Exception as e:
     checks.append(("Data/model integrity", f"FAIL: {e}"))
+
+# 15. Suricata Evidence Bridge
+try:
+    import io
+    from backend.suricata.schema import SECURITY_EVENT_SCHEMA_VERSION, SURICATA_ADAPTER_VERSION
+    from backend.suricata.parser import iter_eve_stream
+    from backend.suricata.attack_extractor import validate_and_map_attack_metadata
+    from backend.db.models import SecurityEventRecord, SecurityEventTechniqueMapping, SuricataIngestionRecord
+
+    sample_eve = io.BytesIO(
+        b'{"timestamp":"2026-08-30T12:00:00.000000+0000","event_type":"alert","src_ip":"192.168.1.10","src_port":4444,"dest_ip":"10.0.0.5","dest_port":80,"proto":"TCP","alert":{"action":"allowed","gid":1,"signature_id":2000001,"rev":1,"signature":"ET MALWARE Suspicious C2","category":"A Network Trojan was detected","severity":1,"metadata":{"mitre_technique_id":["T1071.001"],"mitre_tactic_id":["TA0011"]}}}\n'
+    )
+    items = list(iter_eve_stream(sample_eve, "eve.json", "suricata-verify", 1024*1024, 1000))
+    assert len(items) == 1 and items[0].event is not None
+    assert items[0].event.schema_version == SECURITY_EVENT_SCHEMA_VERSION
+    assert items[0].event.adapter_version == SURICATA_ADAPTER_VERSION
+    assert items[0].event.alert_signature_id == 2000001
+    assert items[0].event.mitre_techniques[0].technique_id == "T1071.001"
+    assert items[0].event.mitre_techniques[0].technique_observed is False
+    assert items[0].event.mitre_techniques[0].rule_match_observed is True
+    checks.append(("Suricata Evidence Bridge", "PASS"))
+except Exception as e:
+    checks.append(("Suricata Evidence Bridge", f"FAIL: {e}"))
+
 
 elapsed = time.perf_counter() - t_start
 

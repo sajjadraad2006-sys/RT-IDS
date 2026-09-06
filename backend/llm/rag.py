@@ -15,12 +15,6 @@ log = logging.getLogger("cyberguard.rag")
 class MitreRAG:
     """In-process TF-IDF retrieval over MITRE technique text."""
 
-    _lock = threading.Lock()
-    _ids: list[str] = []
-    _documents: list[str] = []
-    _vectorizer = None
-    _matrix = None
-
     def __init__(self, min_relevance: float | None = None) -> None:
         if min_relevance is None:
             try:
@@ -28,18 +22,22 @@ class MitreRAG:
             except ValueError:
                 min_relevance = 0.12
         self.min_relevance = min(1.0, max(0.0, float(min_relevance)))
+        self._lock = threading.Lock()
+        self._ids: list[str] = []
+        self._documents: list[str] = []
+        self._vectorizer = None
+        self._matrix = None
 
-    @classmethod
-    def clear(cls) -> None:
+    def clear(self) -> None:
         """Drop the active index so a refreshed empty snapshot cannot go stale."""
-        with cls._lock:
-            cls._ids = []
-            cls._documents = []
-            cls._vectorizer = None
-            cls._matrix = None
+        with self._lock:
+            self._ids = []
+            self._documents = []
+            self._vectorizer = None
+            self._matrix = None
 
     def _ensure(self) -> bool:
-        if self.__class__._matrix is not None:
+        if self._matrix is not None:
             return True
         try:
             from ..mitre.attack_db import list_techniques
@@ -71,11 +69,11 @@ class MitreRAG:
             strip_accents="unicode",
         )
         matrix = vectorizer.fit_transform(documents)
-        with self.__class__._lock:
-            self.__class__._ids = ids
-            self.__class__._documents = documents
-            self.__class__._vectorizer = vectorizer
-            self.__class__._matrix = matrix
+        with self._lock:
+            self._ids = ids
+            self._documents = documents
+            self._vectorizer = vectorizer
+            self._matrix = matrix
         log.info("Indexed %d MITRE techniques into local TF-IDF RAG", len(ids))
         return len(ids)
 
@@ -85,17 +83,17 @@ class MitreRAG:
             return []
         from sklearn.metrics.pairwise import linear_kernel
 
-        k = max(1, min(int(k), 20, len(self.__class__._ids)))
-        query = self.__class__._vectorizer.transform([text[:8000]])
-        scores = linear_kernel(query, self.__class__._matrix).ravel()
+        k = max(1, min(int(k), 20, len(self._ids)))
+        query = self._vectorizer.transform([text[:8000]])
+        scores = linear_kernel(query, self._matrix).ravel()
         order = [
             int(index) for index in scores.argsort()[::-1]
             if float(scores[index]) >= self.min_relevance
         ][:k]
         return [
             {
-                "id": self.__class__._ids[index],
-                "document": self.__class__._documents[index],
+                "id": self._ids[index],
+                "document": self._documents[index],
                 "score": float(scores[index]),
                 "distance": float(1.0 - scores[index]),
             }
@@ -104,4 +102,4 @@ class MitreRAG:
 
     def count(self) -> int:
         self._ensure()
-        return len(self.__class__._ids)
+        return len(self._ids)

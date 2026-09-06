@@ -14,6 +14,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from backend.detection.features import FEATURE_NAMES
+
 
 DEFAULT_OUTPUT = Path(__file__).resolve().parent / "cicids2017" / "sample_traffic.csv"
 
@@ -55,24 +57,65 @@ def generate_sample_dataset(output_path: Path, num_samples: int = 2000) -> Path:
     portscan_win = rng.normal(loc=1024, scale=100, size=num_portscan)
     bot_win = rng.normal(loc=65535, scale=10, size=num_bot)
     
-    # Combine
+    # Combine the class-shaped values into a complete canonical 32-feature
+    # upload contract. These deterministic relationships are fixture mechanics,
+    # not a claim that the rows reproduce a real capture distribution.
     durations = np.concatenate([benign_duration, ddos_duration, portscan_duration, bot_duration])
     pkts = np.concatenate([benign_pkts, ddos_pkts, portscan_pkts, bot_pkts])
     syns = np.concatenate([benign_syn, ddos_syn, portscan_syn, bot_syn])
     wins = np.concatenate([benign_win, ddos_win, portscan_win, bot_win])
-    
+    fwd_packets = rng.randint(1, 50, size=num_samples)
+    bwd_packets = rng.randint(0, 40, size=num_samples)
+    fwd_lengths = rng.uniform(40, 1400, size=num_samples)
+    bwd_lengths = rng.uniform(40, 1400, size=num_samples)
+    fwd_bytes = fwd_packets * fwd_lengths
+    bwd_bytes = bwd_packets * bwd_lengths
+    total_packets = fwd_packets + bwd_packets
+    total_bytes = fwd_bytes + bwd_bytes
+    seconds = np.maximum(durations / 1e6, 1e-9)
+    packet_mean = total_bytes / np.maximum(total_packets, 1)
+    packet_min = np.minimum(fwd_lengths, bwd_lengths)
+    packet_max = np.maximum(fwd_lengths, bwd_lengths)
+    packet_std = np.abs(fwd_lengths - bwd_lengths) / 2
+
     labels = ["BENIGN"] * num_benign + ["DDoS"] * num_ddos + ["PortScan"] * num_portscan + ["Bot"] * num_bot
-    
-    df = pd.DataFrame({
-        "Flow Duration": np.maximum(1, durations),
-        "Flow Packets/s": np.maximum(0, pkts),
-        "SYN Flag Count": syns,
-        "Init_Win_bytes_fwd": np.maximum(0, wins),
-        "Total Fwd Packets": rng.randint(1, 50, size=num_samples),
-        "Total Backward Packets": rng.randint(0, 40, size=num_samples),
-        "Flow Bytes/s": rng.exponential(scale=50000, size=num_samples),
-        "Label": labels
-    })
+
+    values = {
+        "flow_duration": np.maximum(1, durations),
+        "total_fwd_packets": fwd_packets,
+        "total_bwd_packets": bwd_packets,
+        "total_fwd_bytes": fwd_bytes,
+        "total_bwd_bytes": bwd_bytes,
+        "packets_per_sec": np.maximum(0, pkts),
+        "bytes_per_sec": total_bytes / seconds,
+        "fwd_packet_length_mean": fwd_lengths,
+        "bwd_packet_length_mean": bwd_lengths,
+        "packet_length_mean": packet_mean,
+        "packet_length_std": packet_std,
+        "packet_length_max": packet_max,
+        "packet_length_min": packet_min,
+        "avg_pkt_size": packet_mean,
+        "syn_flag_count": syns,
+        "ack_flag_count": rng.binomial(1, 0.75, size=num_samples),
+        "rst_flag_count": rng.binomial(1, 0.03, size=num_samples),
+        "fin_flag_count": rng.binomial(1, 0.2, size=num_samples),
+        "psh_flag_count": rng.binomial(1, 0.15, size=num_samples),
+        "urg_flag_count": np.zeros(num_samples, dtype=int),
+        "init_win_bytes_fwd": np.maximum(0, wins),
+        "init_win_bytes_bwd": rng.randint(0, 65536, size=num_samples),
+        "flow_iat_mean": durations / np.maximum(total_packets, 1),
+        "flow_iat_std": durations / np.maximum(total_packets, 1) * 0.2,
+        "flow_iat_max": durations / np.maximum(total_packets, 1) * 1.5,
+        "fwd_iat_mean": durations / np.maximum(fwd_packets, 1),
+        "fwd_header_len": fwd_packets * 20,
+        "bwd_header_len": bwd_packets * 20,
+        "down_up_ratio": bwd_bytes / np.maximum(fwd_bytes, 1e-9),
+        "flow_bytes_ratio": fwd_bytes / np.maximum(total_bytes, 1e-9),
+        "active_mean": durations * 0.7,
+        "idle_mean": durations * 0.3,
+    }
+    df = pd.DataFrame({name: values[name] for name in FEATURE_NAMES})
+    df["Label"] = labels
     
     # Shuffle dataframe
     df = df.sample(frac=1, random_state=42).reset_index(drop=True)

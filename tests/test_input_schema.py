@@ -93,6 +93,54 @@ def test_conflicting_alias_values_reject_the_row_and_are_reported():
     assert report["invalid_numeric_cell_counts"]["ambiguous_alias_values"] == 1
 
 
+def test_equal_canonical_and_alias_values_are_explicitly_accepted():
+    row = canonical_flow(init_win_bytes_fwd=100)
+    row["Init_Win_bytes_fwd"] = 100
+    accepted, report = validate_records([row])
+    assert accepted[0]["init_win_bytes_fwd"] == 100
+    assert report["alias_conflicts"]["init_win_bytes_fwd"] == [
+        "init_win_bytes_fwd", "Init_Win_bytes_fwd"
+    ]
+    assert report["rows_rejected"] == 0
+
+
+def test_equal_two_alias_representations_are_accepted_without_first_last_choice():
+    row = canonical_flow()
+    row.pop("init_win_bytes_fwd")
+    row["Init_Win_bytes_fwd"] = 0
+    row["Init Fwd Win Byts"] = 0
+    accepted, report = validate_records([row])
+    assert accepted[0]["init_win_bytes_fwd"] == 0
+    assert report["rows_rejected"] == 0
+
+
+def test_two_aliases_with_different_values_fail_closed():
+    row = canonical_flow()
+    row.pop("init_win_bytes_fwd")
+    row["Init_Win_bytes_fwd"] = 0
+    row["Init Fwd Win Byts"] = 1
+    accepted, report = validate_records([row])
+    assert accepted == []
+    assert report["invalid_numeric_cell_counts"]["ambiguous_alias_values"] == 1
+
+
+def test_zero_and_missing_alias_values_are_not_treated_as_equal():
+    row = canonical_flow(init_win_bytes_fwd=0)
+    row["Init_Win_bytes_fwd"] = ""
+    accepted, report = validate_records([row])
+    assert accepted == []
+    assert report["invalid_numeric_cell_counts"]["missing_numeric_value"] == 1
+    assert report["rows_rejected"] == 1
+
+
+def test_normalized_duplicate_column_names_make_schema_unsupported():
+    columns = list(FEATURE_NAMES) + [" flow_duration "]
+    validator = FlowSchemaValidator(columns, input_format="csv")
+    assert validator.report.supported is False
+    assert validator.report.duplicate_columns == ["flow_duration"]
+    assert validator.report.rejection_reasons["duplicate_column_names"] == 1
+
+
 def test_bounded_sanitization_is_reported_not_hidden():
     row = canonical_flow(flow_duration="1e20")
     accepted, report = validate_records([row])

@@ -2,8 +2,8 @@
 from __future__ import annotations
 import os, stat, time
 from sqlalchemy import (create_engine, Column, Integer, String, Float,
-                        Text, Boolean, UniqueConstraint, event)
-from sqlalchemy.orm import declarative_base, sessionmaker
+                        Text, Boolean, UniqueConstraint, ForeignKey, event)
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from ..config import DB_PATH
 
 Base = declarative_base()
@@ -17,9 +17,12 @@ engine = create_engine(
     connect_args={"check_same_thread": False, "timeout": 30}
 )
 
-# Enable WAL mode for multi-threaded concurrency
-with engine.connect() as conn:
-    conn.exec_driver_sql("PRAGMA journal_mode=WAL;")
+# Enable foreign key enforcement on every SQLite connection (required by SQLite spec)
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragmas(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON;")
+    cursor.close()
 
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
@@ -222,4 +225,97 @@ class ResponseSimulation(Base):
     approvals = Column(Integer, default=0, nullable=False)
     ttl_seconds = Column(Integer, nullable=False)
     response_json = Column(Text, nullable=False)
+    created_at = Column(Float, default=time.time, nullable=False)
+
+
+class SuricataIngestionRecord(Base):
+    """Batch ingestion audit log for Suricata EVE imports."""
+    __tablename__ = "suricata_ingestions"
+    id = Column(Integer, primary_key=True)
+    ingestion_id = Column(String(64), unique=True, index=True, nullable=False)
+    source_file = Column(String(256), nullable=False)
+    sensor_id = Column(String(64), nullable=False)
+    status = Column(String(32), default="in_progress", index=True, nullable=False)
+    total_parsed = Column(Integer, default=0, nullable=False)
+    accepted = Column(Integer, default=0, nullable=False)
+    persisted = Column(Integer, default=0, nullable=False)
+    rejected_lines = Column(Integer, default=0, nullable=False)
+    duplicates_count = Column(Integer, default=0, nullable=False)
+    report_json = Column(Text, default="{}", nullable=False)
+    created_at = Column(Float, default=time.time, index=True, nullable=False)
+    completed_at = Column(Float, nullable=True)
+
+
+class SecurityEventRecord(Base):
+    """Canonical security event storage (cyberguard-security-event-v1)."""
+    __tablename__ = "security_events"
+    __table_args__ = (
+        UniqueConstraint("event_ref", name="uq_security_events_event_ref"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    event_ref = Column(String(64), index=True, nullable=False)
+    ingestion_id = Column(String(64), index=True, nullable=False)
+    schema_version = Column(String(32), default="cyberguard-security-event-v1", nullable=False)
+    adapter_version = Column(String(32), default="cyberguard-suricata-eve-v1", nullable=False)
+    source_kind = Column(String(32), default="suricata_eve", nullable=False)
+    source_event_type = Column(String(32), index=True, nullable=False)
+    sensor_id = Column(String(64), index=True, nullable=False)
+    source_line_number = Column(Integer, nullable=False)
+    timestamp = Column(Float, index=True, nullable=False)
+    timestamp_iso = Column(String(64), nullable=False)
+    flow_id = Column(Integer, nullable=True)
+    community_id = Column(String(64), nullable=True)
+    proto = Column(String(16), nullable=True)
+    app_proto = Column(String(32), nullable=True)
+    src_ip = Column(String(64), nullable=True)
+    src_port = Column(Integer, nullable=True)
+    dest_ip = Column(String(64), nullable=True)
+    dest_port = Column(Integer, nullable=True)
+    alert_signature = Column(String(256), nullable=True)
+    alert_signature_id = Column(Integer, nullable=True)
+    alert_category = Column(String(128), nullable=True)
+    alert_severity = Column(String(32), nullable=True)
+    source_sensor_severity_raw = Column(String(32), nullable=True)
+    source_sensor_action = Column(String(32), nullable=True)
+    executed_action = Column(String(32), default="none", nullable=False)
+    evidence_json = Column(Text, default="{}", nullable=False)
+    mitre_techniques_json = Column(Text, default="[]", nullable=False)
+    source_file = Column(String(256), default="", nullable=False)
+    explanation = Column(Text, default="", nullable=False)
+    created_at = Column(Float, default=time.time, index=True, nullable=False)
+
+
+class SecurityEventTechniqueMapping(Base):
+    """Evidence-supported ATT&CK technique mapping linked to a SecurityEventRecord."""
+    __tablename__ = "security_event_technique_mappings"
+    __table_args__ = (
+        UniqueConstraint(
+            "security_event_id", "technique_id", "mapping_version",
+            name="uq_sec_event_tech_mapping",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True)
+    security_event_id = Column(
+        Integer, ForeignKey("security_events.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    technique_id = Column(String(32), index=True, nullable=False)
+    tactic_id = Column(String(32), nullable=True)
+    signature_id = Column(Integer, nullable=True)
+    validation_status = Column(String(32), default="unknown_to_snapshot", nullable=False)
+    rule_match_observed = Column(Boolean, default=True, nullable=False)
+    mapping_evidence_present = Column(Boolean, default=True, nullable=False)
+    technique_observed = Column(Boolean, default=False, nullable=False)
+    evidence_kind = Column(String(32), default="suricata_rule_metadata", nullable=False)
+    mapping_semantics = Column(
+        String(64), default="evidence-supported candidate ATT&CK mapping", nullable=False
+    )
+    mapping_version = Column(String(64), default="suricata-rule-metadata-v1", nullable=False)
+    metadata_extraction_confidence = Column(Float, default=1.0, nullable=False)
+    technique_occurrence_confidence = Column(Float, nullable=True)
+    evidence_ref = Column(String(128), default="", nullable=False)
+    snapshot_version = Column(String(64), nullable=True)
+    snapshot_source = Column(String(256), nullable=True)
+    snapshot_indexed_time = Column(Float, nullable=True)
     created_at = Column(Float, default=time.time, nullable=False)

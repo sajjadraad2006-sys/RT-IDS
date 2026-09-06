@@ -1,11 +1,12 @@
 # Safe live-ingestion direction (not implemented)
 
-CyberGuard remains an offline uploaded-flow analyzer. Neither Zeek nor
-Suricata is installed in the verified environment, and no representative local
-sensor stream was available. A live adapter was therefore not scaffolded or
-claimed as tested.
+CyberGuard remains an analyzer for uploaded flow and IDS log records.
+Offline Suricata EVE log ingestion is now implemented via the dedicated
+evidence bridge documented in [`docs/SURICATA_EVIDENCE_BRIDGE.md`](SURICATA_EVIDENCE_BRIDGE.md).
+Live continuous socket/sensor daemon ingestion remains intentionally unimplemented
+until independently evaluated live sensor adapters exist.
 
-## Proposed first adapter: local Zeek `conn.log` JSON
+## Proposed next adapter: local Zeek `conn.log` JSON
 
 The adapter must read an already-authorized local JSON log or Unix socket. It
 must not request packet-capture privileges, start Zeek, choose an interface, or
@@ -98,4 +99,21 @@ This incompatibility must return unhealthy/unsupported, never silent zero-fill.
 
 Until these conditions and independent model evaluation are complete, no live
 navigation, health badge, or deployment text should imply that a sensor is
-connected.
+connected. Any future sensor dataset must first satisfy
+`docs/INDEPENDENT_EVALUATION.md`; sensor integration is not permission to reuse
+calibration or final-evaluation captures across roles.
+
+## Implemented Live Operations polling
+
+The UI now implements bounded four-second polling of persisted backend state;
+this does not implement the privileged sensor adapter described above. The
+controller pauses while the page is hidden, has a single in-flight request,
+aborts superseded manual refreshes, ignores stale responses, and deduplicates
+within each source independently. Connection/degraded state, last success,
+last error, manual refresh, pause/resume, source freshness, incidents, triage,
+and risk decomposition are visible.
+
+The API labels flow results `uploaded_not_continuous_ingestion` and Suricata
+records `uploaded_eve_not_sensor_stream`. A future Zeek or continuous Suricata
+adapter must still satisfy the queue/backpressure/offset contract in this
+document before its state can be labeled connected or live.

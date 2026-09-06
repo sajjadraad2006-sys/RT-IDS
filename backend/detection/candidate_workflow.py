@@ -39,6 +39,7 @@ from .integrity import (
     write_artifact_manifest,
 )
 from .normalizer import Normalizer
+from .router import route_signals
 from .statistical import StatisticalFilter
 from ..config import CLASSES
 
@@ -279,44 +280,39 @@ def _pipeline_v2_routes(
     classifier_threshold: float,
     statistical_flags: np.ndarray,
     autoencoder_flags: np.ndarray,
-) -> dict[str, np.ndarray]:
-    """Apply the serving/shadow Pipeline v2 routing rule without fitting.
-
-    All three input signal arrays must already have been computed for every
-    row. Statistical and autoencoder evidence can request review, but neither
-    can prevent a row from reaching the known-attack classifier.
-    """
-    labels = np.asarray(labels).astype("U64")
-    confidences = np.asarray(confidences, dtype=float)
-    statistical_flags = np.asarray(statistical_flags, dtype=bool)
-    autoencoder_flags = np.asarray(autoencoder_flags, dtype=bool)
-    lengths = {
-        len(labels), len(confidences), len(statistical_flags),
-        len(autoencoder_flags),
-    }
-    if len(lengths) != 1:
-        raise ValueError("Pipeline v2 signal arrays must have identical lengths")
-
-    non_benign = np.char.lower(labels) != "benign"
-    known_attack = non_benign & (confidences >= classifier_threshold)
-    human_review = non_benign & ~known_attack
-    unknown_review = ~non_benign & (statistical_flags | autoencoder_flags)
-    routes = np.full(len(labels), "benign", dtype="U32")
-    routes[human_review] = "human_review"
-    routes[unknown_review] = "unknown_anomaly_review"
-    routes[known_attack] = "known_attack"
-    verdicts = np.full(len(labels), "Benign", dtype="U64")
-    verdicts[human_review] = labels[human_review]
-    verdicts[unknown_review] = "Unknown Anomaly"
-    verdicts[known_attack] = labels[known_attack]
-    return {
-        "routes": routes,
-        "verdicts": verdicts,
-        "known_attack": known_attack,
-        "human_review": human_review,
-        "unknown_anomaly_review": unknown_review,
-        "actionable": known_attack | human_review | unknown_review,
-    }
+    supported_labels: list[str] | np.ndarray | None = None,
+    statistical_scores: np.ndarray | None = None,
+    autoencoder_available: np.ndarray | None = None,
+    autoencoder_scores: np.ndarray | None = None,
+) -> dict[str, np.ndarray | str]:
+    """Compatibility adapter delegating to the one canonical router."""
+    row_count = len(labels)
+    routed = route_signals(
+        labels,
+        confidences,
+        classifier_threshold=classifier_threshold,
+        supported_labels=supported_labels,
+        statistical_flags=statistical_flags,
+        statistical_scores=(
+            statistical_scores
+            if statistical_scores is not None
+            else np.asarray(statistical_flags, dtype=float)
+        ),
+        autoencoder_available=(
+            autoencoder_available
+            if autoencoder_available is not None
+            else np.ones(row_count, dtype=bool)
+        ),
+        autoencoder_flags=autoencoder_flags,
+        autoencoder_scores=(
+            autoencoder_scores
+            if autoencoder_scores is not None
+            else np.asarray(autoencoder_flags, dtype=float)
+        ),
+        pipeline_version=PIPELINE_V2_VERSION,
+        routing_schema_version=ROUTING_V2_SCHEMA_VERSION,
+    )
+    return routed.as_dict()
 
 
 def _calibrate_classifier(clf, X, y) -> dict:
@@ -496,8 +492,12 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
         final_labels,
         final_conf,
         classifier_threshold=clf.confidence_threshold,
+        supported_labels=list(clf.classes_),
         statistical_flags=final_stat,
+        statistical_scores=final_z,
+        autoencoder_available=np.full(len(final_labels), ae.threshold is not None),
         autoencoder_flags=final_ae,
+        autoencoder_scores=final_ae_errors,
     )
     pipeline_class_metrics = _classification_metrics(
         final["y"], final_routes["verdicts"], final_prob, list(clf.classes_)
@@ -537,6 +537,12 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
         "known_attack_total": int(known_attack.sum()),
         "review_rows": int(review_mask.sum()),
         "review_rate": float(review_mask.mean()),
+        "human_review_rate": float(final_routes["human_review"].mean()),
+        "unknown_anomaly_review_rate": float(
+            final_routes["unknown_anomaly_review"].mean()
+        ),
+        "unsupported_label_rows": int((~final_routes["supported_label"]).sum()),
+        "unsupported_label_rate": float((~final_routes["supported_label"]).mean()),
         "classifier_accept_rows": int(final_routes["known_attack"].sum()),
         "benign_review_rows": int((review_mask & ~known_attack).sum()),
         "unknown_anomaly_review_rows": int(
@@ -558,8 +564,12 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
         ood_labels,
         ood_conf,
         classifier_threshold=clf.confidence_threshold,
+        supported_labels=list(clf.classes_),
         statistical_flags=ood_stat,
+        statistical_scores=ood_z,
+        autoencoder_available=np.full(len(ood_labels), ae.threshold is not None),
         autoencoder_flags=ood_ae_errors > ae.threshold,
+        autoencoder_scores=ood_ae_errors,
     )
     ood_review = ood_routes["human_review"] | ood_routes["unknown_anomaly_review"]
     negative_ae = final_ae_errors[final["y"] == "Benign"]
@@ -750,6 +760,15 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
     peak_vram = int(torch.cuda.max_memory_allocated()) if torch.cuda.is_available() else 0
     results = {
         "schema_version": "cyberguard-candidate-metrics-v2",
+        "measurement_context": {
+            "kind": "legacy_dataset_audit_candidate_measurement",
+            "independent_intake_manifest_bound": False,
+            "accuracy_claim_allowed": False,
+            "note": (
+                "Bind future licensed data with evaluation_report.py; this "
+                "candidate workflow output alone is not an independent accuracy claim."
+            ),
+        },
         "candidate_status": status,
         "production_approved": False,
         "coverage_contract": coverage_contract,

@@ -25,12 +25,15 @@ from ..decision.audit import append_audit_event, verify_audit_chain
 from ..config import ANALYST_ID, SIMULATOR_ALLOWED_ASSETS
 from ..limiter import limiter
 from ..llm.provider import get_provider
-from ..llm.rag import MitreRAG
+from ..llm.mitre_index import get_mitre_rag
 from ..security import safe_llm_url
 
 router = APIRouter(prefix="/api/decision", tags=["smart-decision"])
-_rag = MitreRAG()
 log = logging.getLogger("cyberguard.api.decision")
+
+
+def _get_rag():
+    return get_mitre_rag()
 
 
 class EvaluateRequest(BaseModel):
@@ -471,7 +474,7 @@ async def evaluate(
         *smart.detection.mitre_techniques,
         *(name for name, _ in smart.detection.top_features),
     ])
-    docs = _rag.query(query, k=4)
+    docs = _get_rag().query(query, k=4)
     context = "\n\n".join(doc["document"] for doc in docs)
     try:
         provider = get_provider(_provider_settings())

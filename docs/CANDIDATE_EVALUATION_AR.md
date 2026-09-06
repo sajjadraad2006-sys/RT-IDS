@@ -145,7 +145,7 @@ confidence OOD mislabel. فشل المرشح في:
 لذلك الحالة **`failed_gates`** و`production_approved=false`. رفض
 `python -m backend.detection.promote ...` الـdry-run بسبب هذين الفشلين.
 شغّل v1 مقارنة shadow تاريخية على 100,000 صف دون LLM أو تغيير pointer، لكن
-هذا التقرير القديم لا يحقق عقد `cyberguard-shadow-report-v2` ولا يجعل المرشح
+هذا التقرير القديم لا يحقق عقد `cyberguard-shadow-report-v3` ولا يجعل المرشح
 قابلًا للترقية. الترقية الحالية تتطلب تقريرًا مطابقًا ومربوطًا تشفيريًا بكل
 artifact hashes والـmanifest مع صفر DB/pointer mutations. لم يُنفذ promotion
 أو firewall/EDR action.
@@ -172,3 +172,8 @@ artifact hashes والـmanifest مع صفر DB/pointer mutations. لم يُنف
 - manifest v2 يتطلب calibration source وdataset hashes وthresholds المطابقة.
 - coverage contract يصرح trained/evaluated/OOD-only/unsupported والـtelemetry.
 - لم يُنشأ أو يُرقَّ أي candidate v2 في هذا التحديث لغياب final جديد مستقل.
+- بوابة `evaluation_intake.py` الجديدة وتوثيق
+  `INDEPENDENT_EVALUATION.md` يرفضان role/capture/time leakage والتكرار الدقيق
+  بين الأقسام، بينما يربط `evaluation_report.py` التقرير بالـdataset/splits/
+  artifacts/calibration/source/command/environment. Fixtures لا يمكن تسميتها
+  final evaluation ولا تكوّن ادعاء دقة.

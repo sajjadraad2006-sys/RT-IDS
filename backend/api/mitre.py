@@ -2,12 +2,15 @@
 from __future__ import annotations
 import json
 from fastapi import APIRouter, Query, Request
+from ..config import DB_PATH
 from ..mitre import attack_db, taxii_sync
-from ..llm.rag import MitreRAG
+from ..mitre.d3fend import D3fendStore
+from ..mitre.lifecycle import activate_with_rag
+from ..llm.mitre_index import publish_mitre_rag
 from ..limiter import limiter
 
 router = APIRouter(prefix="/api/mitre", tags=["mitre"])
-_rag = MitreRAG()
+_d3fend_store = D3fendStore(DB_PATH)
 
 TACTICS = ["reconnaissance", "resource-development", "initial-access",
            "execution", "persistence", "privilege-escalation",
@@ -52,6 +55,20 @@ def technique_detail(tid: str) -> dict:
     r["candidate_mapping"] = bool(mappings)
     r["candidate_mappings"] = mappings
     r["mapping_semantics"] = "heuristic hypothesis, not observed evidence"
+    attack_status, _ = attack_db.check_technique_status(tid)
+    r["d3fend"] = {
+        "candidates": _d3fend_store.candidate_defenses(
+            tid, attack_verified=attack_status == "active_validated"
+        ),
+        "mapping_semantics": "candidate defensive techniques",
+        "originating_attack_validation": attack_status,
+        "source_health": _d3fend_store.health(),
+        "operational_limitation": (
+            "Displayed techniques are official relationship candidates; "
+            "display does not mean deployment or execution."
+        ),
+        "executed_action": "none",
+    }
     return r
 
 
@@ -59,18 +76,28 @@ def technique_detail(tid: str) -> dict:
 @limiter.limit("2/minute")
 def sync(request: Request, force: bool = False) -> dict:
     status = taxii_sync.sync_attack(force=force)
-    # index on BOTH fresh syncs and cached snapshots — index_snapshot uses
-    # INSERT OR REPLACE, so re-indexing a cached snapshot is safe. Without
-    # this, a pre-existing snapshot leaves the SQLite index empty forever.
     if status.get("status") in ("synced", "cached"):
-        status["indexed"] = attack_db.index_snapshot(status.get("path"))
+        provenance = status.get("provenance")
+        if not isinstance(provenance, dict):
+            status["activation_status"] = "degraded_unverified_cache"
+            status["error"] = (
+                "Cached ATT&CK data has no verified source metadata; "
+                "the last-known-good active snapshot was retained"
+            )
+            return status
         try:
-            # feed the same techniques into the RAG vector store so the
-            # chat answers with live ATT&CK context right after a sync
-            status["rag_indexed"] = _rag.index(attack_db.list_techniques(limit=5000))
-            status["rag_synchronized"] = status["rag_indexed"] == status["indexed"]
+            activated, candidate_rag = activate_with_rag(
+                status["path"], provenance=provenance
+            )
+            publish_mitre_rag(candidate_rag)
+            taxii_sync.promote_synced_cache(status)
+            status.update(activated)
+            status["indexed"] = activated["technique_count"]
+            status["activation_status"] = "active"
         except Exception as exc:
-            status["rag_indexed"] = f"failed: {exc}"
+            taxii_sync.discard_synced_candidate(status)
+            status["activation_status"] = "failed_last_known_good_retained"
+            status["error"] = str(exc)
             status["rag_synchronized"] = False
     return status
 
@@ -78,3 +105,15 @@ def sync(request: Request, force: bool = False) -> dict:
 @router.get("/stats")
 def mitre_stats() -> dict:
     return attack_db.get_stats()
+
+
+@router.get("/status")
+def mitre_status() -> dict:
+    """Report dynamic active ATT&CK snapshot information honestly."""
+    return attack_db.get_stats()
+
+
+@router.get("/d3fend/status")
+def d3fend_status() -> dict:
+    """Report the active local D3FEND relationship snapshot."""
+    return _d3fend_store.health()

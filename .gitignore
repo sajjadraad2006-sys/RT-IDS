@@ -48,6 +48,7 @@ data/models/candidates/
 data/models/releases/
 data/models/active_bundle.json
 data/chroma/
+data/intelligence/
 data/cyberguard.db
 data/*.csv
 data/*.json
@@ -84,6 +85,7 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+benchmark_results.json
 
 # IDE & OS files
 .DS_Store

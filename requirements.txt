@@ -4,10 +4,13 @@
 # run the complete verification workflow, and review ``pip-audit`` before
 # committing an upgrade. Development/security tooling lives in
 # ``requirements-dev.txt`` so normal launches do not install it.
+# The supported resolver is pip. uv is not claimed compatible with this
+# deliberate PyPI + official PyTorch CPU multi-index configuration.
 
-# Complete CPython 3.12 transitive constraints shared by runtime and CI.
--c requirements.lock
-# Prefer the official CPU wheel for reproducible CI and machines without a
+# Complete CPython 3.12 transitive version constraints shared by runtime and CI.
+# This is intentionally not described as a hash lock.
+-c requirements-constraints.txt
+# Prefer the official PyTorch CPU index for reproducible CI and machines without a
 # configured accelerator. Operators may install a compatible accelerator build
 # explicitly; the application never requires GPU execution.
 --extra-index-url https://download.pytorch.org/whl/cpu

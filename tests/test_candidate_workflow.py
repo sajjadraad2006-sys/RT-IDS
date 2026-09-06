@@ -163,7 +163,7 @@ def test_candidate_pipeline_v2_routing_never_uses_statistical_gate():
         "known_attack", "human_review", "unknown_anomaly_review", "benign"
     ]
     assert routed["verdicts"].tolist() == [
-        "DDoS", "PortScan", "Unknown Anomaly", "Benign"
+        "DDoS", "PortScan", "unknown-anomaly", "Benign"
     ]
 
 

@@ -1,7 +1,8 @@
-# CyberGuard fully constrained dependency closure.
+# CyberGuard fully version-constrained dependency closure (no package hashes).
 # Resolved from the declared inputs for CPython 3.12. Platform-only packages
 # carry markers, and Linux/Windows select the official PyTorch CPU build so the
-# lock does not inherit CUDA or torchvision packages from a developer machine.
+# constraint set does not inherit CUDA or torchvision packages from a developer
+# machine. It records exact versions, not distribution hashes.
 # Direct dependencies remain declared in requirements.txt and
 # requirements-dev.txt.
 

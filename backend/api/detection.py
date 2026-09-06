@@ -104,7 +104,7 @@ async def upload(request: Request, file: UploadFile) -> dict:
     from ..config import MAX_UPLOAD_MB, MAX_UPLOAD_ROWS
     from .upload_stream import RejectedRow, UploadParseError, prepare_upload
     from ..detection.input_schema import FEATURE_SCHEMA_VERSION
-    from ..detection.pipeline import PIPELINE_VERSION
+    from ..detection.pipeline import PIPELINE_VERSION, PipelineStats
 
     filename = (file.filename or "upload").strip()
     filename = re.sub(r"[\x00-\x1f\x7f]", "_", filename)[:255] or "upload"
@@ -135,6 +135,7 @@ async def upload(request: Request, file: UploadFile) -> dict:
     alerts_generated = 0
     analyzed = 0
     latency_total = 0.0
+    pending_pipeline_stats = PipelineStats()
     max_db_alerts = 5000
     started = time.perf_counter()
 
@@ -150,6 +151,7 @@ async def upload(request: Request, file: UploadFile) -> dict:
         analyzed += len(batch_results)
         schema_payload = validator.report.to_dict()
         for alert in batch_results:
+            pending_pipeline_stats.record(alert)
             route_counts[alert.route] += 1
             stage_counts[alert.stage if alert.stage in {
                 "classifier", "statistical", "autoencoder", "none"
@@ -208,32 +210,38 @@ async def upload(request: Request, file: UploadFile) -> dict:
         accepted_batch.clear()
 
     try:
-        for row in prepared.rows:
-            if validator.report.total_parsed >= MAX_UPLOAD_ROWS:
-                raise HTTPException(
-                    413,
-                    detail={
-                        "message": f"File exceeds {MAX_UPLOAD_ROWS} row limit",
-                        "schema_validation": validator.report.to_dict(),
-                    },
-                )
-            if isinstance(row, RejectedRow):
-                validator.reject_structural_row(row.reason)
-                continue
-            canonical = validator.validate_row(row)
-            if canonical is not None:
-                accepted_batch.append(canonical)
-                if len(accepted_batch) >= BATCH_SIZE:
-                    process_batch()
-        process_batch()
-    except UploadParseError as exc:
-        raise HTTPException(
-            400,
-            detail={
-                "message": f"Upload parse failed: {exc}",
-                "schema_validation": validator.report.to_dict(),
-            },
-        ) from exc
+        try:
+            for row in prepared.rows:
+                if validator.report.total_parsed >= MAX_UPLOAD_ROWS:
+                    raise HTTPException(
+                        413,
+                        detail={
+                            "message": f"File exceeds {MAX_UPLOAD_ROWS} row limit",
+                            "schema_validation": validator.report.to_dict(),
+                        },
+                    )
+                if isinstance(row, RejectedRow):
+                    validator.reject_structural_row(row.reason)
+                    continue
+                canonical = validator.validate_row(row)
+                if canonical is not None:
+                    accepted_batch.append(canonical)
+                    if len(accepted_batch) >= BATCH_SIZE:
+                        process_batch()
+            process_batch()
+        except UploadParseError as exc:
+            raise HTTPException(
+                400,
+                detail={
+                    "message": f"Upload parse failed: {exc}",
+                    "schema_validation": validator.report.to_dict(),
+                },
+            ) from exc
+    finally:
+        # Fatal parse/limit/inference paths must deterministically release the
+        # incremental parser wrapper. PreparedUpload.close() detaches it from
+        # Starlette's owned spool rather than closing the request file itself.
+        prepared.close()
 
     schema_report = validator.report.to_dict()
     if not validator.report.supported:
@@ -263,6 +271,10 @@ async def upload(request: Request, file: UploadFile) -> dict:
         for record in persist_records:
             record.input_schema_json = final_schema_json
 
+    # Compute every fallible response-only value before the database commit.
+    # A feature-importance failure must not leave persisted upload state.
+    feature_importance = pipe.clf.feature_importance(10)
+
     smart_logs_created = 0
     if persist_records:
         from ..decision.engine import build_smart_log
@@ -281,6 +293,12 @@ async def upload(request: Request, file: UploadFile) -> dict:
             payload["id"] = record.id
             payload["smart_log_url"] = f"/api/decision/smart-log/{record.id}"
             payload["decision_url"] = f"/api/decision/evaluate/{record.id}"
+
+    # Everything that can invalidate the uploaded container has succeeded, and
+    # bounded persistence reached its transaction boundary. Only now may this
+    # upload affect process-lifetime counters.
+    pipe.commit_stats(pending_pipeline_stats)
+    process_lifetime_stats = pipe.get_stats()
 
     elapsed = time.perf_counter() - started
     throughput = round(analyzed / max(elapsed, 1e-9))
@@ -339,9 +357,9 @@ async def upload(request: Request, file: UploadFile) -> dict:
             "autoencoder": analyzed if getattr(pipe.ae, "threshold", None) is not None else 0,
         },
         "throughput_rps": throughput,
-        "feature_importance": pipe.clf.feature_importance(10),
+        "feature_importance": feature_importance,
         "pipeline_stats": upload_stats,
-        "process_lifetime_stats": pipe.get_stats(),
+        "process_lifetime_stats": process_lifetime_stats,
         "elapsed_seconds": round(elapsed, 3),
         "smart_logs_created": smart_logs_created,
         "pipeline_version": PIPELINE_VERSION,
@@ -418,6 +436,21 @@ def pipeline_health() -> dict:
         except HTTPException as exc:
             integrity_error = str(exc.detail)[:300]
     production_approved = bool(metadata.get("production_approved", False))
+    artifact_pipeline_version = metadata.get("pipeline_version")
+    calibration_status = (
+        "calibrated_pipeline_v2"
+        if artifact_pipeline_version == "cyberguard-pipeline-v2"
+        else "legacy_unvalidated_evaluation_only"
+    )
+    zero_variance_feature_count = 0
+    if serving_ready and _pipeline is not None and _pipeline.stat.std_ is not None:
+        import numpy as np
+
+        # StatisticalFilter.fit replaces exact zero standard deviations with
+        # 1e-9. Count that sentinel (and smaller legacy values) explicitly.
+        zero_variance_feature_count = int(
+            np.count_nonzero(np.asarray(_pipeline.stat.std_) <= 1e-9)
+        )
     latest_candidate = None
     from ..config import MODELS_DIR
     candidates_root = MODELS_DIR / "candidates"
@@ -474,6 +507,15 @@ def pipeline_health() -> dict:
         ),
         "missing_classes": missing_classes,
         "pipeline_version": metadata.get("pipeline_version"),
+        "artifact_pipeline_version": artifact_pipeline_version,
+        "routing_version": "cyberguard-routing-v2",
+        "calibration_status": calibration_status,
+        "anomaly_thresholds_independently_validated": bool(
+            production_approved
+            and artifact_pipeline_version == "cyberguard-pipeline-v2"
+        ),
+        "zero_variance_feature_count": zero_variance_feature_count,
+        "zero_variance_sentinel_threshold": 1e-9,
         "routing_schema_version": metadata.get("routing_schema_version"),
         "evaluation_only": bool(metadata.get("evaluation_only", True)),
         "classifier_abstention_threshold": metadata.get("classifier", {}).get("abstention_threshold"),

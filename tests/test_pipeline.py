@@ -2,6 +2,7 @@
 import json
 
 import numpy as np
+import pytest
 
 from backend.detection.features import FEATURE_NAMES
 from backend.detection.normalizer import Normalizer
@@ -174,6 +175,35 @@ def test_alert_json_is_finite_and_contains_versioned_evidence():
     assert payload["feature_evidence"]
 
 
+@pytest.mark.parametrize(
+    ("component", "invalid"),
+    [
+        ("classifier", float("nan")),
+        ("classifier", "0.9"),
+        ("classifier", 1.01),
+        ("statistical", float("inf")),
+        ("statistical", -1.0),
+        ("autoencoder", float("nan")),
+        ("autoencoder", -1.0),
+    ],
+)
+def test_pipeline_rejects_invalid_calibrated_thresholds(component, invalid):
+    classifier = _FakeClf()
+    autoencoder = _FakeAE()
+    stat_threshold = 3.0
+    if component == "classifier":
+        classifier.confidence_threshold = invalid
+    elif component == "statistical":
+        stat_threshold = invalid
+    else:
+        autoencoder.threshold = invalid
+    pipe = _pipeline(
+        clf=classifier, ae=autoencoder, stat_threshold=stat_threshold
+    )
+    with pytest.raises(ValueError, match="threshold must be finite"):
+        pipe.detect(_flow())
+
+
 def test_pipeline_stats_are_constant_space():
     stats = PipelineStats()
     for _ in range(10_000):
@@ -183,7 +213,12 @@ def test_pipeline_stats_are_constant_space():
     assert not hasattr(stats, "_latencies")
 
     pipe = _pipeline(clf=_FakeClf("Benign", 0.99), stat_threshold=1e12)
-    pipe.detect_batch([_flow(), _flow()])
+    alerts = pipe.detect_batch([_flow(), _flow()])
+    assert pipe.get_stats()["total_flows"] == 0
+    completed = PipelineStats()
+    for alert in alerts:
+        completed.record(alert)
+    pipe.commit_stats(completed)
     reported = pipe.get_stats()
     assert reported["scope"] == "process_lifetime"
     assert reported["total_flows"] == 2

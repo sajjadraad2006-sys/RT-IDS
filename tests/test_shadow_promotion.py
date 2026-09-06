@@ -16,6 +16,7 @@ from backend.detection.integrity import (
     PIPELINE_V2_VERSION,
     ROUTING_V2_SCHEMA_VERSION,
     IntegrityError,
+    canonical_json_sha256,
     sha256_file,
 )
 from backend.detection.shadow import SHADOW_REPORT_VERSION, _route, run_shadow
@@ -88,6 +89,12 @@ def _write_valid_shadow(candidate, **overrides):
         "candidate_artifact_hashes": artifact_hashes,
         "candidate_pipeline_version": manifest["pipeline_version"],
         "candidate_routing_schema_version": manifest["routing_schema_version"],
+        "candidate_routing_calibration_sha256": canonical_json_sha256(
+            manifest["routing_calibration"]
+        ),
+        "candidate_coverage_contract_sha256": canonical_json_sha256(
+            manifest["coverage_contract"]
+        ),
         "audit_sha256": hashlib.sha256(b"unit-shadow-audit").hexdigest(),
         "rows": 100,
         "artifact_hashes_unchanged": True,
@@ -138,6 +145,13 @@ def test_shadow_runner_binds_report_and_does_not_mutate_external_state(tmp_path)
     assert report["candidate_artifact_hashes"] == before
     assert report["candidate_manifest_sha256"] == sha256_file(
         candidate / "artifacts.json"
+    )
+    manifest = json.loads((candidate / "artifacts.json").read_text(encoding="utf-8"))
+    assert report["candidate_routing_calibration_sha256"] == canonical_json_sha256(
+        manifest["routing_calibration"]
+    )
+    assert report["candidate_coverage_contract_sha256"] == canonical_json_sha256(
+        manifest["coverage_contract"]
     )
     assert report["artifact_hashes_unchanged"] is True
     assert report["manifest_hashes_unchanged"] is True
@@ -235,6 +249,81 @@ def test_dry_run_promotion_rejects_failed_shadow_report(tmp_path, monkeypatch):
     _write_valid_shadow(candidate, shadow_status="failed_invariants")
     with pytest.raises(IntegrityError, match="shadow evaluation did not pass"):
         promotion.verify_promotion(candidate)
+
+
+def test_dry_run_promotion_rejects_shadow_calibration_mismatch(tmp_path, monkeypatch):
+    candidate, promotion = _promotable_candidate(tmp_path, monkeypatch)
+    _write_valid_shadow(candidate, candidate_routing_calibration_sha256="0" * 64)
+    with pytest.raises(IntegrityError, match="calibration metadata does not match"):
+        promotion.verify_promotion(candidate)
+
+
+def test_dry_run_promotion_rejects_shadow_coverage_mismatch(tmp_path, monkeypatch):
+    candidate, promotion = _promotable_candidate(tmp_path, monkeypatch)
+    _write_valid_shadow(candidate, candidate_coverage_contract_sha256="0" * 64)
+    with pytest.raises(IntegrityError, match="coverage contract does not match"):
+        promotion.verify_promotion(candidate)
+
+
+def test_dry_run_promotion_rejects_shadow_pipeline_version_mismatch(
+    tmp_path, monkeypatch,
+):
+    candidate, promotion = _promotable_candidate(tmp_path, monkeypatch)
+    _write_valid_shadow(candidate, candidate_pipeline_version="cyberguard-pipeline-v1")
+    with pytest.raises(IntegrityError, match="pipeline version does not match"):
+        promotion.verify_promotion(candidate)
+
+
+def test_dry_run_promotion_rejects_missing_coverage_contract(tmp_path, monkeypatch):
+    candidate, promotion = _promotable_candidate(tmp_path, monkeypatch)
+    manifest_path = candidate / "artifacts.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["coverage_contract"]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(IntegrityError, match="no coverage contract"):
+        promotion.verify_promotion(candidate)
+
+
+def test_dry_run_promotion_rejects_supported_class_without_evaluation(
+    tmp_path, monkeypatch,
+):
+    candidate, promotion = _promotable_candidate(tmp_path, monkeypatch)
+    manifest_path = candidate / "artifacts.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["coverage_contract"]["evaluated_labels"] = manifest[
+        "coverage_contract"
+    ]["evaluated_labels"][:-1]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(IntegrityError, match="lack independent evaluation"):
+        promotion.verify_promotion(candidate)
+
+
+def test_dry_run_promotion_rejects_artifact_changed_after_shadow(
+    tmp_path, monkeypatch,
+):
+    candidate, promotion = _promotable_candidate(tmp_path, monkeypatch)
+    _write_valid_shadow(candidate)
+    with (candidate / "classifier.pkl").open("ab") as handle:
+        handle.write(b"changed-after-shadow")
+    with pytest.raises(IntegrityError, match="SHA-256 mismatch"):
+        promotion.verify_promotion(candidate)
+
+
+def test_real_promotion_requires_nonempty_human_approval_before_mutation(
+    tmp_path, monkeypatch,
+):
+    from backend.detection.bundles import ACTIVE_POINTER
+
+    candidate, promotion = _promotable_candidate(tmp_path, monkeypatch)
+    _write_valid_shadow(candidate)
+    pointer_before = (
+        ACTIVE_POINTER.read_bytes() if ACTIVE_POINTER.exists() else None
+    )
+    with pytest.raises(ValueError, match="approved_by is required"):
+        promotion.promote(candidate, "")
+    pointer_after = ACTIVE_POINTER.read_bytes() if ACTIVE_POINTER.exists() else None
+    assert pointer_after == pointer_before
+    assert not (tmp_path / "models" / "releases").exists()
 
 
 def test_valid_matching_shadow_report_is_eligible_but_stays_dry_run(tmp_path, monkeypatch):

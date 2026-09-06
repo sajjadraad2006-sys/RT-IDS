@@ -56,6 +56,23 @@ Each alert exposes `route`, `stage`, finite signal values, pipeline/artifact
 versions and canonical feature evidence. `mitre_techniques` is a heuristic
 classifier-label mapping. It is empty for unknown-anomaly routes.
 
+Raw duplicate member names in JSON objects are never collapsed. Escaped
+spellings that decode to the same member, Unicode-normalization-equivalent
+members, and nested-object duplicates follow the same rule. A duplicate in a
+top-level JSON object or array member is a fatal `400` parse error with stable
+reason `duplicate_json_key`. In NDJSON/JSONL it is a recoverable rejected line
+with that reason in `schema_validation.rejection_reasons`; different aliases
+for one canonical feature continue through the existing per-row conflict check.
+
+Inference batches do not mutate process-lifetime counters. The endpoint keeps a
+constant-space upload aggregate and commits it only after the full container and
+byte/row limits have passed and bounded persistence reaches its commit point.
+Fatal malformed-container, byte/row-limit, schema, later-batch inference,
+response-preparation, and final persistence failures therefore emit no
+successful upload statistics and persist no alert, ATT&CK mapping, Smart Log,
+or decision case. Parser wrappers are closed deterministically. Valid uploads
+update process statistics once.
+
 ## `GET /api/detect/health`
 
 Returns artifact integrity/readiness and explicit scope:
@@ -89,6 +106,40 @@ pipeline version and limitations.
 model evidence. The LLM cannot clear an unknown/ambiguous case, modify the
 detector, or execute a response. Provider failure returns deterministic policy
 fallback/degradation rather than breaking inference.
+
+## Suricata Evidence Bridge endpoints
+
+Detailed in [`docs/SURICATA_EVIDENCE_BRIDGE.md`](SURICATA_EVIDENCE_BRIDGE.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/events/suricata/upload` | Ingest `.json`, `.jsonl`, `.ndjson` Suricata EVE records; transactional storage and `SuricataIngestionReport` |
+| `GET` | `/api/events/suricata/events` | List imported events with filters (`event_type`, `severity`, `technique_id`) |
+| `GET` | `/api/events/suricata/events/{id}` | Full canonical event record (`cyberguard-security-event-v1`) and ATT&CK provenance |
+| `POST` | `/api/events/suricata/explain/{id}` | Advisory explanation with untrusted data boundary and deterministic fallback |
+| `GET` | `/api/events/suricata/stats` | Aggregated counts by event type, alert count, and active snapshot state |
+| `GET` | `/api/events/suricata/attack-status` | Honest dynamic ATT&CK snapshot metadata |
+
+## Live Operations and defensive knowledge endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/operations/snapshot?limit=100` | Read-only bounded source-separated snapshot with sequence IDs, incidents, review exceptions, risk decomposition, and source freshness |
+| `POST` | `/api/operations/refresh?limit=100` | Idempotently correlate unseen persisted evidence, aggregate triage, and return the refreshed snapshot; used by the four-second UI poller |
+| `GET` | `/api/operations/vulnerabilities/{cve}` | KEV/EPSS context; returns not applicable unless the path is a valid CVE identifier |
+| `POST` | `/api/operations/osv/query` | On-demand OSV query/cache requiring ecosystem, package name, and version |
+| `GET` | `/api/operations/incidents/{id}` | Incident, bounded evidence links, analyst audit, and no-action status |
+| `POST` | `/api/operations/incidents/{id}/resolve` | Audited analyst resolution using server-assigned analyst identity; no response execution |
+| `POST` | `/api/mitre/sync` | Download, validate, stage, RAG-index, and transactionally activate the pinned official ATT&CK release; retains last known good on failure |
+| `GET` | `/api/mitre/status` | Active ATT&CK source URL/kind, release, hash, object count, retrieval/index times, verification, and latest error |
+| `GET` | `/api/mitre/d3fend/status` | Active D3FEND version/hash, technique and relationship counts, and latest error |
+| `GET` | `/api/mitre/techniques/{id}` | ATT&CK detail plus official-relationship D3FEND candidates; always reports that no action was executed |
+
+The refresh response reports `refresh_mode=bounded_polling` and a
+four-second client interval. Uploaded flow records and Suricata EVE are both
+file-imported evidence sources, not continuous capture. Demo records are never
+returned in backend source lists. OSV is not applied without package ecosystem,
+name, and version context.
 
 ## Security limits
 

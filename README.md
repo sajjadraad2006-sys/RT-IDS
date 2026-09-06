@@ -46,8 +46,11 @@ For every row that passes the input contract:
 | Classifier benign and anomaly signals non-actionable | `benign` | No alert |
 
 The statistical detector is evidence, not a pre-classifier gate. Single-row,
-batch, serving, evaluation, and shadow code use the same routing semantics.
-Pipeline manifests claiming v2 must include calibration source/dataset hashes
+batch, serving, candidate evaluation, and shadow all call the side-effect-free
+router in `backend/detection/router.py`; they do not maintain separate rules.
+The router rejects non-finite/malformed evidence and invalid confidence
+thresholds instead of coercing them into safe-looking values. Pipeline
+manifests claiming v2 must include calibration source/dataset hashes
 and matching classifier, statistical, and autoencoder thresholds; missing or
 mismatched metadata fails closed.
 
@@ -72,6 +75,8 @@ The API rejects with HTTP 400/413/422 as appropriate:
 - arbitrary JSON such as `{"message":"failed login"}` or JSON primitives;
 - incomplete schemas such as only `col_0,col_1`;
 - duplicate headers or conflicting aliases for one canonical feature;
+- duplicate raw JSON keys, including escaped or Unicode-normalization-
+  equivalent keys and duplicates inside nested objects (no first/last collapse);
 - rows with missing, negative, non-numeric, or non-finite feature cells.
 
 The CICFlowMeter `-1` initial-window sentinel is explicitly converted to zero,
@@ -90,18 +95,26 @@ Every successful upload returns a `schema_validation` object with:
 - generated, returned, and persisted alert counts and caps.
 
 CSV/TSV and NDJSON are parsed incrementally. JSON objects/arrays are decoded
-incrementally with a bounded per-value buffer. Inference and database writes
-use fixed batches; alert responses are capped at 500 and persistence at 5,000
-per upload. Byte and row limits are enforced while reading. Process statistics
-use constant-space counters rather than retaining one latency per flow.
+incrementally with a bounded per-value buffer. Inference uses fixed batches;
+alert responses are capped at 500 and persistence at 5,000 per upload. Byte and
+row limits are enforced while reading. Malformed NDJSON lines remain recoverable
+row rejections, while malformed JSON containers and byte/row-limit failures are
+fatal. A fatal upload—including later-batch inference, response preparation,
+or final persistence failure—closes parser wrappers, discards its constant-
+space statistics aggregate, rolls back the database transaction, and
+persists no alert, ATT&CK mapping, Smart Log, or decision case. A successful
+upload commits process-lifetime counters exactly once.
 
 ## Installation and reproducibility
 
 Python 3.12 is the CI target. Direct dependencies are exact-pinned in
-`requirements.txt`; `requirements.lock` constrains the transitive closure;
-development and security tools are exact-pinned in `requirements-dev.txt`.
-The lock selects CPU-oriented PyTorch/XGBoost distributions for clean Linux CI
-instead of inheriting CUDA or `torchvision` packages from a workstation.
+`requirements.txt`; `requirements-constraints.txt` exact-constrains the
+transitive closure; development and security tools are exact-pinned in
+`requirements-dev.txt`. This is a fully version-constrained set, not a hash
+lock: it contains no distribution hashes. Supported installation uses `pip`
+with PyPI and the official PyTorch CPU index declared in `requirements.txt`.
+`uv` is not claimed as a supported resolver because its safe default rejects
+this multi-index resolution; no unsafe index-selection flag is recommended.
 
 ```bash
 python3 -m venv venv
@@ -124,18 +137,23 @@ python -c "from backend.config import BASE_DIR; from backend.detection.integrity
 
 The launcher creates required directories, verifies dependency pins, refuses a
 busy application port without killing its owner, initializes local databases,
-and treats `verify.py` as a required gate. It installs only for a new virtual
-environment or when `--setup` is explicitly requested.
+and treats `verify.py` as a required gate. Verification validates the active
+bundled ATT&CK snapshot, builds an isolated SQLite index, requires a nonzero
+technique count and `T1498`, and proves local RAG retrieval. The launcher then
+indexes the validated snapshot into the operational database. It installs only
+for a new virtual environment or when `--setup` is explicitly requested.
 
 ```bash
-# Existing, correctly pinned venv
+# Existing, correctly pinned venv (run.sh or run.bash)
 bash run.sh
+# or: bash run.bash
 
 # Explicit dependency setup/update
 bash run.sh --setup
 
-# Start without an advisory LLM or remote ATT&CK refresh
-CG_SKIP_LLM=1 CG_SKIP_MITRE_SYNC=1 bash run.sh
+# Start without an advisory LLM or remote ATT&CK refresh (via flags or env)
+bash run.sh --skip-llm --skip-mitre-sync
+# or: CG_SKIP_LLM=1 CG_SKIP_MITRE_SYNC=1 bash run.sh
 ```
 
 Then open `http://127.0.0.1:8000`. If the LLM is absent, flow analysis remains
@@ -164,6 +182,11 @@ The stable upload/health/advisory contract is also summarized in
 | `GET` | `/api/detect/health` | Integrity, actual operational mode, versions, and coverage scope |
 | `GET` | `/api/detect/alerts` | Persisted backend alerts only; demo alerts remain frontend-only |
 | `POST` | `/api/detect/explain/{id}` | Advisory explanation of bounded model evidence |
+| `POST` | `/api/events/suricata/upload` | Ingest Suricata EVE `.json/.ndjson`; canonical security events (`cyberguard-security-event-v1`) |
+| `GET` | `/api/events/suricata/events` | List imported Suricata events with type/severity/technique filters |
+| `GET` | `/api/events/suricata/events/{id}` | Full canonical event record with explicit ATT&CK provenance |
+| `POST` | `/api/events/suricata/explain/{id}` | Advisory LLM explanation for imported Suricata alert |
+| `GET` | `/api/events/suricata/stats` | Aggregated counts and dynamic ATT&CK snapshot honesty metadata |
 | `POST` | `/api/chat` | Session-bounded chat with relevance-filtered ATT&CK context |
 | `GET` | `/api/chat/history/{session}` | Only that validated session ID, with a bounded limit |
 | `GET` | `/api/mitre/techniques` | Active ATT&CK snapshot plus heuristic candidate mappings |
@@ -177,10 +200,23 @@ The stable upload/health/advisory contract is also summarized in
 ATT&CK rows created from a classifier label are stored transactionally with
 the alert and carry alert ID, classifier label, mapping version, confidence,
 and `heuristic_hypothesis` provenance. They are displayed as “possible
-techniques based on classifier label,” never observed behavior. Unknown
-anomalies create no technique mapping without independent evidence.
+techniques based on classifier label,” never observed behavior.
+
+Suricata EVE alerts extract ATT&CK technique IDs strictly from allowlisted rule
+metadata (`mitre_technique_id`, `mitre_tactic_id`, `tag`) and record
+`rule_match_observed=true`, `mapping_evidence_present=true`, and `technique_observed=false`
+under `suricata_rule_metadata` provenance. Unknown anomalies create no technique mapping.
+Details in [`docs/SURICATA_EVIDENCE_BRIDGE.md`](docs/SURICATA_EVIDENCE_BRIDGE.md).
 
 ## Candidate evaluation and promotion
+
+Future licensed data must first pass the immutable manifest workflow in
+[`docs/INDEPENDENT_EVALUATION.md`](docs/INDEPENDENT_EVALUATION.md). It binds
+source/license, acquisition date, capture/time ranges, byte sizes and hashes,
+labels/provenance, preprocessing, and one non-overlapping role per file.
+Streaming feature-fingerprint sidecars detect exact cross-role duplicates and
+conflicting labels using an ephemeral database. Fixture intake can test this
+contract but is cryptographically barred from being labeled final evaluation.
 
 The candidate workflow uses capture-disjoint training, calibration, final, and
 OOD partitions. Exact and near feature hashes exclude labels; labels are
@@ -189,7 +225,8 @@ are reported. Conflicts fail candidate gates.
 
 Pipeline v2 evaluation reports TP/FP/FN/TN, precision/recall/F1, benign FPR and
 false positives per 10,000 benign rows, per-class support/precision/recall/F1
-and PR-AUC, ECE, routing/review counts, OOD high-confidence mislabel rate,
+and PR-AUC, ECE, routing/human/unknown/unsupported-label rates, OOD
+high-confidence mislabel rate,
 throughput and memory, plus classifier/statistical/autoencoder/Isolation Forest
 baselines.
 
@@ -205,7 +242,8 @@ python -m backend.detection.promote data/models/candidates/<candidate-id>
 
 Eligibility requires intact artifacts, v2 calibration, an independently
 evaluated coverage contract, all declared gates, and a passing
-`shadow_report.json` bound to the exact manifest and artifact hashes. Shadow
+`cyberguard-shadow-report-v3` bound to the exact manifest, artifact hashes,
+calibration metadata, coverage contract, pipeline version, and routing schema. Shadow
 must record zero LLM calls, database mutations, and active-pointer mutations.
 Real promotion additionally requires explicit `--apply --approved-by ...`;
 CyberGuard never promotes automatically.
@@ -236,17 +274,33 @@ outcomes, host process events, or application evidence.
 ## Verification
 
 ```bash
+python -m pip check
 python -m pytest -q
 python verify.py
 python -m compileall -q backend cyberguard tests verify.py
 for file in frontend/js/*.js; do node --check "$file"; done
+bash -n run.sh run.bash cyberguard/setup.sh
 bandit -r backend cyberguard -x '*/tests/*' -f txt
 pip-audit --local --progress-spinner off
 python -m cyberguard.datasets.generate_sample --check
 ```
 
-CI runs the same unit/integration, syntax, fixture, Bandit, dependency-audit,
-and manifest gates from `.github/workflows/ci.yml`.
+The fixed source was also tested from a fresh source copy with no Git
+metadata, virtual environment, cache, log, or generated database: **241 tests
+passed with 13 deprecation warnings** and no manual ATT&CK indexing command.
+CI performs exact installation, `pip check`, fixture/checksum and artifact
+validation, isolated ATT&CK initialization, fixture-only intake/report contract
+tests, Pytest, `verify.py`, Python/
+JavaScript/shell syntax, Bandit, and dependency audit in that order. Reviewed
+GitHub Actions are pinned to immutable commit SHAs.
+
+Latest current-tree closure (2026-09-01): **335 tests passed with 13
+deprecation warnings**, `verify.py` passed **19/19**, all 10 JavaScript files
+passed syntax checks, Bandit reported zero findings over 13,041 lines, and
+`pip-audit` found no known vulnerability among auditable packages. The local
+development `torchvision 0.29.0.dev20260810+cu126` has no PyPI audit record and
+also conflicts with the installed `torch 2.13.0` under `pip check`; that
+pre-existing user-environment mismatch was not altered.
 
 ## Safe live-ingestion direction
 
@@ -259,6 +313,32 @@ health, persist offsets or report every dropped record, and keep telemetry
 collection separate from inference. No public target testing is needed.
 The fail-closed adapter contract and current schema blocker are detailed in
 [`docs/LIVE_INGESTION_DESIGN.md`](docs/LIVE_INGESTION_DESIGN.md).
+
+## Live Operations and security knowledge
+
+The `Live Operations` view polls persisted evidence every four seconds without
+reloading the page. It pauses in hidden tabs, prevents overlapping requests,
+ignores stale responses, and keeps uploaded flow results, imported Suricata EVE
+records, demo data, and future adapters visually separate. The view is a
+bounded operational console over persisted records, not packet capture or a
+continuous sensor connection.
+
+The local knowledge lifecycle now includes a transactionally activated
+official ATT&CK release plus synchronized local RAG, official D3FEND inferred
+relationships, CISA KEV, FIRST EPSS, and on-demand OSV package queries.
+Correlation, triage, analyst audit, and `transparent-risk-v1` are deterministic
+and expose provenance, uncertainty, freshness, and every risk contribution.
+No defensive measure shown from D3FEND is executed.
+
+```bash
+./venv/bin/python -m backend.mitre.taxii_sync
+./venv/bin/python -m backend.mitre.d3fend_sync --version 1.5.0
+./venv/bin/python -m backend.intelligence.sync
+```
+
+See [`docs/SECURITY_KNOWLEDGE_ARCHITECTURE.md`](docs/SECURITY_KNOWLEDGE_ARCHITECTURE.md)
+for the source lifecycle, feed applicability, polling behavior, correlation,
+risk decomposition, exact commands, and measured source counts.
 
 ## Security deployment
 

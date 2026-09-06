@@ -154,11 +154,10 @@ def build_smart_log(record) -> SmartLog:
     } else "medium"
     route = str(getattr(record, "route", "") or "")[:64]
     if not route:
-        route = (
-            "unknown_anomaly_review" if unknown_signal
-            else "known_attack" if stage == "classifier" and severity != "none"
-            else "benign"
-        )
+        # Historical rows predate canonical routing metadata. Do not recreate
+        # classifier/anomaly routing here: only detection.router may decide a
+        # canonical route. Missing legacy provenance fails closed for review.
+        route = "legacy_route_requires_review"
     pipeline_version = str(
         getattr(record, "pipeline_version", "")
         or evidence.get("pipeline_version")

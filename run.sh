@@ -13,32 +13,97 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-usage() {
-    printf 'Usage: bash run.sh [--setup]\n'
-    printf '  --setup  install the exact-pinned runtime dependencies explicitly\n'
-}
+LAUNCHER_NAME="${CG_LAUNCHER_NAME:-${0##*/}}"
 
-SETUP=0
-for argument in "$@"; do
-    case "$argument" in
-        --setup) SETUP=1 ;;
-        -h|--help) usage; exit 0 ;;
-        *) printf '%b[✗] Unknown argument: %s%b\n' "$RED" "$argument" "$NC" >&2; usage >&2; exit 2 ;;
-    esac
-done
+usage() {
+    printf 'Usage: bash %s [--setup] [--skip-llm] [--skip-mitre-sync] [--port PORT] [--host HOST]\n' "$LAUNCHER_NAME"
+    printf '  --setup            install the exact-pinned runtime dependencies explicitly\n'
+    printf '  --skip-llm         disable starting or verifying the advisory LLM\n'
+    printf '  --skip-mitre-sync  skip refreshing MITRE ATT&CK data from the network\n'
+    printf '  --port PORT        override the application port (default: 8000)\n'
+    printf '  --host HOST        override the application host (default: 127.0.0.1)\n'
+}
 
 fail() {
     printf '%b[✗] %s%b\n' "$RED" "$1" "$NC" >&2
     exit 1
 }
 
+SETUP=0
+SKIP_LLM=0
+SKIP_MITRE_SYNC=0
+APP_PORT_OVERRIDE=''
+APP_HOST_OVERRIDE=''
+
+while (( $# > 0 )); do
+    case "$1" in
+        --setup)
+            SETUP=1
+            shift
+            ;;
+        --skip-llm)
+            SKIP_LLM=1
+            shift
+            ;;
+        --skip-mitre-sync)
+            SKIP_MITRE_SYNC=1
+            shift
+            ;;
+        --port)
+            [[ $# -ge 2 ]] || fail "--port requires an argument"
+            APP_PORT_OVERRIDE="$2"
+            shift 2
+            ;;
+        --port=*)
+            APP_PORT_OVERRIDE="${1#*=}"
+            shift
+            ;;
+        --host)
+            [[ $# -ge 2 ]] || fail "--host requires an argument"
+            APP_HOST_OVERRIDE="$2"
+            shift 2
+            ;;
+        --host=*)
+            APP_HOST_OVERRIDE="${1#*=}"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            printf '%b[✗] Unknown argument: %s%b\n' "$RED" "$1" "$NC" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
 command -v python3 >/dev/null 2>&1 || fail 'Python 3 is required.'
 
-APP_HOST='127.0.0.1'
-APP_PORT='8000'
-LLM_HOST='127.0.0.1'
-LLM_PORT='8080'
-VENV_DIR="${CG_VENV_DIR:-$SCRIPT_DIR/venv}"
+if (( SKIP_LLM )); then
+    export CG_SKIP_LLM=1
+fi
+if (( SKIP_MITRE_SYNC )); then
+    export CG_SKIP_MITRE_SYNC=1
+fi
+
+APP_HOST="${APP_HOST_OVERRIDE:-${CG_APP_HOST:-127.0.0.1}}"
+APP_PORT="${APP_PORT_OVERRIDE:-${CG_APP_PORT:-${PORT:-8000}}}"
+LLM_HOST="${CG_LLM_HOST:-127.0.0.1}"
+LLM_PORT="${CG_LLM_PORT:-8080}"
+
+if [[ -n "${CG_VENV_DIR:-}" ]]; then
+    VENV_DIR="$CG_VENV_DIR"
+elif [[ -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
+    VENV_DIR="$VIRTUAL_ENV"
+elif [[ -x "$SCRIPT_DIR/venv/bin/python" ]]; then
+    VENV_DIR="$SCRIPT_DIR/venv"
+elif [[ -x "$SCRIPT_DIR/.venv/bin/python" ]]; then
+    VENV_DIR="$SCRIPT_DIR/.venv"
+else
+    VENV_DIR="$SCRIPT_DIR/venv"
+fi
 
 for port in "$APP_PORT" "$LLM_PORT"; do
     [[ "$port" =~ ^[0-9]+$ ]] || fail "Invalid port: $port"
@@ -117,7 +182,7 @@ if problems:
     raise SystemExit(1)
 PY
 then
-    fail 'Dependency pins are not satisfied. Run: bash run.sh --setup'
+    fail "Dependency pins are not satisfied. Run: bash $LAUNCHER_NAME --setup"
 fi
 printf '%b[✓] Exact runtime dependency pins are satisfied.%b\n' "$GREEN" "$NC"
 
@@ -250,8 +315,29 @@ if [[ "${CG_SKIP_MITRE_SYNC:-0}" == '1' ]]; then
         'from backend.mitre.attack_db import index_snapshot; print(f"MITRE local techniques indexed: {index_snapshot()}")'
 else
     printf '%b[+] Refreshing MITRE ATT&CK data when a source/cache is available...%b\n' "$YELLOW" "$NC"
-    if ! PYTHONPATH="$SCRIPT_DIR" "$PYTHON_BIN" -c \
-        'from backend.mitre.taxii_sync import sync_attack; from backend.mitre.attack_db import index_snapshot; result = sync_attack(); result["indexed"] = index_snapshot(result.get("path")) if result.get("status") in {"synced", "cached"} else 0; print(f"MITRE: {result}")'; then
+    if ! PYTHONPATH="$SCRIPT_DIR" "$PYTHON_BIN" <<'PY'
+from backend.mitre.taxii_sync import sync_attack, promote_synced_cache, discard_synced_candidate
+from backend.mitre.attack_db import index_snapshot
+
+status = sync_attack()
+if status.get("status") in {"synced", "cached"}:
+    if status.get("candidate"):
+        try:
+            from backend.mitre.lifecycle import activate_with_rag
+            provenance = status.get("provenance") or {}
+            activation, _ = activate_with_rag(status["path"], provenance=provenance)
+            promote_synced_cache(status)
+            status["indexed"] = activation.get("technique_count", 0)
+        except Exception:
+            discard_synced_candidate(status)
+            status["indexed"] = index_snapshot(status.get("path"))
+    else:
+        status["indexed"] = index_snapshot(status.get("path"))
+else:
+    status["indexed"] = 0
+print(f"MITRE: {status}")
+PY
+    then
         printf '%b[!] MITRE refresh failed; the server will use the validated local snapshot if available.%b\n' \
             "$YELLOW" "$NC"
     fi

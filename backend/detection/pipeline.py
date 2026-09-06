@@ -17,12 +17,16 @@ from .autoencoder import AutoencoderDetector
 from .classifier import AttackClassifier
 from .features import FEATURE_NAMES, extract_features_matrix
 from .normalizer import Normalizer
+from .router import (
+    PIPELINE_VERSION,
+    ROUTING_SCHEMA_VERSION,
+    CanonicalRoutingBatch,
+    route_signals,
+)
 from .statistical import StatisticalFilter
 from ..mitre.mapper import map_alert_to_techniques
 
 
-PIPELINE_VERSION = "cyberguard-pipeline-v2"
-ROUTING_SCHEMA_VERSION = "cyberguard-routing-v2"
 LEGACY_PIPELINE_VERSION = "cyberguard-pipeline-legacy-v1"
 
 
@@ -32,6 +36,21 @@ def _finite(value: Any, default: float = 0.0) -> float:
     except (TypeError, ValueError):
         return default
     return result if np.isfinite(result) else default
+
+
+def _routing_threshold(
+    value: Any, name: str, *, upper: float | None = None
+) -> float:
+    if isinstance(value, (bool, np.bool_)) or not isinstance(
+        value, (int, float, np.integer, np.floating)
+    ):
+        raise ValueError(f"{name} threshold must be finite calibration metadata")
+    result = float(value)
+    if not np.isfinite(result) or result < 0.0 or (
+        upper is not None and result > upper
+    ):
+        raise ValueError(f"{name} threshold must be finite calibration metadata")
+    return result
 
 
 @dataclass
@@ -94,6 +113,18 @@ class PipelineStats:
         elif alert.route == "human_review":
             self.human_reviews += 1
 
+    def merge(self, other: "PipelineStats") -> None:
+        """Merge one bounded, already-complete operation summary."""
+        self.total_flows += other.total_flows
+        self.benign_decisions += other.benign_decisions
+        self.classifier_alerts += other.classifier_alerts
+        self.unknown_anomaly_reviews += other.unknown_anomaly_reviews
+        self.human_reviews += other.human_reviews
+        self.total_latency_ms += other.total_latency_ms
+        self.mean_latency_ms = (
+            self.total_latency_ms / self.total_flows if self.total_flows else 0.0
+        )
+
 
 class DetectionPipeline:
     """Versioned classifier-first orchestrator for validated flow records."""
@@ -128,16 +159,17 @@ class DetectionPipeline:
         declared_supported = coverage.get(
             "trained_supported_labels", self.artifact_metadata.get("classes", [])
         )
-        self.supported_labels = {
+        self.supported_labels: set[str] | None = {
             str(item) for item in declared_supported
             if isinstance(item, str) and item.strip()
         }
         # Unit callers without artifact metadata use their fake classifier's
         # declared universe. Serving always receives integrity-checked classes.
-        if not self.supported_labels and not self.artifact_metadata:
-            self.supported_labels = {
+        if not self.artifact_metadata:
+            classifier_labels = {
                 str(item) for item in getattr(self.clf, "classes_", [])
             }
+            self.supported_labels = classifier_labels or None
         self.calibration_status = (
             "calibrated_pipeline_v2"
             if self.artifact_pipeline_version == PIPELINE_VERSION
@@ -167,9 +199,11 @@ class DetectionPipeline:
             })
         return pairs, detailed
 
-    def _route_one(
+    def _build_alert(
         self,
         *,
+        routed: CanonicalRoutingBatch,
+        index: int,
         label: str,
         confidence: float,
         max_z: float,
@@ -197,13 +231,9 @@ class DetectionPipeline:
                 "label": label,
                 "confidence": confidence,
                 "known_attack_threshold": classifier_threshold,
-                "supported_label": bool(
-                    not self.supported_labels or label in self.supported_labels
-                ),
+                "supported_label": bool(routed.supported_label[index]),
                 "is_confident_known_attack": bool(
-                    label.lower() != "benign"
-                    and (not self.supported_labels or label in self.supported_labels)
-                    and confidence >= classifier_threshold
+                    routed.confident_known_attack[index]
                 ),
                 "calibration_status": self.calibration_status,
             },
@@ -227,67 +257,48 @@ class DetectionPipeline:
                 "routing_schema_version": self.artifact_routing_schema_version,
                 "production_approved": self.production_approved,
             },
+            "routing": {
+                "pipeline_version": routed.pipeline_version,
+                "routing_schema_version": routed.routing_schema_version,
+            },
+            "routing_reason": str(routed.reasons[index]),
         }
-
-        supported_label = not self.supported_labels or label in self.supported_labels
-        confident_attack = (
-            label.lower() != "benign"
-            and supported_label
-            and confidence >= classifier_threshold
+        route = str(routed.routes[index])
+        verdict = str(routed.verdicts[index])
+        supported_label = bool(routed.supported_label[index])
+        techniques = (
+            map_alert_to_techniques(label)
+            if route == "known_attack"
+            or (
+                route == "human_review"
+                and supported_label
+                and label.lower() != "benign"
+            )
+            else []
         )
-        if confident_attack:
-            return Alert(
-                severity="critical" if confidence > 0.98 else "high",
-                type=label, confidence=confidence, anomaly_score=ae_error,
-                stage="classifier", route="known_attack",
-                mitre_techniques=map_alert_to_techniques(label),
-                note="supported known-label classifier evidence",
-                top_features=top_features, feature_evidence=feature_evidence,
-                evidence=evidence,
-                artifact_pipeline_version=self.artifact_pipeline_version,
-            )
-
-        # A non-benign classifier output is never silently converted to benign.
-        if label.lower() != "benign":
-            evidence["routing_reason"] = (
-                "classifier_label_outside_declared_supported_scope"
-                if not supported_label else
-                "uncertain_classifier_with_anomaly_evidence"
-                if stat_flag or ae_flag else "uncertain_non_benign_classifier"
-            )
-            return Alert(
-                severity="medium", type=label, confidence=confidence,
-                anomaly_score=ae_error, stage="classifier", route="human_review",
-                mitre_techniques=(
-                    map_alert_to_techniques(label) if supported_label else []
-                ),
-                note="uncertain classifier evidence requires analyst review",
-                top_features=top_features, feature_evidence=feature_evidence,
-                evidence=evidence,
-                artifact_pipeline_version=self.artifact_pipeline_version,
-            )
-
-        if stat_flag or ae_flag:
-            evidence["routing_reason"] = "classifier_benign_with_independent_anomaly"
-            return Alert(
-                severity="high" if stat_flag and ae_flag else "medium",
-                type="unknown-anomaly", confidence=confidence,
-                anomaly_score=ae_error,
-                stage="autoencoder" if ae_flag else "statistical",
-                route="unknown_anomaly_review", mitre_techniques=[],
-                note="unknown behavior signal; not proof of an exploit",
-                top_features=top_features, feature_evidence=feature_evidence,
-                evidence=evidence,
-                artifact_pipeline_version=self.artifact_pipeline_version,
-            )
-
-        evidence["routing_reason"] = "classifier_and_independent_signals_non_actionable"
+        notes = {
+            "known_attack": "supported known-label classifier evidence",
+            "human_review": "uncertain classifier evidence requires analyst review",
+            "unknown_anomaly_review": (
+                "unknown behavior signal; not proof of an exploit"
+            ),
+            "benign": (
+                "classifier and calibrated anomaly signals found no actionable evidence"
+            ),
+        }
         return Alert(
-            severity="none", type="Benign", confidence=confidence,
-            anomaly_score=ae_error, stage="none", route="benign",
-            note="classifier and calibrated anomaly signals found no actionable evidence",
+            severity=str(routed.severities[index]),
+            type=verdict,
+            confidence=confidence,
+            anomaly_score=ae_error,
+            stage=str(routed.stages[index]),
+            route=route,
+            mitre_techniques=techniques,
+            note=notes[route],
             top_features=top_features, feature_evidence=feature_evidence,
             evidence=evidence,
+            pipeline_version=routed.pipeline_version,
+            routing_schema_version=routed.routing_schema_version,
             artifact_pipeline_version=self.artifact_pipeline_version,
         )
 
@@ -303,13 +314,41 @@ class DetectionPipeline:
         labels, confidences = self.clf.predict_batch(normalized)
         z_matrix = self.stat.z_scores_batch(normalized)
         max_z_scores = z_matrix.max(axis=1)
-        stat_flags = max_z_scores > float(self.stat.threshold)
+        classifier_threshold = _routing_threshold(
+            getattr(self.clf, "confidence_threshold", None),
+            "classifier",
+            upper=1.0,
+        )
+        statistical_threshold = _routing_threshold(
+            getattr(self.stat, "threshold", None), "statistical"
+        )
+        stat_flags = max_z_scores > statistical_threshold
         if getattr(self.ae, "threshold", None) is None:
             ae_errors = np.zeros(len(normalized), dtype=float)
             ae_flags = np.zeros(len(normalized), dtype=bool)
         else:
+            autoencoder_threshold = _routing_threshold(
+                self.ae.threshold, "autoencoder"
+            )
             ae_errors = self.ae.score_batch(normalized)
-            ae_flags = ae_errors > float(self.ae.threshold)
+            ae_flags = ae_errors > autoencoder_threshold
+
+        routed = route_signals(
+            labels,
+            confidences,
+            classifier_threshold=classifier_threshold,
+            supported_labels=self.supported_labels,
+            statistical_flags=stat_flags,
+            statistical_scores=max_z_scores,
+            autoencoder_available=np.full(
+                len(normalized), getattr(self.ae, "threshold", None) is not None,
+                dtype=bool,
+            ),
+            autoencoder_flags=ae_flags,
+            autoencoder_scores=ae_errors,
+            pipeline_version=PIPELINE_VERSION,
+            routing_schema_version=ROUTING_SCHEMA_VERSION,
+        )
 
         elapsed_per_row_ms = (time.perf_counter() - started) * 1000 / len(flows)
         alerts: list[Alert] = []
@@ -317,7 +356,8 @@ class DetectionPipeline:
             top, detailed = self._feature_evidence(
                 raw[index], normalized[index], z_matrix[index]
             )
-            alert = self._route_one(
+            alert = self._build_alert(
+                routed=routed, index=index,
                 label=str(labels[index]), confidence=float(confidences[index]),
                 max_z=float(max_z_scores[index]), stat_flag=bool(stat_flags[index]),
                 ae_error=float(ae_errors[index]), ae_flag=bool(ae_flags[index]),
@@ -325,9 +365,6 @@ class DetectionPipeline:
             )
             alert.latency_ms = round(max(0.0, elapsed_per_row_ms), 4)
             alerts.append(alert)
-        with self._stats_lock:
-            for alert in alerts:
-                self.stats.record(alert)
         return alerts
 
     def detect(self, flow: dict) -> Alert:
@@ -335,8 +372,13 @@ class DetectionPipeline:
         return self._detect_rows([flow])[0]
 
     def detect_batch(self, flows: list[dict]) -> list[Alert]:
-        """Return exactly one ordered result for every validated input row."""
+        """Infer one ordered result per row without mutating global statistics."""
         return self._detect_rows(flows)
+
+    def commit_stats(self, completed: PipelineStats) -> None:
+        """Commit a completed request summary exactly at its safe boundary."""
+        with self._stats_lock:
+            self.stats.merge(completed)
 
     def get_stats(self) -> dict[str, Any]:
         """Return bounded process-lifetime statistics (not upload statistics)."""
