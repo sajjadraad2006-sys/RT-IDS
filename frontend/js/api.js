@@ -496,5 +496,37 @@ window.CG = window.CG || {};
     return tryFetch("/api/operations/refresh", { method: "POST", signal }, 10000);
   };
 
+  /* ═══ Active Defense, Attack Simulation & Universal Ingestion ═══ */
+  API.simulationScenarios = () => tryFetch("/api/simulation/scenarios");
+
+  API.launchSimulation = (payload) =>
+    tryFetch("/api/simulation/launch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }, 90000);
+
+  API.universalIngestFile = (formData) =>
+    tryFetch("/api/detect/universal-ingest", {
+      method: "POST",
+      body: formData,
+    }, 90000);
+
+  API.universalIngestRaw = (payload) =>
+    tryFetch("/api/detect/universal-ingest/raw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }, 90000);
+
+  API.activeDefenseBlocks = () => tryFetch("/api/decision/active-blocks");
+
+  API.rollbackAction = (rollbackToken) =>
+    tryFetch("/api/decision/rollback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rollback_token: rollbackToken }),
+    });
+
   CG.api = API;
 })();

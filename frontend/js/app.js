@@ -77,7 +77,7 @@ window.CG = window.CG || {};
   }
 
   /* ---------------- router ---------------- */
-  const views = ["dashboard", "operations", "suricata", "review", "chat", "mitre", "models", "settings"];
+  const views = ["dashboard", "defense", "simulation", "universal", "operations", "suricata", "review", "chat", "mitre", "models", "settings"];
   let currentView = null;
   function route(view) {
     if (!views.includes(view)) view = "dashboard";

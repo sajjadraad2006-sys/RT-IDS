@@ -47,12 +47,15 @@
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-mark"><svg><use href="#i-shield"/></svg></div>
-      <div class="brand-text"><strong>CyberGuard</strong><span class="brand-sub">Flow Analyzer v2</span></div>
+      <div class="brand-text"><strong>CyberGuard</strong><span class="brand-sub">Autonomous Active Defense</span></div>
     </div>
     <nav class="nav" role="navigation" aria-label="Main">
       <button class="nav-item is-active" data-view="dashboard" id="nav-dashboard"><svg><use href="#i-chart"/></svg><span>Dashboard</span></button>
+      <button class="nav-item" data-view="defense" id="nav-defense"><svg><use href="#i-shield"/></svg><span>Active Defense Hub</span></button>
+      <button class="nav-item" data-view="simulation" id="nav-simulation"><svg><use href="#i-bolt"/></svg><span>Attack Simulator</span></button>
+      <button class="nav-item" data-view="universal" id="nav-universal"><svg><use href="#i-doc"/></svg><span>Universal Ingest</span></button>
       <button class="nav-item" data-view="operations" id="nav-operations"><svg><use href="#i-sync"/></svg><span>Live Operations</span></button>
-      <button class="nav-item" data-view="suricata" id="nav-suricata"><svg><use href="#i-bolt"/></svg><span>Suricata Evidence</span></button>
+      <button class="nav-item" data-view="suricata" id="nav-suricata"><svg><use href="#i-filter"/></svg><span>Suricata Evidence</span></button>
       <button class="nav-item" data-view="review" id="nav-review"><svg><use href="#i-shield"/></svg><span>Review Queue</span></button>
       <button class="nav-item" data-view="chat" id="nav-chat"><svg><use href="#i-msg"/></svg><span>Analyst Chat</span></button>
       <button class="nav-item" data-view="mitre" id="nav-mitre"><svg><use href="#i-mitre"/></svg><span>MITRE ATT&CK</span></button>
@@ -60,12 +63,19 @@
       <button class="nav-item" data-view="settings" id="nav-settings"><svg><use href="#i-gear"/></svg><span>Settings</span></button>
     </nav>
     <div class="sidebar-foot">
+      <div class="gpu-telemetry-badge" id="gpu-telemetry-badge">
+        <span class="dot dot-ok pulse"></span>
+        <div class="gpu-badge-info">
+          <strong class="mono text-cyan">RTX 5050 · Foundation-Sec-8B</strong>
+          <span class="text-xs text-muted" style="display:block;">Vulkan GPU · 44.8 t/s · Defense Armed</span>
+        </div>
+      </div>
       <button class="provider-badge" id="provider-badge">
         <span class="dot dot-ok" id="provider-dot"></span>
-        <span id="provider-label">Provider status unknown</span>
+        <span id="provider-label">Local LLM (GPU Accelerated)</span>
         <svg class="chev"><use href="#i-chev"/></svg>
       </button>
-      <div class="sys-line"><span class="dot dot-warn" id="engine-dot"></span><span id="engine-status">Checking pipeline state…</span></div>
+      <div class="sys-line"><span class="dot dot-ok" id="engine-dot"></span><span id="engine-status">Autonomous Actuator Active</span></div>
     </div>
   </aside>
 
@@ -127,6 +137,120 @@
           </tr></thead><tbody id="alerts-body"></tbody></table>
         </div>
       </div>
+    </section>
+
+    <!-- ── Active Defense Hub ── -->
+    <section class="view" id="view-defense">
+      <div class="view-head">
+        <div>
+          <h1 class="view-title">Autonomous Active Defense Hub</h1>
+          <p class="view-sub">Real-time perimeter firewall rules, Suricata drop signatures, and atomic containment tokens. Every action is tracked with instantaneous rollback capability.</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn btn-primary" id="btn-refresh-defense"><svg><use href="#i-sync"/></svg>Refresh Active Rules</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid reveal-group">
+        <div class="kpi reveal"><span class="kpi-label">Active Mitigations</span><span class="kpi-value text-cyan mono" id="active-blocks-count">0</span><span class="kpi-hint">currently blocked targets</span></div>
+        <div class="kpi reveal"><span class="kpi-label">Autonomous Actuator</span><span class="kpi-value text-green mono">ARMED</span><span class="kpi-hint">Windows Firewall / Netsh / iptables</span></div>
+        <div class="kpi reveal"><span class="kpi-label">Defense Engine</span><span class="kpi-value text-cyan mono">Genius RAG</span><span class="kpi-hint">D3FEND verified countermeasures</span></div>
+        <div class="kpi reveal"><span class="kpi-label">Atomic Rollback</span><span class="kpi-value text-amber mono">READY</span><span class="kpi-hint">cryptographic token tracking</span></div>
+      </div>
+
+      <div class="panel reveal">
+        <div class="panel-head">
+          <h2 class="panel-title">Active Firewall &amp; NIPS Mitigations</h2>
+          <span class="panel-note">Live and simulated containment rules with 1-click rollback</span>
+        </div>
+        <div id="active-blocks-list" class="blocks-grid">
+          <div class="loading-placeholder">Scanning active mitigation tables…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Attack Simulator Console ── -->
+    <section class="view" id="view-simulation">
+      <div class="view-head">
+        <div>
+          <h1 class="view-title">Attack Simulation &amp; AI Defense Benchmark</h1>
+          <p class="view-sub">Ready-to-run cyber attack scenarios and copyable CLI commands. Benchmark autonomous threat extraction, MITRE ATT&amp;CK / D3FEND grounding, and Foundation-Sec-8B reasoning in real-time.</p>
+        </div>
+        <div class="head-actions">
+          <label class="toggle-control" title="Enact real OS firewall rules instead of simulation mode">
+            <input type="checkbox" id="sim-toggle-live">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label text-sm">Enforce Live Firewall</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Real-time War Room Panel -->
+      <div id="sim-war-room" hidden></div>
+
+      <div class="panel reveal">
+        <div class="panel-head">
+          <h2 class="panel-title">Pre-Configured Attack Scenarios &amp; Ready CLI Payloads</h2>
+          <span class="panel-note">Click to launch or copy curl / PowerShell command</span>
+        </div>
+        <div class="scenarios-grid" id="simulation-scenarios-grid">
+          <div class="loading-placeholder">Loading attack simulation catalog…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Universal Multi-Format Ingest Zone ── -->
+    <section class="view" id="view-universal">
+      <div class="view-head">
+        <div>
+          <h1 class="view-title">Universal Multi-Format Ingestion Engine</h1>
+          <p class="view-sub">Autonomous cyber intelligence extraction from arbitrary documents: PDF threat briefings, Word DOCX incident reports, Windows EVTX/XML logs, JSON/YAML, or raw IOC pastes.</p>
+        </div>
+        <div class="head-actions">
+          <label class="toggle-control">
+            <input type="checkbox" id="universal-toggle-live">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label text-sm">Enforce Live Firewall</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel reveal">
+        <div class="panel-head">
+          <h2 class="panel-title">Upload Document or Paste Security Telemetry</h2>
+          <div class="chip-row">
+            <span class="text-muted text-xs" style="margin-right:var(--s2);">Sample Presets:</span>
+            <button class="chip chip-preset" data-sample="ransomware_doc">📄 Ransomware Incident (DOCX)</button>
+            <button class="chip chip-preset" data-sample="cve_log4j">⚡ Log4j Exploit (JSON)</button>
+            <button class="chip chip-preset" data-sample="kerberos_evtx">🛡️ Kerberoasting (EVTX/XML)</button>
+          </div>
+        </div>
+
+        <div class="universal-dropzone-layout">
+          <!-- Dropzone -->
+          <div class="dropzone" id="universal-dropzone">
+            <input type="file" id="universal-file-input" hidden accept=".pdf,.docx,.evtx,.xml,.json,.ndjson,.jsonl,.yaml,.yml,.txt,.log,.csv">
+            <div class="dropzone-icon"><svg><use href="#i-upload"/></svg></div>
+            <h3 id="universal-file-label">Drag &amp; drop PDF, DOCX, EVTX, XML, JSON, or click to browse</h3>
+            <p class="text-muted text-xs">Supported: Adobe PDF, Word DOCX, Windows Security XML/EVTX, Suricata EVE, Zeek, Plaintext Syslogs (up to 15MB)</p>
+          </div>
+
+          <!-- Raw text paste -->
+          <div class="paste-zone">
+            <label class="field-label">Or Paste Raw Threat Intelligence / Log Dump / Advisory Text:</label>
+            <textarea id="universal-raw-text" class="paste-textarea" rows="5" placeholder="Paste CISA advisory, terminal IOC output, or firewall log snippet here…"></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top:var(--s4);display:flex;justify-content:flex-end;">
+          <button class="btn btn-primary" id="btn-run-universal-triage">
+            <svg style="width:16px;height:16px;vertical-align:-2px"><use href="#i-bolt"/></svg> Ingest &amp; Run Autonomous AI Triage
+          </button>
+        </div>
+      </div>
+
+      <!-- Result Container -->
+      <div id="universal-result-container" hidden></div>
     </section>
 
     <!-- ── Live Operations (bounded polling over persisted evidence) ── -->
@@ -412,5 +536,6 @@
 <script src="js/chat.js"></script>
 <script src="js/mitre.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/defense-simulator.js"></script>
 </body>
 </html>

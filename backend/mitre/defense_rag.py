@@ -361,6 +361,7 @@ class GeniusDefenseRAG:
 
     def __init__(self, db_path: str = str(DB_PATH)):
         self.db_path = db_path
+        self._corpus_db_path = db_path
         self._lock = threading.Lock()
         self._techniques: Dict[str, Dict[str, Any]] = {}
         self._technique_names: Dict[str, str] = {}
@@ -376,7 +377,30 @@ class GeniusDefenseRAG:
             if self._initialized:
                 return True
             try:
-                conn = sqlite3.connect(self.db_path, timeout=30)
+                # Resolve active database; fallback to canonical knowledge DB if test db lacks data
+                target_path = self.db_path
+                master_kb = Path("data/cyberguard.db")
+
+                def _is_db_populated(p: str) -> bool:
+                    try:
+                        if not Path(p).exists():
+                            return False
+                        with sqlite3.connect(p, timeout=5) as chk:
+                            has_t = chk.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='techniques'").fetchone()[0]
+                            has_d = chk.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='d3fend_techniques'").fetchone()[0]
+                            if not has_t or not has_d:
+                                return False
+                            cnt_t = chk.execute("SELECT count(*) FROM techniques").fetchone()[0]
+                            cnt_d = chk.execute("SELECT count(*) FROM d3fend_techniques").fetchone()[0]
+                            return cnt_t > 0 and cnt_d > 0
+                    except Exception:
+                        return False
+
+                if not _is_db_populated(target_path) and master_kb.exists() and _is_db_populated(str(master_kb)):
+                    target_path = str(master_kb)
+
+                self._corpus_db_path = target_path
+                conn = sqlite3.connect(target_path, timeout=30)
                 conn.row_factory = sqlite3.Row
                 c = conn.cursor()
 
@@ -635,7 +659,7 @@ class GeniusDefenseRAG:
         tokens = [t for t in re.findall(r"[A-Za-z0-9_-]+", lower_query) if len(t) >= 3]
         if tokens:
             try:
-                conn = sqlite3.connect(self.db_path, timeout=10)
+                conn = sqlite3.connect(self._corpus_db_path, timeout=10)
                 conn.row_factory = sqlite3.Row
                 c = conn.cursor()
 

@@ -104,7 +104,7 @@ class RequestLimitsMiddleware:
         path = scope.get("path", "")
         body_limit = (
             (MAX_UPLOAD_MB * 1024 * 1024) + (1024 * 1024)
-            if path in ("/api/detect/upload", "/api/events/suricata/upload")
+            if path in ("/api/detect/upload", "/api/events/suricata/upload", "/api/detect/universal-ingest", "/api/simulation/launch")
             else MAX_REQUEST_BODY_MB * 1024 * 1024
         )
         headers = dict(scope.get("headers", []))
