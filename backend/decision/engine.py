@@ -370,6 +370,19 @@ def parse_and_guard_ai_decision(
     decoded = json.loads(cleaned)
     if not isinstance(decoded, dict):
         raise ValueError("LLM did not return one JSON object")
+
+    # Coerce any nested dicts/objects in evidence/containment/limitations to bounded strings
+    for list_key in ("evidence", "containment", "limitations"):
+        items = decoded.get(list_key)
+        if isinstance(items, list):
+            cleaned_items = []
+            for item in items[:8]:
+                if isinstance(item, dict):
+                    cleaned_items.append(json.dumps(item)[:280])
+                elif item is not None:
+                    cleaned_items.append(str(item)[:280])
+            decoded[list_key] = cleaned_items
+
     payload = AiDecisionPayload.model_validate(decoded)
 
     limitations = list(payload.limitations)
