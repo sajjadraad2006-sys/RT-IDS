@@ -27,6 +27,10 @@
 
   function decisionHtml(decision) {
     if (!decision) return `<p class="text-muted">No decision support has been requested yet.</p>`;
+    const isMitigated = decision.executed_action && decision.executed_action !== "none";
+    const rollbackBtn = decision.rollback_token
+      ? `<button class="btn btn-sm btn-warn" id="btn-rollback-action" data-token="${esc(decision.rollback_token)}" style="margin-top:8px">Rollback Mitigation (${esc(decision.rollback_token)})</button>`
+      : "";
     return `
       <dl class="modal-meta">
         <dt>Verdict</dt><dd>${esc(decision.verdict)}</dd>
@@ -34,12 +38,14 @@
         <dt>Source</dt><dd>${esc(decision.source)}</dd>
         <dt>Provider / model</dt><dd>${esc(decision.provider)} / ${esc(decision.model_version)}</dd>
         <dt>Policy / prompt</dt><dd>${esc(decision.policy_version)} / ${esc(decision.prompt_version)}</dd>
-        <dt>Executed action</dt><dd>${esc(decision.executed_action)}</dd>
+        <dt>Executed action</dt><dd><strong>${esc(decision.executed_action)}</strong> ${isMitigated ? `<span class="badge text-cyan">ACTIVE DEFENSE</span>` : ""}</dd>
       </dl>
+      ${rollbackBtn}
       <p class="review-rationale">${esc(decision.rationale)}</p>
       <h4>Evidence</h4><ul class="rule-list">${list(decision.evidence)}</ul>
       <h4>Limitations</h4><ul class="rule-list">${list(decision.limitations)}</ul>`;
   }
+
 
   async function openCase(alertId) {
     selectedId = alertId;
@@ -71,7 +77,16 @@
           </dl>
           <p class="review-reason">${esc(smart.review_reason)}</p>
         </section>
-        <section class="review-section"><div class="panel-head"><h3>Guarded decision</h3><button class="btn" id="review-evaluate">${data.decision ? "Re-evaluate" : "Evaluate decision"}</button></div><div id="review-decision">${decisionHtml(data.decision)}</div></section>
+        <section class="review-section">
+          <div class="panel-head">
+            <h3>Guarded decision</h3>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-primary" id="review-actuate">Execute Mitigation</button>
+              <button class="btn" id="review-evaluate">${data.decision ? "Re-evaluate" : "Evaluate decision"}</button>
+            </div>
+          </div>
+          <div id="review-decision">${decisionHtml(data.decision)}</div>
+        </section>
         <section class="review-section"><h3>Analyst feedback</h3>
           <form id="review-feedback-form" class="settings-form">
             <div class="field"><label class="field-label" for="review-verdict">Verdict</label><select class="select" id="review-verdict"><option value="malicious">Malicious</option><option value="suspicious">Suspicious</option><option value="benign">Benign</option><option value="needs_human">Needs another analyst</option></select></div>
@@ -84,6 +99,50 @@
 
       if (data.feedback?.verdict) document.getElementById("review-verdict").value = data.feedback.verdict;
       if (data.feedback?.notes) document.getElementById("review-notes").value = data.feedback.notes;
+
+      function bindRollbackBtn() {
+        const rbBtn = document.getElementById("btn-rollback-action");
+        if (rbBtn) {
+          rbBtn.addEventListener("click", async () => {
+            const token = rbBtn.dataset.token;
+            rbBtn.disabled = true;
+            rbBtn.textContent = "Rolling back…";
+            try {
+              const res = await CG.api.rollbackAction(token);
+              if (res.success) {
+                CG.util.toast("Mitigation rolled back successfully!");
+                await openCase(alertId);
+              } else {
+                CG.util.toast("Failed to rollback mitigation");
+              }
+            } catch (err) {
+              CG.util.toast("Rollback error: " + err.message);
+            }
+          });
+        }
+      }
+      bindRollbackBtn();
+
+      document.getElementById("review-actuate").addEventListener("click", async () => {
+        const btn = document.getElementById("review-actuate");
+        btn.disabled = true;
+        btn.textContent = "Actuating…";
+        try {
+          const res = await CG.api.actuateAlert(alertId, "block_ip", "", "simulation");
+          if (res.success) {
+            CG.util.toast(`Mitigation executed (${res.simulated ? "Simulated" : "Live"}): ${res.command_executed}`);
+            await openCase(alertId);
+          } else {
+            CG.util.toast("Actuation blocked: " + (res.error || "Guardrail violation"));
+          }
+        } catch (err) {
+          CG.util.toast("Actuation failed: " + err.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Execute Mitigation";
+        }
+      });
+
       document.getElementById("review-evaluate").addEventListener("click", async () => {
         const button = document.getElementById("review-evaluate");
         button.disabled = true;
@@ -91,10 +150,12 @@
         try {
           const result = await CG.api.evaluateDecision(alertId, true);
           document.getElementById("review-decision").innerHTML = decisionHtml(result.decision);
-          CG.util.toast("Guarded decision refreshed; no action was executed.");
+          bindRollbackBtn();
+          CG.util.toast("Guarded decision refreshed.");
         } catch (error) { CG.util.toast("Decision failed: " + error.message); }
         finally { button.disabled = false; button.textContent = "Re-evaluate"; }
       });
+
       document.getElementById("review-feedback-form").addEventListener("submit", async event => {
         event.preventDefault();
         const verdict = document.getElementById("review-verdict").value;

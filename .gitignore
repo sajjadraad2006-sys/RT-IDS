@@ -52,9 +52,12 @@ data/intelligence/
 data/cyberguard.db
 data/*.csv
 data/*.json
+data/*.rules
+data/*.jsonl
 *.pdf
 *.zip
 *.tar.gz
+
 
 # Models & Weights
 models/*.pt

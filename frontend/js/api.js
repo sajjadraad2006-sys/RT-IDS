@@ -353,6 +353,28 @@ window.CG = window.CG || {};
         })
       : Promise.resolve({ status: "demo_not_persisted", reviewed_by: "demo" });
 
+  API.actuateAlert = (alertId, action = "block_ip", target = "", mode = "simulation") =>
+    API.mode === "live"
+      ? tryFetch(`/api/decision/actuate/${alertId}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, target, mode }),
+        })
+      : Promise.resolve({ success: true, simulated: true, action, target, rollback_token: "demo-token" });
+
+  API.rollbackAction = (rollbackToken) =>
+    API.mode === "live"
+      ? tryFetch(`/api/decision/rollback`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rollback_token: rollbackToken }),
+        })
+      : Promise.resolve({ success: true, token: rollbackToken });
+
+  API.activeBlocks = () =>
+    API.mode === "live"
+      ? tryFetch(`/api/decision/active-blocks`)
+      : Promise.resolve([]);
+
+
   /* ---------------- Suricata Evidence API ---------------- */
   API.uploadSuricataEve = async (file, sensorId = "suricata-default") => {
     if (API.mode !== "live") {

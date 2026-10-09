@@ -27,6 +27,9 @@ from ..limiter import limiter
 from ..llm.provider import get_provider
 from ..llm.mitre_index import get_mitre_rag
 from ..security import safe_llm_url
+from ..actuators.router import default_router
+from ..mitre.defense_rag import default_defense_rag
+
 
 router = APIRouter(prefix="/api/decision", tags=["smart-decision"])
 log = logging.getLogger("cyberguard.api.decision")
@@ -38,6 +41,19 @@ def _get_rag():
 
 class EvaluateRequest(BaseModel):
     refresh: bool = False
+    autonomous_actuate: bool = False
+    execution_mode: str = "simulation"
+
+
+class ActuateRequest(BaseModel):
+    action: str = "block_ip"
+    target: str = ""
+    mode: str = "simulation"
+    params: dict = {}
+
+
+class RollbackRequest(BaseModel):
+    rollback_token: str
 
 
 class AnalystFeedback(BaseModel):
@@ -85,10 +101,13 @@ def _save_case(
                     "policy_version": decision.policy_version,
                     "prompt_version": decision.prompt_version,
                     "degraded": decision.degraded,
-                    "executed_action": "none",
+                    "executed_action": decision.executed_action,
+                    "execution_mode": decision.execution_mode,
+                    "rollback_token": decision.rollback_token,
                 },
             )
         session.commit()
+
 
 
 def _smart_log_for(alert_id: int) -> SmartLog:
@@ -443,6 +462,8 @@ async def evaluate(
     options: EvaluateRequest | None = None,
 ) -> dict:
     refresh = bool(options and options.refresh)
+    autonomous_actuate = bool(options and options.autonomous_actuate)
+    execution_mode = str(options.execution_mode) if options else "simulation"
     smart = _smart_log_for(alert_id)
 
     if not refresh:
@@ -476,11 +497,27 @@ async def evaluate(
     ])
     docs = _get_rag().query(query, k=4)
     context = "\n\n".join(doc["document"] for doc in docs)
+
+    # Ground decision with verified D3FEND defensive countermeasures
+    defense_playbook = default_defense_rag.retrieve_defense_playbook(
+        label=smart.detection.type,
+        techniques=smart.detection.mitre_techniques,
+        telemetry=smart.source,
+    )
+    defense_context = default_defense_rag.format_prompt_context(defense_playbook)
+
     try:
         provider = get_provider(_provider_settings())
-        raw = await provider.chat(decision_messages(smart, context), max_tokens=900)
+        raw = await provider.chat(
+            decision_messages(smart, context, defense_context), max_tokens=900
+        )
         decision = parse_and_guard_ai_decision(
-            raw, smart, provider.name, getattr(provider, "model", "unknown")
+            raw,
+            smart,
+            provider.name,
+            getattr(provider, "model", "unknown"),
+            autonomous_actuate=autonomous_actuate,
+            execution_mode=execution_mode,
         )
     except Exception as exc:
         log.warning("AI decision fallback for alert %s after %s",
@@ -496,3 +533,69 @@ async def evaluate(
         "decision": decision.model_dump(mode="json"),
         "cached": False,
     }
+
+
+@router.post("/actuate/{alert_id}")
+@limiter.limit("20/minute")
+def actuate_alert(
+    request: Request,
+    alert_id: int,
+    options: ActuateRequest,
+) -> dict:
+    """Manually or autonomously trigger a defensive actuator against an alert's threat."""
+    smart = _smart_log_for(alert_id)
+    target = options.target or smart.source.get("src_ip") or smart.source.get("remote_ip") or "192.168.1.100"
+    res = default_router.execute_action(
+        action=options.action,
+        target=target,
+        params=options.params,
+        mode=options.mode,
+    )
+    with SessionLocal() as session:
+        append_audit_event(
+            session,
+            actor=ANALYST_ID,
+            action="manual_actuation",
+            entity_type="alert",
+            entity_id=alert_id,
+            payload={
+                "action": options.action,
+                "target": target,
+                "mode": options.mode,
+                "success": res.success,
+                "rollback_token": res.rollback_token,
+                "simulated": res.simulated,
+                "error": res.error,
+            },
+        )
+        session.commit()
+    return res.model_dump(mode="json")
+
+
+@router.post("/rollback")
+@limiter.limit("20/minute")
+def rollback_action(
+    request: Request,
+    options: RollbackRequest,
+) -> dict:
+    """Roll back a previously executed or simulated mitigation by token."""
+    success = default_router.rollback_action(options.rollback_token)
+    with SessionLocal() as session:
+        append_audit_event(
+            session,
+            actor=ANALYST_ID,
+            action="rollback_executed",
+            entity_type="action",
+            entity_id=options.rollback_token,
+            payload={"success": success, "token": options.rollback_token},
+        )
+        session.commit()
+    return {"success": success, "token": options.rollback_token}
+
+
+@router.get("/active-blocks")
+@limiter.limit("30/minute")
+def list_active_blocks(request: Request) -> list[dict]:
+    """List all currently active or simulated mitigations."""
+    return default_router.list_active_blocks()
+

@@ -35,6 +35,9 @@ class ProviderUpdate(BaseModel):
     api_base_url: str | None = Field(default=None, max_length=2048)
     api_model: str | None = Field(default=None, max_length=128, pattern=r"^[A-Za-z0-9._:/-]+$")
     api_key: str | None = Field(default=None, max_length=4096)
+    active_defense_enabled: bool | None = None
+    active_defense_mode: Literal["simulation", "enforcement"] | None = None
+    allowlist_ips: str | None = None
 
     @field_validator("llama_url")
     @classmethod
@@ -62,6 +65,9 @@ def get_settings() -> dict:
         ),
         "api_model": Setting.get("api_model", "deepseek-chat"),
         "api_key_set": bool(Setting.get("api_key", "")),
+        "active_defense_enabled": Setting.get("active_defense_enabled", "false") == "true",
+        "active_defense_mode": Setting.get("active_defense_mode", "simulation"),
+        "allowlist_ips": Setting.get("allowlist_ips", ""),
         "models": MODEL_CATALOG,
     }
 
@@ -80,7 +86,14 @@ def update_settings(request: Request, u: ProviderUpdate) -> dict:
         Setting.set("api_model", u.api_model)
     if u.api_key:
         Setting.set("api_key", u.api_key, encrypt=True)
+    if u.active_defense_enabled is not None:
+        Setting.set("active_defense_enabled", "true" if u.active_defense_enabled else "false")
+    if u.active_defense_mode is not None:
+        Setting.set("active_defense_mode", u.active_defense_mode)
+    if u.allowlist_ips is not None:
+        Setting.set("allowlist_ips", u.allowlist_ips)
     return {"ok": True}
+
 
 
 @router.get("/provider/health")

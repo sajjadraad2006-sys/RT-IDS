@@ -23,6 +23,11 @@ class RecommendedAction(str, Enum):
     escalate = "escalate"
     quarantine_recommended = "quarantine_recommended"
     block_recommended = "block_recommended"
+    block_ip = "block_ip"
+    isolate_port = "isolate_port"
+    rate_limit = "rate_limit"
+    drop_suricata_signature = "drop_suricata_signature"
+
 
 
 class FeatureEvidence(BaseModel):
@@ -88,7 +93,7 @@ class AiDecisionPayload(BaseModel):
 
 
 class GuardedDecision(AiDecisionPayload):
-    schema_version: Literal["guarded-decision-v1"] = "guarded-decision-v1"
+    schema_version: Literal["guarded-decision-v1", "guarded-decision-v2"] = "guarded-decision-v1"
     alert_id: int = Field(ge=1)
     source: Literal["policy", "policy+ai"]
     provider: str = Field(max_length=64)
@@ -96,5 +101,8 @@ class GuardedDecision(AiDecisionPayload):
     policy_version: str = Field(max_length=64)
     prompt_version: str = Field(max_length=64)
     requires_human: bool
-    executed_action: Literal["none"] = "none"
+    executed_action: str = "none"
+    execution_mode: str = "simulation"
+    actuator_result: dict[str, Any] | None = None
+    rollback_token: str | None = None
     degraded: bool = False
