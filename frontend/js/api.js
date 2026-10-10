@@ -509,6 +509,13 @@ window.CG = window.CG || {};
 
   /* ═══ Active Defense, Attack Simulation & Universal Ingestion ═══ */
   API.simulationScenarios = () => tryFetch("/api/simulation/scenarios");
+  API.simulationCategories = () => tryFetch("/api/simulation/categories");
+  API.runBatchBenchmark = (payload) =>
+    tryFetch("/api/simulation/benchmark/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }, 120000);
 
   API.launchSimulation = (payload) =>
     tryFetch("/api/simulation/launch", {

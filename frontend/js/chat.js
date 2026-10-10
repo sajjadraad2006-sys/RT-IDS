@@ -156,6 +156,9 @@
         addAI("Stored chat history is unavailable; this does not affect detection.", "history unavailable");
       }
     }
-    scrollBottom();
+    setTimeout(() => {
+      scrollBottom();
+      input?.focus();
+    }, 50);
   };
 })();

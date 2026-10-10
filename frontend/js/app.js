@@ -87,6 +87,7 @@ window.CG = window.CG || {};
       b.classList.toggle("is-active", b.dataset.view === view));
     document.querySelectorAll(".view").forEach((v) =>
       v.classList.toggle("is-active", v.id === "view-" + view));
+    document.body.classList.toggle("in-chat-view", view === "chat");
     if (location.hash !== "#" + view) history.replaceState(null, "", "#" + view);
     CG.onView?.[view]?.();
     watchReveals(document.getElementById("view-" + view));
