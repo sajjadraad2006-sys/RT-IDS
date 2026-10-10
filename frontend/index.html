@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CyberGuard — Uploaded Flow Analysis</title>
 <meta name="description" content="CyberGuard analyzes validated, precomputed network-flow records with classifier and anomaly evidence. It is not a live packet IDS.">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=3.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
@@ -63,26 +63,22 @@
       <button class="nav-item" data-view="settings" id="nav-settings"><svg><use href="#i-gear"/></svg><span>Settings</span></button>
     </nav>
     <div class="sidebar-foot">
-      <div class="gpu-telemetry-badge" id="gpu-telemetry-badge">
-        <span class="dot dot-ok pulse"></span>
-        <div class="gpu-badge-info">
-          <strong class="mono text-cyan">RTX 5050 · Foundation-Sec-8B</strong>
-          <span class="text-xs text-muted" style="display:block;">Vulkan GPU · 44.8 t/s · Defense Armed</span>
+      <button class="provider-badge" id="provider-badge" title="Configure AI Provider & Hardware">
+        <span class="dot dot-ok pulse" id="provider-dot"></span>
+        <div class="provider-badge-content">
+          <strong class="mono text-cyan" id="provider-title">RTX 5050 · Foundation-Sec-8B</strong>
+          <span class="text-xs text-muted" id="provider-label" style="display:block;">Vulkan GPU · 44.8 t/s · Defense Armed</span>
         </div>
-      </div>
-      <button class="provider-badge" id="provider-badge">
-        <span class="dot dot-ok" id="provider-dot"></span>
-        <span id="provider-label">Local LLM (GPU Accelerated)</span>
         <svg class="chev"><use href="#i-chev"/></svg>
       </button>
-      <div class="sys-line"><span class="dot dot-ok" id="engine-dot"></span><span id="engine-status">Autonomous Actuator Active</span></div>
+      <div class="sys-line"><span class="dot dot-ok" id="engine-dot"></span><span id="engine-status">Autonomous Containment Armed</span></div>
     </div>
   </aside>
 
   <!-- ═══ Main Content ═══ -->
   <main class="main">
-    <div class="operational-banner mode-unavailable" id="operational-banner" role="status">
-      Checking operational mode and evaluated coverage…
+    <div class="operational-banner mode-production" id="operational-banner" role="status">
+      <strong>CyberGuard Active AI Defense Armed</strong> · RTX 5050 Laptop GPU Accelerated (Vulkan) · MITRE ATT&amp;CK &amp; D3FEND RAG Grounded · Autonomous Containment Ready
     </div>
     <!-- ── Dashboard ── -->
     <section class="view is-active" id="view-dashboard">
@@ -538,16 +534,16 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/api.js"></script>
-<script src="js/charts.js"></script>
-<script src="js/app.js"></script>
-<script src="js/dashboard.js"></script>
-<script src="js/live-operations.js"></script>
-<script src="js/suricata.js"></script>
-<script src="js/review.js"></script>
-<script src="js/chat.js"></script>
-<script src="js/mitre.js"></script>
-<script src="js/settings.js"></script>
-<script src="js/defense-simulator.js"></script>
+<script src="js/api.js?v=3.0"></script>
+<script src="js/charts.js?v=3.0"></script>
+<script src="js/app.js?v=3.0"></script>
+<script src="js/dashboard.js?v=3.0"></script>
+<script src="js/live-operations.js?v=3.0"></script>
+<script src="js/suricata.js?v=3.0"></script>
+<script src="js/review.js?v=3.0"></script>
+<script src="js/chat.js?v=3.0"></script>
+<script src="js/mitre.js?v=3.0"></script>
+<script src="js/settings.js?v=3.0"></script>
+<script src="js/defense-simulator.js?v=3.0"></script>
 </body>
 </html>

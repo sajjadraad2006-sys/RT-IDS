@@ -97,7 +97,6 @@ def update_settings(request: Request, u: ProviderUpdate) -> dict:
 
 
 @router.get("/provider/health")
-@limiter.limit("20/minute")
 async def provider_health(request: Request) -> dict:
     provider = get_provider({
         "llm_provider": Setting.get("llm_provider", "local"),

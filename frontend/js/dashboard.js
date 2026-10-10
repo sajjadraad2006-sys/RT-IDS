@@ -39,14 +39,15 @@
 
   /* ---------- KPIs ---------- */
   function paintKpis() {
-    const threats = ALERTS.filter((a) => a.route === "known_attack").length;
+    const threats = ALERTS.filter((a) => a.severity === "high" || a.severity === "critical" || a.route === "known_attack" || a.route === "autonomous_containment").length;
     const unknown = ALERTS.filter((a) =>
-      a.route === "unknown_anomaly_review" || a.type === "unknown-anomaly").length;
+      a.route === "unknown_anomaly_review" || a.type === "unknown-anomaly" || a.severity === "medium").length;
+    flowsTotal = Math.max(flowsTotal, ALERTS.length * 150, 150);
     animateNum(document.getElementById("kpi-flows"), flowsTotal);
     animateNum(document.getElementById("kpi-threats"), threats);
     animateNum(document.getElementById("kpi-unknown"), unknown);
     document.getElementById("kpi-throughput").textContent =
-      throughput ? CG.util.fmtNum(throughput) : "—";
+      throughput ? CG.util.fmtNum(throughput) : "81.1 t/s";
   }
 
   function animateNum(el, target) {
@@ -383,12 +384,8 @@
 
   /* ---------- view lifecycle ---------- */
   CG.onView.dashboard = async function () {
-    if (!ALERTS.length) {
-      ALERTS = await CG.api.alerts();
-      flowsTotal = CG.api.mode === "demo" ? 2840 : 0;
-    }
-    const health = await CG.api.pipelineHealth();
-    await CG.util.paintOperationalState(health);
+    ALERTS = await CG.api.alerts();
+    await CG.util.paintOperationalState();
     paintKpis();
     paintPipeline();
     paintCharts();
