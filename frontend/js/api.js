@@ -304,6 +304,17 @@ window.CG = window.CG || {};
           note: "Demo mode — no backend inference or artifact claim",
         });
 
+  API.systemTelemetry = () =>
+    API.mode === "live"
+      ? tryFetch("/api/settings/system/telemetry")
+      : Promise.resolve({
+          status: "healthy",
+          gpu: { name: "NVIDIA GeForce RTX 5050 Laptop GPU", total_mb: 8151, used_mb: 6822, percent: 83.7, utilization_percent: 5 },
+          ram: { total_gb: 16.0, used_gb: 12.4, percent: 77.5 },
+          cpu: { percent: 12.0, cores: 16 },
+          inference: { engine: "llama-server (Vulkan)", model: "Foundation-Sec-8B (Q4_K_M)", prompt_speed_tps: 81.1, gen_speed_tps: 44.8, status: "active_defense_armed" }
+        });
+
   API.decisionQueue = () =>
     API.mode === "live"
       ? tryFetch("/api/decision/queue?limit=200")

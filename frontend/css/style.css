@@ -138,7 +138,7 @@ svg { width: 20px; height: 20px; display: block; }
   box-shadow: inset 2px 0 0 var(--blue);
 }
 
-.sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--s3); }
+.sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--s3); max-width: 100%; overflow: hidden; }
 .provider-badge {
   display: flex; align-items: center; gap: var(--s2);
   padding: 10px var(--s3);
@@ -148,10 +148,21 @@ svg { width: 20px; height: 20px; display: block; }
   font-size: var(--step--1);
   color: var(--text-2);
   transition: border-color var(--d-fast) var(--ease-out), transform var(--d-fast) var(--ease-out);
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .provider-badge:hover { border-color: var(--border-strong); }
 .provider-badge:active { transform: scale(.98); }
-.provider-badge .chev { width: 14px; height: 14px; margin-left: auto; opacity: .5; }
+.provider-badge #provider-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.provider-badge .chev { width: 14px; height: 14px; margin-left: auto; opacity: .5; flex-shrink: 0; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex: none; box-shadow: 0 0 8px var(--green); }
 .dot-ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
 .dot-warn { background: var(--amber); box-shadow: 0 0 8px var(--amber); }

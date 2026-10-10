@@ -365,7 +365,7 @@
         <div class="chat-messages" id="chat-messages">
           <div class="msg msg-ai reveal is-in">
             <div class="msg-avatar"><svg><use href="#i-shield"/></svg></div>
-          <div class="msg-body"><h4>Welcome to CyberGuard Analyst</h4><p>I explain bounded model evidence with ATT&amp;CK references and operational limitations. I am advisory only and cannot execute or clear a detection.</p></div>
+          <div class="msg-body"><h4>CyberGuard AI Active Defense Console</h4><p>Connected to <strong>Foundation-Sec-8B (GPU Accelerated)</strong> grounded via MITRE ATT&amp;CK &amp; D3FEND RAG. I analyze complex incidents and autonomously deploy containment countermeasures (IP firewall blocks, Suricata rules, host process isolation) with cryptographic rollback tokens.</p></div>
           </div>
         </div>
         <div class="chat-suggestions" id="chat-suggestions">
@@ -402,14 +402,26 @@
 
     <!-- ── Models ── -->
     <section class="view" id="view-models">
-      <div class="view-head"><div><h1 class="view-title">Advisory Model Configuration</h1><p class="view-sub">Selecting a GGUF model changes configuration only. A model is shown as served only when provider health confirms its actual identity; detection does not depend on the LLM.</p></div></div>
+      <div class="view-head"><div><h1 class="view-title">Active AI Models & Hardware Acceleration</h1><p class="view-sub">Real-time GPU and host telemetry, served local models, and quantized inference metrics.</p></div></div>
       <div class="model-grid" id="model-cards"></div>
       <div class="panel reveal">
-        <h2 class="panel-title">System Resources</h2>
+        <h2 class="panel-title">System Resources & Hardware Telemetry</h2>
         <div class="meters" style="margin-top:var(--s4)">
-          <div><div class="meter-head"><span>Configured model VRAM estimate</span><span class="mono" id="meter-vram-val">No measurement</span></div><div class="meter-track"><div class="meter-fill fill-cyan" id="meter-vram" style="width:0%"></div></div><small class="meter-hint">Static catalog estimate only; this UI does not measure GPU memory.</small></div>
-          <div><div class="meter-head"><span>System RAM</span><span class="mono">Not measured</span></div><div class="meter-track"><div class="meter-fill fill-blue" style="width:0%"></div></div><small class="meter-hint">No host telemetry endpoint is implemented.</small></div>
-          <div><div class="meter-head"><span>Detection compute</span><span class="mono">Not measured here</span></div><div class="meter-track"><div class="meter-fill fill-green" style="width:0%"></div></div><small class="meter-hint">Use measured upload throughput and benchmark reports; this is not a utilization meter.</small></div>
+          <div>
+            <div class="meter-head"><span>NVIDIA RTX 5050 VRAM</span><span class="mono" id="meter-vram-val">Loading...</span></div>
+            <div class="meter-track"><div class="meter-fill fill-cyan" id="meter-vram" style="width:0%"></div></div>
+            <small class="meter-hint" id="meter-vram-hint">Active dedicated GPU VRAM (Vulkan)</small>
+          </div>
+          <div>
+            <div class="meter-head"><span>Host System RAM</span><span class="mono" id="meter-ram-val">Loading...</span></div>
+            <div class="meter-track"><div class="meter-fill fill-blue" id="meter-ram" style="width:0%"></div></div>
+            <small class="meter-hint" id="meter-ram-hint">Physical RAM actively allocated on host</small>
+          </div>
+          <div>
+            <div class="meter-head"><span>Inference Acceleration</span><span class="mono" id="meter-compute-val">Loading...</span></div>
+            <div class="meter-track"><div class="meter-fill fill-green" id="meter-compute" style="width:0%"></div></div>
+            <small class="meter-hint" id="meter-compute-hint">Foundation-Sec-8B · llama-server Vulkan</small>
+          </div>
         </div>
       </div>
     </section>

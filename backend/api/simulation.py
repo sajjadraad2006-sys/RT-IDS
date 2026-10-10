@@ -282,6 +282,42 @@ async def launch_simulation(req: LaunchSimulationRequest) -> Dict[str, Any]:
 
     duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
+    # Persist into alerts table for live Dashboard feed synchronization
+    try:
+        from ..db.models import SessionLocal, AlertRecord
+        with SessionLocal() as db_session:
+            alert_rec = AlertRecord(
+                created_at=time.time(),
+                severity=scenario["severity"],
+                type=scenario["title"],
+                confidence=decision.confidence,
+                anomaly_score=0.98 if decision.verdict.value == "malicious" else 0.1,
+                stage="classifier",
+                mitre_techniques=json.dumps([scenario["technique_id"]]),
+                latency_ms=duration_ms,
+                source_file=f"simulation://{scenario['id']}",
+                explanation=decision.rationale,
+                top_features=json.dumps([
+                    ["src_ip", attacker_ip],
+                    ["dest_port", target_port],
+                    ["technique", scenario["technique_id"]],
+                    ["action", decision.executed_action],
+                ]),
+                route="autonomous_containment",
+                pipeline_version="cyberguard-active-defense-v1",
+                evidence_json=json.dumps({
+                    "evidence": decision.evidence,
+                    "containment": decision.containment,
+                    "rollback_token": decision.rollback_token,
+                    "actuator_result": decision.actuator_result,
+                }),
+                input_schema_json=json.dumps(scenario["sample_event"]),
+            )
+            db_session.add(alert_rec)
+            db_session.commit()
+    except Exception as exc:
+        pass
+
     return {
         "scenario_id": scenario["id"],
         "scenario_title": scenario["title"],

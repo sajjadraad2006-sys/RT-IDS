@@ -15,13 +15,19 @@ from __future__ import annotations
 import logging
 import numpy as np
 from pathlib import Path
-import torch
-from torch import nn
+try:
+    import torch
+    from torch import nn
+    _AE_BASE = nn.Module
+except ImportError:
+    torch = None
+    nn = None
+    _AE_BASE = object
 
 log = logging.getLogger("cyberguard.autoencoder")
 
 
-class _AE(nn.Module):
+class _AE(_AE_BASE):
     """Symmetric autoencoder: N → 64 → 32 → 16 → 32 → 64 → N.
 
     The 16-neuron bottleneck forces the network to learn a compact
@@ -29,6 +35,8 @@ class _AE(nn.Module):
     well into 16 dimensions is suspicious.
     """
     def __init__(self, n_features: int) -> None:
+        if torch is None or nn is None:
+            return
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Linear(n_features, 64), nn.BatchNorm1d(64), nn.ReLU(), nn.Dropout(0.1),
@@ -42,7 +50,15 @@ class _AE(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if torch is None:
+            raise RuntimeError("PyTorch is required for Autoencoder forward pass")
         return self.decoder(self.encoder(x))
+
+
+def _no_grad(fn):
+    if torch is not None and hasattr(torch, "no_grad"):
+        return torch.no_grad()(fn)
+    return fn
 
 
 class AutoencoderDetector:
@@ -57,9 +73,17 @@ class AutoencoderDetector:
 
     def __init__(self, n_features: int, k: float = 3.0,
                  device: str | None = None) -> None:
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.n_features = n_features
-        self.net = _AE(n_features).to(self.device)
+        self.k = k
+        self.threshold: float | None = None
+        self._mean_err: float = 0.0
+        self._std_err: float = 0.0
+        if torch is None:
+            self.device = "cpu"
+            self.net = None
+        else:
+            self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+            self.net = _AE(n_features).to(self.device)
         self.k = k
         self.threshold: float | None = None
         self._mean_err: float = 0.0
@@ -111,7 +135,7 @@ class AutoencoderDetector:
                  epochs, self.threshold, self._mean_err, self.k, self._std_err)
         return self
 
-    @torch.no_grad()
+    @_no_grad
     def errors(self, X: np.ndarray) -> np.ndarray:
         """Compute per-sample reconstruction MSE.
 
@@ -155,6 +179,8 @@ class AutoencoderDetector:
 
     def save(self, path: str | Path) -> None:
         """Persist model weights, threshold, and calibration stats."""
+        if torch is None:
+            raise RuntimeError("PyTorch is required to save neural autoencoder artifacts")
         torch.save({
             "state": self.net.state_dict(),
             "threshold": self.threshold,
@@ -167,6 +193,8 @@ class AutoencoderDetector:
 
     def load(self, path: str | Path, n_features: int | None = None) -> "AutoencoderDetector":
         """Load model from disk."""
+        if torch is None:
+            raise RuntimeError("PyTorch is required to load neural autoencoder artifacts")
         ckpt = torch.load(path, map_location=self.device, weights_only=True)
         nf = n_features or ckpt.get("n_features", self.n_features)
         self.net = _AE(nf).to(self.device)

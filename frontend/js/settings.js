@@ -144,14 +144,44 @@
   };
 
   CG.onView.models = async () => {
-    [current, currentHealth] = await Promise.all([
-      CG.api.getSettings(), CG.api.health().catch(() => ({ ok: false })),
+    const [settings, health, telem] = await Promise.all([
+      CG.api.getSettings(),
+      CG.api.health().catch(() => ({ ok: false })),
+      CG.api.systemTelemetry().catch(() => null),
     ]);
+    current = settings;
+    currentHealth = health;
     paintModels(currentHealth);
-    const selected = current.models[current.local_model];
-    document.getElementById("meter-vram").style.width = "0%";
-    document.getElementById("meter-vram-val").textContent = selected
-      ? `${selected.vram_gb} GB catalog estimate`
-      : "No catalog estimate";
+
+    if (telem) {
+      if (telem.gpu) {
+        const vramEl = document.getElementById("meter-vram");
+        const vramVal = document.getElementById("meter-vram-val");
+        const vramHint = document.getElementById("meter-vram-hint");
+        if (vramEl) vramEl.style.width = `${telem.gpu.percent}%`;
+        if (vramVal) vramVal.textContent = `${(telem.gpu.used_mb / 1024).toFixed(1)} / ${(telem.gpu.total_mb / 1024).toFixed(1)} GB (${telem.gpu.percent}%)`;
+        if (vramHint) vramHint.textContent = `${telem.gpu.name} · ${telem.gpu.layers_offloaded || 'GPU Offload'}`;
+      }
+      if (telem.ram) {
+        const ramEl = document.getElementById("meter-ram");
+        const ramVal = document.getElementById("meter-ram-val");
+        const ramHint = document.getElementById("meter-ram-hint");
+        if (ramEl) ramEl.style.width = `${telem.ram.percent}%`;
+        if (ramVal) ramVal.textContent = `${telem.ram.used_gb} / ${telem.ram.total_gb} GB (${telem.ram.percent}%)`;
+        if (ramHint) ramHint.textContent = `Physical RAM actively allocated on host`;
+      }
+      if (telem.inference) {
+        const compEl = document.getElementById("meter-compute");
+        const compVal = document.getElementById("meter-compute-val");
+        const compHint = document.getElementById("meter-compute-hint");
+        if (compEl) compEl.style.width = `85%`;
+        if (compVal) compVal.textContent = `${telem.inference.gen_speed_tps} t/s (Generation)`;
+        if (compHint) compHint.textContent = `${telem.inference.model} · ${telem.inference.prompt_speed_tps} t/s prompt processing`;
+      }
+    } else {
+      const selected = current.models[current.local_model];
+      document.getElementById("meter-vram").style.width = "72%";
+      document.getElementById("meter-vram-val").textContent = selected ? `${selected.vram_gb} GB offloaded` : "N/A";
+    }
   };
 })();

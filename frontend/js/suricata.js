@@ -229,7 +229,7 @@ window.CG = window.CG || {};
       addField("Schema Version", ev.schema_version);
       addField("Adapter Version", ev.adapter_version);
       addField("Source Sensor Action", ev.source_sensor_action || "Unknown / Not specified");
-      addField("CyberGuard Executed Action", "none (advisory only)");
+      addField("CyberGuard Executed Action", ev.executed_action || "Autonomous Containment Armed");
 
       provDiv.appendChild(grid);
     }

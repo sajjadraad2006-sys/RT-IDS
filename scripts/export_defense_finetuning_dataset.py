@@ -18,8 +18,6 @@ import sys
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-from backend.mitre.defense_rag import _OFFLINE_D3FEND_MAPPINGS
-
 SCENARIOS = [
     {
         "threat": "DDoS",

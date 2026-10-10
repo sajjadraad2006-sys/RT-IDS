@@ -160,6 +160,41 @@ async def _execute_doc_triage(
 
     duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
+    if decision_dict:
+        try:
+            from ..db.models import SessionLocal, AlertRecord
+            with SessionLocal() as db_session:
+                alert_rec = AlertRecord(
+                    created_at=time.time(),
+                    severity=suggested_log.get("severity", "medium"),
+                    type=f"Doc Ingest: {target_name}",
+                    confidence=decision_dict.get("confidence", 0.9),
+                    anomaly_score=0.95 if decision_dict.get("verdict") == "malicious" else 0.2,
+                    stage="classifier",
+                    mitre_techniques=json.dumps([t["technique_id"] for t in playbook.get("techniques", [])]),
+                    latency_ms=duration_ms,
+                    source_file=f"upload://{target_name}",
+                    explanation=decision_dict.get("rationale", ""),
+                    top_features=json.dumps([
+                        ["doc_name", target_name],
+                        ["doc_format", parse_result["format_detected"]],
+                        ["action", decision_dict.get("executed_action", "none")],
+                    ]),
+                    route="autonomous_containment",
+                    pipeline_version="cyberguard-active-defense-v1",
+                    evidence_json=json.dumps({
+                        "evidence": decision_dict.get("evidence", []),
+                        "containment": decision_dict.get("containment", []),
+                        "rollback_token": decision_dict.get("rollback_token"),
+                        "actuator_result": actuator_dict,
+                    }),
+                    input_schema_json=json.dumps({"filename": target_name, "iocs": iocs}),
+                )
+                db_session.add(alert_rec)
+                db_session.commit()
+        except Exception:
+            pass
+
     return {
         "status": "success",
         "duration_ms": duration_ms,
