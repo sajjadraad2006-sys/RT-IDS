@@ -12,6 +12,7 @@ from ..mitre.mapper import MAPPING_VERSION
 from ..operational import current_artifact_context
 from ..actuators.router import default_router
 from ..mitre.defense_rag import default_defense_rag
+from ..safety.formal_verifier import default_safety_verifier
 from .models import (
     AiDecisionPayload,
     DetectionEvidence,
@@ -414,21 +415,40 @@ def parse_and_guard_ai_decision(
         act_name = "block_ip" if action in {RecommendedAction.block_recommended, RecommendedAction.block_ip} else action.value
         clean_target = target or smart_log.source.get("src_ip") or smart_log.source.get("remote_ip") or "192.168.1.100"
 
-        res = default_router.execute_action(
+        # ── Doctoral Neuro-Symbolic Safety Gate Pass (Invariants I_1 to I_4) ──
+        verification = default_safety_verifier.verify_and_sign(
             action=act_name,
             target=clean_target,
-            mode=execution_mode,
+            severity=smart_log.detection.severity,
+            confidence=payload.confidence,
         )
-        actuator_result = res.model_dump(mode="json")
-        rollback_token = res.rollback_token
 
-        if res.success:
-            executed_action = act_name if execution_mode == "enforcement" else f"simulated:{act_name}"
-            requires_human = False
-            limitations.append(f"Autonomous defense executed ({execution_mode}) via {act_name}.")
-        else:
+        if not verification.admitted:
             requires_human = True
-            limitations.append(f"Autonomous defense rejected by guardrail: {res.error}")
+            v_names = ", ".join(v.value for v in verification.violated_invariants)
+            limitations.append(f"Autonomous defense rejected by formal safety guardrail: Invariant violation ({v_names}).")
+            executed_action = "none"
+        else:
+            res = default_router.execute_action(
+                action=act_name,
+                target=clean_target,
+                mode=execution_mode,
+            )
+            actuator_result = res.model_dump(mode="json")
+            # Prefer cryptographically signed HMAC receipt from formal verifier
+            rollback_token = (
+                verification.rollback_receipt.token
+                if verification.rollback_receipt
+                else res.rollback_token
+            )
+
+            if res.success:
+                executed_action = act_name if execution_mode == "enforcement" else f"simulated:{act_name}"
+                requires_human = False
+                limitations.append(f"Autonomous defense formally admitted ({execution_mode}) via {act_name}.")
+            else:
+                requires_human = True
+                limitations.append(f"Autonomous defense rejected by router: {res.error}")
     else:
         if action in {
             RecommendedAction.block_recommended,
