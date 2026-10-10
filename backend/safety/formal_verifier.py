@@ -198,21 +198,37 @@ class FormalSafetyVerifier:
         if not clean:
             return False, "Empty target specification"
 
+        # ── Shell Injection & Metacharacter Gate ──
+        if any(c in clean for c in (";", "&", "|", "`", "$", "<", ">", "\n", "\r", "\x00")):
+            return False, f"Target '{target}' contains forbidden shell metacharacters (Injection Prevention)"
+
         if clean in self._protected_hosts:
             return False, f"Target '{target}' is explicitly registered in K_crit protected host dictionary"
 
         # Evaluate IP address / subnet invariants
         try:
             ip_obj = ipaddress.ip_address(clean)
-            for net in self._protected_networks:
-                if ip_obj in net:
-                    return False, f"Target IP '{target}' belongs to reserved/critical subnet {net}"
+            # Evaluate unmapped IPv4 if IPv4-mapped IPv6
+            eval_ips = [ip_obj]
+            if ip_obj.version == 6 and ip_obj.ipv4_mapped:
+                eval_ips.append(ip_obj.ipv4_mapped)
+
+            for cur_ip in eval_ips:
+                if str(cur_ip).lower() in self._protected_hosts:
+                    return False, f"Target IP '{target}' maps to protected host '{cur_ip}' (Self-DoS Prevention)"
+                for net in self._protected_networks:
+                    if cur_ip in net:
+                        return False, f"Target IP '{target}' belongs to reserved/critical subnet {net}"
             return True, f"Target IP '{target}' is disjoint from K_crit"
         except ValueError:
             pass
 
         try:
             net_obj = ipaddress.ip_network(clean, strict=False)
+            # Forbid over-broad subnet blackholing (e.g. /0 to /15)
+            if (net_obj.version == 4 and net_obj.prefixlen < 16) or (net_obj.version == 6 and net_obj.prefixlen < 48):
+                return False, f"Target subnet '{target}' prefix /{net_obj.prefixlen} is too broad (Mass Blackhole Prevention)"
+
             for protected_net in self._protected_networks:
                 if net_obj.overlaps(protected_net):
                     return False, f"Target subnet '{target}' overlaps critical subnet {protected_net}"
@@ -222,9 +238,11 @@ class FormalSafetyVerifier:
 
         # For process / host-level actions
         if action == "kill_process":
+            import os
+            base_proc = os.path.basename(clean.replace("\\", "/"))
             critical_processes = {"system", "smss.exe", "csrss.exe", "wininit.exe", "services.exe", "lsass.exe", "kernel", "init"}
-            if clean in critical_processes:
-                return False, f"Process '{target}' is an essential OS kernel component"
+            if base_proc in critical_processes or clean in critical_processes:
+                return False, f"Process '{target}' ({base_proc}) is an essential OS kernel component"
 
         return True, f"Target '{target}' verified outside K_crit boundary"
 
@@ -234,9 +252,13 @@ class FormalSafetyVerifier:
         if clean_action not in ACTION_DISRUPTION_INDEX:
             return False, f"Action '{action}' is ungrounded in the formal D3FEND countermeasure ontology"
 
+        clean_target = target.strip()
+        if any(c in clean_target for c in (";", "&", "|", "`", "$", "<", ">", "\n", "\r", "\x00")):
+            return False, f"Target '{target}' contains forbidden metacharacters"
+
         if clean_action == "block_ip":
             try:
-                ipaddress.ip_network(target.strip(), strict=False)
+                ipaddress.ip_network(clean_target, strict=False)
                 return True, "Valid IPv4/IPv6 target for block_ip countermeasure"
             except ValueError:
                 return False, f"Target '{target}' is not a valid IP or CIDR specification for block_ip"
@@ -244,17 +266,20 @@ class FormalSafetyVerifier:
         if clean_action == "drop_port":
             port = params.get("port")
             if port is None:
-                # Try parsing from target
                 try:
-                    port = int(target.strip())
+                    port = int(clean_target)
                 except ValueError:
                     return False, "Missing or invalid port parameter for drop_port"
-            if not (1 <= int(port) <= 65535):
-                return False, f"Port '{port}' out of physical bounds [1, 65535]"
-            return True, f"Valid port {port} specification for drop_port"
+            try:
+                port_num = int(port)
+                if not (1 <= port_num <= 65535):
+                    return False, f"Port '{port}' out of physical bounds [1, 65535]"
+                return True, f"Valid port {port_num} specification for drop_port"
+            except ValueError:
+                return False, f"Invalid non-integer port '{port}'"
 
         if clean_action == "isolate_host":
-            if not target.strip():
+            if not clean_target:
                 return False, "Target host cannot be empty for isolate_host"
             return True, "Valid host identifier for isolate_host countermeasure"
 
