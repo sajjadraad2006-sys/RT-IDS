@@ -31,6 +31,9 @@ VALID_AUTONOMOUS_ACTIONS: Set[str] = {
     "isolate_port",
     "rate_limit",
     "drop_suricata_signature",
+    "kill_process",
+    "suspend_process",
+    "isolate_host",
 }
 
 
@@ -105,12 +108,29 @@ class SafetyGuardrails:
                     return False, f"Target '{clean_target}' is not a valid IP address or CIDR"
 
         elif action == "isolate_port":
+            port_to_check = None
+            if clean_target.isdigit():
+                port_to_check = int(clean_target)
+            elif params and params.get("port") is not None and str(params.get("port")).isdigit():
+                port_to_check = int(params["port"])
+            if port_to_check is None or not (1 <= port_to_check <= 65535):
+                return False, f"Port target '{clean_target}' must specify a valid integer port between 1 and 65535"
+
+        elif action in {"kill_process", "suspend_process"}:
+            base_name = clean_target.split("\\")[-1].split("/")[-1].lower()
+            from .process import PROTECTED_PROCESS_NAMES
+            if base_name in PROTECTED_PROCESS_NAMES:
+                return False, f"Target process '{clean_target}' is in protected OS process list (Self-DoS prevention)"
+
+        elif action == "isolate_host":
             try:
-                port_num = int(clean_target)
-                if not (1 <= port_num <= 65535):
-                    return False, f"Port '{clean_target}' must be between 1 and 65535"
+                ip_obj = ipaddress.ip_address(clean_target)
+                for net in self.protected_networks:
+                    if ip_obj in net:
+                        return False, f"Target host '{clean_target}' belongs to protected subnet '{net}'"
             except ValueError:
-                return False, f"Port target '{clean_target}' must be a valid integer"
+                if clean_target.lower() in self.protected_hosts:
+                    return False, f"Target host '{clean_target}' is in protected allowlist"
 
         elif action == "drop_suricata_signature":
             import re

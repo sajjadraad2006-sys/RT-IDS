@@ -87,6 +87,7 @@ ACTION_DISRUPTION_INDEX: Dict[str, float] = {
     "rate_limit": 0.25,
     "block_ip": 0.40,
     "drop_port": 0.50,
+    "isolate_port": 0.50,
     "kill_process": 0.65,
     "isolate_host": 0.95,
     "quarantine_subnet": 1.00,
@@ -263,13 +264,13 @@ class FormalSafetyVerifier:
             except ValueError:
                 return False, f"Target '{target}' is not a valid IP or CIDR specification for block_ip"
 
-        if clean_action == "drop_port":
+        if clean_action in {"drop_port", "isolate_port"}:
             port = params.get("port")
             if port is None:
                 try:
                     port = int(clean_target)
                 except ValueError:
-                    return False, "Missing or invalid port parameter for drop_port"
+                    return False, "Missing or invalid port parameter for drop_port/isolate_port"
             try:
                 port_num = int(port)
                 if not (1 <= port_num <= 65535):
@@ -308,6 +309,10 @@ class FormalSafetyVerifier:
             signature_hmac=sig,
             state_inversion_digest=inv_hash,
         )
+
+    def verify_receipt(self, receipt: RollbackReceipt) -> bool:
+        """Verify HMAC-SHA256 cryptographic authenticity and non-tampering of rollback token."""
+        return receipt.verify_signature(self._secret)
 
 
 # Global default instance

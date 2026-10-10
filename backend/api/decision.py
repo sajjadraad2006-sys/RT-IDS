@@ -29,6 +29,7 @@ from ..llm.mitre_index import get_mitre_rag
 from ..security import safe_llm_url
 from ..actuators.router import default_router
 from ..mitre.defense_rag import default_defense_rag
+from ..mitre.semantic_rag import default_semantic_rag
 
 
 router = APIRouter(prefix="/api/decision", tags=["smart-decision"])
@@ -498,13 +499,13 @@ async def evaluate(
     docs = _get_rag().query(query, k=4)
     context = "\n\n".join(doc["document"] for doc in docs)
 
-    # Ground decision with verified D3FEND defensive countermeasures
-    defense_playbook = default_defense_rag.retrieve_defense_playbook(
+    # Ground decision with verified D3FEND defensive countermeasures via Hybrid Graph-RAG
+    defense_playbook = default_semantic_rag.retrieve_defense_playbook(
         label=smart.detection.type,
         techniques=smart.detection.mitre_techniques,
         telemetry=smart.source,
     )
-    defense_context = default_defense_rag.format_prompt_context(defense_playbook)
+    defense_context = default_semantic_rag.format_prompt_context(defense_playbook)
 
     try:
         provider = get_provider(_provider_settings())
