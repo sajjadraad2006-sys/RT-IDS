@@ -11,7 +11,18 @@ from __future__ import annotations
 
 import json
 import os
-import resource
+try:
+    import resource
+    def _get_rss_kb() -> int:
+        return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+except ImportError:
+    resource = None
+    def _get_rss_kb() -> int:
+        try:
+            import psutil
+            return int(psutil.Process().memory_info().rss / 1024)
+        except Exception:
+            return 0
 import subprocess
 import sys
 import tempfile
@@ -68,7 +79,7 @@ _tmpdir = tempfile.mkdtemp(prefix="cg-bench-")
 os.environ["CG_DB_PATH"] = str(Path(_tmpdir) / "bench.sqlite")
 
 # Measure starting RSS
-rss_start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss  # KB on Linux
+rss_start = _get_rss_kb()  # KB
 
 tracemalloc.start()
 
@@ -85,7 +96,7 @@ client = TestClient(app)
 with open(fixture_path, "rb") as f:
     payload = f.read()
 
-rss_before_ingest = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+rss_before_ingest = _get_rss_kb()
 t0 = time.perf_counter()
 
 res = client.post(
@@ -94,7 +105,7 @@ res = client.post(
 )
 
 elapsed = time.perf_counter() - t0
-rss_after = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+rss_after = _get_rss_kb()
 _, peak_tracemalloc = tracemalloc.get_traced_memory()
 tracemalloc.stop()
 

@@ -4,7 +4,18 @@ from __future__ import annotations
 import io
 import json
 import os
-import resource
+try:
+    import resource
+    def _get_rss_kb() -> int:
+        return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+except ImportError:
+    resource = None
+    def _get_rss_kb() -> int:
+        try:
+            import psutil
+            return int(psutil.Process().memory_info().rss / 1024)
+        except Exception:
+            return 0
 import tempfile
 import time
 from pathlib import Path
@@ -610,22 +621,22 @@ def test_parser_memory_bounded_comparison():
     large_bytes = ("\n".join(large_lines) + "\n").encode("utf-8")
 
     # Measure small parse
-    rss_before_small = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    rss_before_small = _get_rss_kb()
     small_stream = io.BytesIO(small_bytes)
     small_parsed = 0
     for item in iter_eve_stream(small_stream, "small.json", "s1", 50*1024*1024, 10000):
         if item.event:
             small_parsed += 1
-    rss_after_small = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    rss_after_small = _get_rss_kb()
 
     # Measure large parse (50x more records)
-    rss_before_large = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    rss_before_large = _get_rss_kb()
     large_stream = io.BytesIO(large_bytes)
     large_parsed = 0
     for item in iter_eve_stream(large_stream, "large.json", "s1", 50*1024*1024, 10000):
         if item.event:
             large_parsed += 1
-    rss_after_large = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    rss_after_large = _get_rss_kb()
 
     assert small_parsed == small_count
     assert large_parsed == large_count

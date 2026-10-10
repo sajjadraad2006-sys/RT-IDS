@@ -21,8 +21,17 @@ from ..decision.engine import build_smart_log, decision_messages, parse_and_guar
 from ..decision.models import GuardedDecision, SmartLog
 from ..llm.provider import get_provider
 from ..mitre.defense_rag import default_defense_rag
+from ..mitre.semantic_rag import default_semantic_rag
 from ..security import safe_llm_url
 from ..simulation.attack_suite import ATTACK_VECTORS, CATEGORIES, get_all_scenarios, get_scenarios_by_category
+
+LEGACY_SCENARIO_ALIASES = {
+    "syn_flood_ddos": "dos_syn_flood_volumetric",
+    "kerberoasting_ad": "ad_kerberoasting_spn",
+    "sqli_log4j": "rce_log4j_jndi",
+    "ransomware_lolbin": "ransomware_lolbin_certutil_drop",
+    "c2_dns_tunnel": "c2_dns_tunneling_txt",
+}
 
 logger = logging.getLogger("cyberguard.api.simulation")
 router = APIRouter(prefix="/api/simulation", tags=["simulation"])
@@ -111,7 +120,8 @@ def get_simulation_scenarios(
 async def launch_simulation(req: LaunchSimulationRequest) -> Dict[str, Any]:
     """Execute end-to-end attack simulation: RAG retrieval -> LLM inference -> Actuation."""
     all_s = get_all_scenarios()
-    scenario = next((s for s in all_s if s["id"] == req.scenario_id), None)
+    target_id = LEGACY_SCENARIO_ALIASES.get(req.scenario_id, req.scenario_id)
+    scenario = next((s for s in all_s if s["id"] == target_id), None)
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found.")
 
@@ -120,13 +130,13 @@ async def launch_simulation(req: LaunchSimulationRequest) -> Dict[str, Any]:
     target_port = scenario["target_port"]
     query_str = f"{scenario['title']}. {scenario['description']} Technique: {scenario['technique_id']}."
 
-    # 1. Query GeniusDefenseRAG
-    playbook = default_defense_rag.retrieve_defense_playbook(
+    # 1. Query Hybrid Graph-RAG Engine
+    playbook = default_semantic_rag.retrieve_defense_playbook(
         query=query_str,
         telemetry={"src_ip": attacker_ip, "dest_port": target_port},
         top_k_techniques=4,
     )
-    defense_context = default_defense_rag.format_prompt_context(playbook)
+    defense_context = default_semantic_rag.format_prompt_context(playbook)
 
     # 2. Build canonical SmartLog
     record = MockRecord(
@@ -282,13 +292,13 @@ async def run_batch_benchmark(req: BatchBenchmarkRequest) -> Dict[str, Any]:
         t0 = time.perf_counter()
         query_str = f"{sc['title']}. {sc['description']} Technique: {sc['technique_id']}."
 
-        # RAG retrieval
-        playbook = default_defense_rag.retrieve_defense_playbook(
+        # Hybrid Graph-RAG retrieval
+        playbook = default_semantic_rag.retrieve_defense_playbook(
             query=query_str,
             telemetry={"src_ip": sc["attacker_ip"], "dest_port": sc["target_port"]},
             top_k_techniques=3,
         )
-        defense_context = default_defense_rag.format_prompt_context(playbook)
+        defense_context = default_semantic_rag.format_prompt_context(playbook)
 
         record = MockRecord(
             alert_id=int(time.time() % 100000) + random.randint(1, 9999),

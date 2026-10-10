@@ -7,14 +7,28 @@ import importlib.metadata
 import json
 import os
 import platform
-import resource
+try:
+    import resource
+    def _get_peak_rss_kib() -> int:
+        return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+except ImportError:
+    resource = None
+    def _get_peak_rss_kib() -> int:
+        try:
+            import psutil
+            return int(psutil.Process().memory_info().rss / 1024)
+        except Exception:
+            return 0
 import time
 from collections import Counter
 from pathlib import Path
 
 import joblib
 import numpy as np
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 from scipy.stats import ks_2samp
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import (
@@ -809,7 +823,7 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
         "drift": drift,
         "benchmark": benchmark,
         "resources": {
-            "peak_process_rss_kib": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss),
+            "peak_process_rss_kib": _get_peak_rss_kib(),
             "peak_cuda_bytes": peak_vram,
             "artifact_bytes": {},
         },

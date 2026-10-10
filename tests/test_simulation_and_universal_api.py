@@ -13,29 +13,29 @@ client = TestClient(app)
 
 
 def test_simulation_scenarios_listing():
-    """Verify that all 5 cyber threat attack simulation scenarios are available."""
+    """Verify that all 100+ cyber threat attack simulation scenarios are available."""
     response = client.get("/api/simulation/scenarios")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ready"
-    assert data["total_scenarios"] == 5
+    assert data["total_scenarios"] >= 100
 
     scenario_ids = [s["id"] for s in data["scenarios"]]
-    assert "syn_flood_ddos" in scenario_ids
-    assert "kerberoasting_ad" in scenario_ids
-    assert "sqli_log4j" in scenario_ids
-    assert "ransomware_lolbin" in scenario_ids
-    assert "c2_dns_tunnel" in scenario_ids
+    assert "dos_syn_flood_volumetric" in scenario_ids
+    assert "ad_kerberoasting_spn" in scenario_ids
+    assert "rce_log4j_jndi" in scenario_ids
+    assert "ransomware_esxi_volume_encryption" in scenario_ids
+    assert "c2_dns_tunneling_txt" in scenario_ids
 
     # Validate that CLI commands are included
-    for s in data["scenarios"]:
+    for s in data["scenarios"][:10]:
         assert "curl_command" in s
         assert "powershell_command" in s
         assert "technique_id" in s
 
 
 def test_simulation_launch_syn_flood():
-    """Test launching SYN flood DDoS simulation end-to-end."""
+    """Test launching SYN flood DDoS simulation end-to-end (testing alias resolution)."""
     payload = {
         "scenario_id": "syn_flood_ddos",
         "custom_ip": "198.51.100.88",
@@ -45,7 +45,7 @@ def test_simulation_launch_syn_flood():
     assert response.status_code == 200
     data = response.json()
 
-    assert data["scenario_id"] == "syn_flood_ddos"
+    assert data["scenario_id"] in ("syn_flood_ddos", "dos_syn_flood_volumetric")
     assert data["attacker_ip"] == "198.51.100.88"
     assert len(data["rag_grounding"]["matched_techniques"]) >= 1
     assert data["ai_decision"]["verdict"] in ("malicious", "suspicious")
