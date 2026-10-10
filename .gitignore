@@ -55,6 +55,7 @@ data/*.json
 data/*.rules
 data/*.jsonl
 *.pdf
+!docs/*.pdf
 *.zip
 *.tar.gz
 
