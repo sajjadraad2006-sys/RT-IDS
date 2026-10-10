@@ -24,6 +24,7 @@ from ..mitre.defense_rag import default_defense_rag
 from ..mitre.semantic_rag import default_semantic_rag
 from ..security import safe_llm_url
 from ..simulation.attack_suite import ATTACK_VECTORS, CATEGORIES, get_all_scenarios, get_scenarios_by_category
+from ..simulation.doctoral_benchmark import default_doctoral_benchmark
 
 LEGACY_SCENARIO_ALIASES = {
     "syn_flood_ddos": "dos_syn_flood_volumetric",
@@ -63,6 +64,12 @@ class BatchBenchmarkRequest(BaseModel):
     batch_size: int = Field(20, description="Number of attacks to execute in batch (e.g. 10, 20, 50, 100)")
     category: Optional[str] = Field(None, description="Optional category to filter attacks")
     enforce_live: bool = Field(False, description="Set True for live firewall rules")
+
+
+class DoctoralBenchmarkRunRequest(BaseModel):
+    max_scenarios: int = Field(50, ge=5, le=100, description="Max attack scenarios to evaluate")
+    benign_samples_count: int = Field(25, ge=5, le=50, description="Benign enterprise transactions")
+    adversarial_samples_count: int = Field(20, ge=5, le=30, description="Adversarial evasion/injection attacks")
 
 
 def _get_provider_config() -> dict:
@@ -425,4 +432,32 @@ async def run_batch_benchmark(req: BatchBenchmarkRequest) -> Dict[str, Any]:
             for cat, stats in category_stats.items()
         ],
         "attack_results": results,
+    }
+
+
+@router.get("/doctoral-benchmark")
+def get_doctoral_benchmark_summary() -> Dict[str, Any]:
+    """Retrieve fast academic comparative evaluation of H-ACD vs classical baselines."""
+    results = default_doctoral_benchmark.run_full_benchmark(
+        max_scenarios=20,
+        benign_samples_count=15,
+        adversarial_samples_count=10,
+    )
+    return {
+        "status": "success",
+        "benchmark": results,
+    }
+
+
+@router.post("/doctoral-benchmark/run")
+def run_doctoral_benchmark(req: DoctoralBenchmarkRunRequest) -> Dict[str, Any]:
+    """Execute high-scale empirical doctoral benchmark across all 4 defense paradigms."""
+    results = default_doctoral_benchmark.run_full_benchmark(
+        max_scenarios=req.max_scenarios,
+        benign_samples_count=req.benign_samples_count,
+        adversarial_samples_count=req.adversarial_samples_count,
+    )
+    return {
+        "status": "completed",
+        "benchmark": results,
     }

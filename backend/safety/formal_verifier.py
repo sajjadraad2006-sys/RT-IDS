@@ -237,13 +237,12 @@ class FormalSafetyVerifier:
         except ValueError:
             pass
 
-        # For process / host-level actions
-        if action == "kill_process":
-            import os
-            base_proc = os.path.basename(clean.replace("\\", "/"))
-            critical_processes = {"system", "smss.exe", "csrss.exe", "wininit.exe", "services.exe", "lsass.exe", "kernel", "init"}
-            if base_proc in critical_processes or clean in critical_processes:
-                return False, f"Process '{target}' ({base_proc}) is an essential OS kernel component"
+        # For process / host-level actions: protect essential OS kernel components
+        import os
+        base_proc = os.path.basename(clean.replace("\\", "/"))
+        critical_processes = {"system", "smss.exe", "csrss.exe", "wininit.exe", "services.exe", "lsass.exe", "kernel", "init"}
+        if base_proc in critical_processes or clean in critical_processes:
+            return False, f"Process '{target}' ({base_proc}) is an essential OS kernel component"
 
         return True, f"Target '{target}' verified outside K_crit boundary"
 
@@ -257,12 +256,12 @@ class FormalSafetyVerifier:
         if any(c in clean_target for c in (";", "&", "|", "`", "$", "<", ">", "\n", "\r", "\x00")):
             return False, f"Target '{target}' contains forbidden metacharacters"
 
-        if clean_action == "block_ip":
+        if clean_action in {"block_ip", "rate_limit"}:
             try:
                 ipaddress.ip_network(clean_target, strict=False)
-                return True, "Valid IPv4/IPv6 target for block_ip countermeasure"
+                return True, f"Valid IPv4/IPv6 target for {clean_action} countermeasure"
             except ValueError:
-                return False, f"Target '{target}' is not a valid IP or CIDR specification for block_ip"
+                return False, f"Target '{target}' is not a valid IP or CIDR specification for {clean_action}"
 
         if clean_action in {"drop_port", "isolate_port"}:
             port = params.get("port")
@@ -282,7 +281,14 @@ class FormalSafetyVerifier:
         if clean_action == "isolate_host":
             if not clean_target:
                 return False, "Target host cannot be empty for isolate_host"
+            if any(clean_target.lower().endswith(ext) for ext in (".exe", ".dll", ".sys", ".bat", ".cmd", ".ps1", ".sh", ".py")):
+                return False, f"Target '{target}' is a process binary, not a valid host identifier for isolate_host"
             return True, "Valid host identifier for isolate_host countermeasure"
+
+        if clean_action == "kill_process":
+            if not clean_target:
+                return False, "Target process cannot be empty for kill_process"
+            return True, "Valid process identifier for kill_process countermeasure"
 
         return True, f"Action '{action}' satisfies ontological parameter constraints"
 
