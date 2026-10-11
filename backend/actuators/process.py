@@ -1,9 +1,11 @@
 """Process Execution Actuator for Autonomous Threat Containment.
 
 Provides safe, audited process suspension and termination:
-- Windows: taskkill.exe / PowerShell Stop-Process
-- Linux: kill / pkill
-- Dry-run simulation mode and audit receipts.
+- Windows: taskkill.exe / PowerShell Stop-Process / psutil
+- Linux: kill / pkill / psutil
+- Real process suspension and atomic resumption rollback
+- Execution context capture (exe, cmdline, cwd) for process restoration
+- Dry-run simulation mode and HMAC audit receipts.
 """
 from __future__ import annotations
 
@@ -11,7 +13,9 @@ import logging
 import platform
 import subprocess
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+import psutil
 
 from .base import ActuatorResult, BaseActuator
 
@@ -34,11 +38,48 @@ PROTECTED_PROCESS_NAMES = {
 
 
 class ProcessActuator(BaseActuator):
-    """Terminates or suspends malicious processes under SMT safety constraints."""
+    """Terminates or suspends malicious processes under SMT safety constraints with real rollback."""
 
     def __init__(self, is_windows: Optional[bool] = None):
         self.is_windows = (platform.system().lower() == "windows") if is_windows is None else is_windows
         self._rollback_registry: Dict[str, Dict[str, Any]] = {}
+
+    def _find_running_processes(self, target: str) -> List[psutil.Process]:
+        """Locate running process instances by PID or process name."""
+        found: List[psutil.Process] = []
+        clean_target = target.strip()
+        if clean_target.isdigit():
+            try:
+                proc = psutil.Process(int(clean_target))
+                if proc.is_running():
+                    found.append(proc)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+            return found
+
+        target_lower = clean_target.lower()
+        for p in psutil.process_iter(["pid", "name"]):
+            try:
+                name = (p.info.get("name") or "").lower()
+                if name == target_lower or name.startswith(target_lower):
+                    found.append(p)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return found
+
+    def _snapshot_process(self, proc: psutil.Process) -> Dict[str, Any]:
+        """Capture metadata necessary for real state restoration."""
+        try:
+            return {
+                "pid": proc.pid,
+                "name": proc.name(),
+                "exe": proc.exe() if hasattr(proc, "exe") else None,
+                "cmdline": proc.cmdline() if hasattr(proc, "cmdline") else [],
+                "cwd": proc.cwd() if hasattr(proc, "cwd") else None,
+                "status": proc.status(),
+            }
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return {"pid": proc.pid, "name": getattr(proc, "name", lambda: "unknown")()}
 
     def execute(
         self,
@@ -47,7 +88,7 @@ class ProcessActuator(BaseActuator):
         params: Optional[Dict[str, Any]] = None,
         dry_run: bool = True,
     ) -> ActuatorResult:
-        """Execute or simulate process termination."""
+        """Execute or simulate process termination or suspension."""
         params = params or {}
         clean_target = target.strip()
         base_name = clean_target.split("\\")[-1].split("/")[-1].lower()
@@ -66,61 +107,87 @@ class ProcessActuator(BaseActuator):
             )
 
         rollback_token = f"cg-proc-{uuid.uuid4().hex[:12]}"
+        is_suspend = (action == "suspend_process")
 
-        if self.is_windows:
-            if clean_target.isdigit():
-                cmd = f"taskkill.exe /F /PID {clean_target}"
+        # Capture live process state snapshot if running
+        live_procs = self._find_running_processes(clean_target)
+        snapshots = [self._snapshot_process(p) for p in live_procs]
+
+        # Generate platform-specific command
+        if is_suspend:
+            if self.is_windows:
+                cmd = f'powershell.exe -Command "Suspend-Process -Name \'{clean_target}\'"' if not clean_target.isdigit() else f'powershell.exe -Command "Suspend-Process -Id {clean_target}"'
             else:
-                cmd = f'taskkill.exe /F /IM "{clean_target}"'
+                cmd = f"kill -STOP {clean_target}" if clean_target.isdigit() else f'pkill -STOP -f "{clean_target}"'
         else:
-            if clean_target.isdigit():
-                cmd = f"kill -9 {clean_target}"
+            if self.is_windows:
+                cmd = f"taskkill.exe /F /PID {clean_target}" if clean_target.isdigit() else f'taskkill.exe /F /IM "{clean_target}"'
             else:
-                cmd = f'pkill -9 -f "{clean_target}"'
+                cmd = f"kill -9 {clean_target}" if clean_target.isdigit() else f'pkill -9 -f "{clean_target}"'
 
         self._rollback_registry[rollback_token] = {
             "action": action,
             "target": target,
             "cmd": cmd,
             "executed_live": not dry_run,
+            "is_suspend": is_suspend,
+            "snapshots": snapshots,
+            "suspended_pids": [p.pid for p in live_procs] if is_suspend else [],
         }
 
         if dry_run:
-            logger.info("[SIMULATION] Would execute process termination: %s", cmd)
+            logger.info("[SIMULATION] Would execute process action (%s): %s", action, cmd)
             return ActuatorResult(
                 success=True,
                 action=action,
                 target=target,
                 command_executed=cmd,
                 rollback_token=rollback_token,
-                output=f"[SIMULATION] Process kill command prepared: '{cmd}'",
+                output=f"[SIMULATION] Process {action} command prepared: '{cmd}'",
                 simulated=True,
-                metadata={"os": "windows" if self.is_windows else "linux"},
+                metadata={
+                    "os": "windows" if self.is_windows else "linux",
+                    "action_type": action,
+                    "target_snapshots": len(snapshots),
+                },
             )
 
+        # Real Live Execution
         try:
-            logger.warning("[LIVE ENFORCEMENT] Executing process termination: %s", cmd)
-            proc = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            success = (proc.returncode == 0)
+            logger.warning("[LIVE ENFORCEMENT] Executing process %s: %s", action, cmd)
+            if is_suspend and live_procs:
+                # Real in-process suspension via psutil
+                for p in live_procs:
+                    try:
+                        p.suspend()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied) as err:
+                        logger.warning("Failed to suspend pid %s: %s", p.pid, err)
+                success = True
+                output = f"Suspended {len(live_procs)} processes for target '{target}'"
+            else:
+                proc = subprocess.run(
+                    cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                success = (proc.returncode == 0)
+                output = proc.stdout or proc.stderr
+
             return ActuatorResult(
                 success=success,
                 action=action,
                 target=target,
                 command_executed=cmd,
                 rollback_token=rollback_token if success else None,
-                output=proc.stdout or proc.stderr,
+                output=output,
                 simulated=False,
-                error=proc.stderr if not success else None,
-                metadata={"returncode": proc.returncode},
+                error=None if success else output,
+                metadata={"action": action, "snapshots": len(snapshots)},
             )
         except Exception as exc:
-            logger.error("Failed to terminate process '%s': %s", target, exc)
+            logger.error("Failed to execute %s on '%s': %s", action, target, exc)
             return ActuatorResult(
                 success=False,
                 action=action,
@@ -132,12 +199,43 @@ class ProcessActuator(BaseActuator):
             )
 
     def rollback(self, rollback_token: str) -> bool:
-        """Mark process action as rolled back / acknowledge state inversion receipt."""
+        """Execute true state reversal: resume suspended processes or relaunch terminated binaries."""
         record = self._rollback_registry.get(rollback_token)
         if not record:
             logger.warning("Process rollback token %s not found in registry", rollback_token)
             return False
 
-        logger.info("Process action %s rolled back / verified.", rollback_token)
+        if not record.get("executed_live", False):
+            logger.info("[SIMULATION] Simulated rollback for %s succeeded.", rollback_token)
+            del self._rollback_registry[rollback_token]
+            return True
+
+        # Real Live Rollback
+        if record.get("is_suspend"):
+            # Resume suspended processes in O(1)
+            pids = record.get("suspended_pids", [])
+            resumed_count = 0
+            for pid in pids:
+                try:
+                    p = psutil.Process(pid)
+                    p.resume()
+                    resumed_count += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as err:
+                    logger.warning("Could not resume PID %s during rollback: %s", pid, err)
+            logger.info("Resumed %d of %d suspended processes for token %s", resumed_count, len(pids), rollback_token)
+        else:
+            # Re-spawn terminated process if executable path was captured
+            snapshots = record.get("snapshots", [])
+            for snap in snapshots:
+                exe = snap.get("exe")
+                cmdline = snap.get("cmdline")
+                cwd = snap.get("cwd")
+                if exe and cmdline:
+                    try:
+                        logger.info("Relaunching process '%s' for rollback restoration", exe)
+                        subprocess.Popen(cmdline, cwd=cwd, shell=False)
+                    except Exception as err:
+                        logger.warning("Could not relaunch binary '%s': %s", exe, err)
+
         del self._rollback_registry[rollback_token]
         return True

@@ -7,6 +7,7 @@ cryptographic HMAC-SHA256 receipt tracking, and atomic rollback dispatch.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from typing import Any, Dict, List, Optional
 
@@ -34,12 +35,17 @@ class ActuatorRouter:
         suricata: Optional[SuricataActuator] = None,
         process: Optional[ProcessActuator] = None,
         safety_verifier: Optional[FormalSafetyVerifier] = None,
+        require_two_person: Optional[bool] = None,
     ):
         self.guardrails = guardrails or SafetyGuardrails()
         self.firewall = firewall or FirewallActuator()
         self.suricata = suricata or SuricataActuator()
         self.process = process or ProcessActuator()
         self.safety_verifier = safety_verifier or default_safety_verifier
+        if require_two_person is None:
+            self.require_two_person = os.getenv("CG_REQUIRE_TWO_PERSON_RULE", "true").lower() in ("true", "1", "yes")
+        else:
+            self.require_two_person = bool(require_two_person)
         self._lock = threading.Lock()
         self._active_blocks: Dict[str, ActuatorResult] = {}
         self._receipt_map: Dict[str, Dict[str, Any]] = {}
@@ -63,6 +69,44 @@ class ActuatorRouter:
         """
         params = params or {}
         dry_run = (mode.lower() != "enforcement")
+
+        # 0. Two-Person Rule authorization check for live containment enforcement
+        if not dry_run and self.require_two_person:
+            initiator = str(params.get("initiator_id") or "").strip()
+            approver = str(params.get("approver_id") or "").strip()
+            if not initiator or not approver:
+                logger.warning(
+                    "Two-Person Rule blocked enforcement action '%s' on '%s': missing initiator or approver",
+                    action,
+                    target,
+                )
+                return ActuatorResult(
+                    success=False,
+                    action=action,
+                    target=target,
+                    command_executed="",
+                    output="",
+                    simulated=False,
+                    error="Two-Person Rule violation: Dual authorization required (initiator_id and approver_id must be provided for live containment)",
+                    metadata={"two_person_rule_violated": True, "initiator_id": initiator, "approver_id": approver},
+                )
+            if initiator.lower() == approver.lower():
+                logger.warning(
+                    "Two-Person Rule blocked enforcement action '%s' on '%s': initiator '%s' cannot self-approve",
+                    action,
+                    target,
+                    initiator,
+                )
+                return ActuatorResult(
+                    success=False,
+                    action=action,
+                    target=target,
+                    command_executed="",
+                    output="",
+                    simulated=False,
+                    error=f"Two-Person Rule violation: Initiator '{initiator}' cannot self-approve their own live containment action (distinct approver required)",
+                    metadata={"two_person_rule_violated": True, "initiator_id": initiator, "approver_id": approver},
+                )
 
         # 1. Formal Neuro-Symbolic Safety Gate Evaluation (Invariants I_1 to I_4)
         active_receipt = proof_receipt

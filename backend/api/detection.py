@@ -630,3 +630,27 @@ def export_alerts_csv(limit: int = Query(default=5000, ge=1, le=5000)) -> Stream
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=cyberguard_alerts.csv"},
     )
+
+
+@router.post("/live/start")
+def start_live_capture(request: Request, port_filter: int | None = None) -> dict:
+    """Start the live network packet sniffer daemon."""
+    from ..detection.live_sniffer import default_live_sniffer
+    success = default_live_sniffer.start_capture(port_filter=port_filter)
+    status = default_live_sniffer.get_status()
+    return {"success": success, "status": status}
+
+
+@router.post("/live/stop")
+def stop_live_capture() -> dict:
+    """Stop the live network packet sniffer daemon."""
+    from ..detection.live_sniffer import default_live_sniffer
+    default_live_sniffer.stop_capture()
+    return {"success": True, "status": default_live_sniffer.get_status()}
+
+
+@router.get("/live/status")
+def get_live_capture_status() -> dict:
+    """Retrieve runtime telemetry from the live packet sniffer."""
+    from ..detection.live_sniffer import default_live_sniffer
+    return default_live_sniffer.get_status()

@@ -13,7 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .db.init_db import init_all
-from .api import chat, decision, detection, events, mitre, operations, settings, simulation, universal_ingest
+from .api import auth, chat, decision, detection, events, mitre, operations, settings, simulation, universal_ingest
 from .config import ALLOWED_HOSTS, ALLOWED_ORIGINS, BASE_DIR, LOG_LEVEL
 from .security import ApiAccessMiddleware, RequestLimitsMiddleware, SecurityHeadersMiddleware
 
@@ -63,6 +63,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-CyberGuard-Token"]
 )
 
+app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(decision.router)
 app.include_router(detection.router)

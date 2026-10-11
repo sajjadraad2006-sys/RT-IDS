@@ -28,6 +28,7 @@ from ..llm.provider import get_provider
 from ..llm.mitre_index import get_mitre_rag
 from ..security import safe_llm_url
 from ..actuators.router import default_router
+from ..auth import get_current_user
 from ..mitre.defense_rag import default_defense_rag
 from ..mitre.semantic_rag import default_semantic_rag
 
@@ -51,6 +52,8 @@ class ActuateRequest(BaseModel):
     target: str = ""
     mode: str = "simulation"
     params: dict = {}
+    initiator_id: Optional[str] = None
+    approver_id: Optional[str] = None
 
 
 class RollbackRequest(BaseModel):
@@ -546,16 +549,26 @@ def actuate_alert(
     """Manually or autonomously trigger a defensive actuator against an alert's threat."""
     smart = _smart_log_for(alert_id)
     target = options.target or smart.source.get("src_ip") or smart.source.get("remote_ip") or "192.168.1.100"
+    user = get_current_user(request)
+    actor_id = user.username
+    params = dict(options.params or {})
+    if options.initiator_id:
+        params["initiator_id"] = options.initiator_id
+    elif "initiator_id" not in params:
+        params["initiator_id"] = actor_id
+    if options.approver_id:
+        params["approver_id"] = options.approver_id
+
     res = default_router.execute_action(
         action=options.action,
         target=target,
-        params=options.params,
+        params=params,
         mode=options.mode,
     )
     with SessionLocal() as session:
         append_audit_event(
             session,
-            actor=ANALYST_ID,
+            actor=actor_id,
             action="manual_actuation",
             entity_type="alert",
             entity_id=alert_id,
@@ -567,6 +580,8 @@ def actuate_alert(
                 "rollback_token": res.rollback_token,
                 "simulated": res.simulated,
                 "error": res.error,
+                "initiator_id": params.get("initiator_id"),
+                "approver_id": params.get("approver_id"),
             },
         )
         session.commit()
@@ -580,11 +595,13 @@ def rollback_action(
     options: RollbackRequest,
 ) -> dict:
     """Roll back a previously executed or simulated mitigation by token."""
+    user = get_current_user(request)
+    actor_id = user.username
     success = default_router.rollback_action(options.rollback_token)
     with SessionLocal() as session:
         append_audit_event(
             session,
-            actor=ANALYST_ID,
+            actor=actor_id,
             action="rollback_executed",
             entity_type="action",
             entity_id=options.rollback_token,

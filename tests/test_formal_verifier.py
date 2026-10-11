@@ -139,3 +139,20 @@ def test_i4_proportionality_constraint(verifier):
         confidence=0.98,
     )
     assert res_proportionate.admitted
+
+
+def test_formal_smt_lib2_certificate_and_model_export(verifier):
+    """Verify generation of SMT-LIB2 standard format certificates and SymPy formal models."""
+    res = verifier.verify_and_sign(
+        action="block_ip",
+        target="198.51.100.77",
+        severity="high",
+        confidence=0.95,
+    )
+    assert res.admitted
+    assert res.smt_lib2_certificate != ""
+    assert "(set-logic QF_LRA)" in res.smt_lib2_certificate
+    assert "(set-info :status sat)" in res.smt_lib2_certificate
+    assert "(assert (<= disruption_cost proportionality_bound))" in res.smt_lib2_certificate
+    assert res.formal_model is not None
+    assert res.formal_model.get("I1_CriticalAssetPreservation") is True

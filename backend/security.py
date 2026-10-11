@@ -146,18 +146,32 @@ class ApiAccessMiddleware(BaseHTTPMiddleware):
         if origin and origin not in ALLOWED_ORIGINS:
             return JSONResponse({"detail": "origin not allowed"}, status_code=403)
 
+        path = request.url.path
+        if path == "/api/auth/login":
+            response = await call_next(request)
+            response.headers["Cache-Control"] = "no-store"
+            return response
+
         client_host = request.client.host if request.client else None
         supplied = request.headers.get("x-cyberguard-token", "")
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
             supplied = auth[7:].strip()
 
+        from .auth import decode_access_token
+        is_token_valid = False
+        if supplied:
+            if API_TOKEN and hmac.compare_digest(supplied, API_TOKEN):
+                is_token_valid = True
+            elif decode_access_token(supplied) is not None:
+                is_token_valid = True
+
         if API_TOKEN:
-            if not supplied or not hmac.compare_digest(supplied, API_TOKEN):
+            if not is_token_valid:
                 return JSONResponse({"detail": "valid API token required"}, status_code=401)
-        elif not _is_loopback_client(client_host):
+        elif not _is_loopback_client(client_host) and not is_token_valid:
             return JSONResponse(
-                {"detail": "remote API access requires CG_API_TOKEN"},
+                {"detail": "remote API access requires CG_API_TOKEN or valid authentication"},
                 status_code=403,
             )
 
