@@ -51,6 +51,7 @@ def test_official_download_success_is_atomic_and_reports_digest(tmp_path):
         (200, b"<!doctype html><title>login</title>" * 5000, "text/html", "text/html"),
         (200, b"feature,Label\n1,Benign\n", "text/csv", "small"),
     ],
+    ids=["404_not_found", "large_html_body", "tiny_csv_body"],
 )
 def test_download_rejects_404_html_and_tiny_bodies(
     tmp_path, status, body, content_type, match

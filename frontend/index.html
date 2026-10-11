@@ -85,7 +85,7 @@
     <!-- ── Dashboard ── -->
     <section class="view is-active" id="view-dashboard">
       <div class="view-head">
-        <div><h1 class="view-title">Security Operations Command Center</h1><p class="view-sub">Real-time threat triage, high-confidence classifier detections, and autonomous containment audit trail powered by Foundation-Sec-8B and Genius Defense RAG.</p></div>
+        <div><h1 class="view-title">Security Operations Command Center</h1><p class="view-sub">Pipeline v2 validates precomputed flow records, runs the known-attack classifier on every accepted row, and routes independent anomaly evidence (analyzes precomputed flow records, not live packet capture). Real-time threat triage and autonomous containment audit trail powered by Foundation-Sec-8B and Genius Defense RAG.</p></div>
         <div class="head-actions">
           <input type="file" id="upload-input" hidden accept=".csv,.tsv,.json,.ndjson,.jsonl">
           <button class="btn btn-primary" id="btn-upload"><svg><use href="#i-upload"/></svg>Upload Flow Records</button>
@@ -193,7 +193,7 @@
               <span class="badge badge-simulated">10 Threat Families</span>
             </div>
             <h2 style="color:var(--text);margin-top:4px;">Automated Defense Benchmark Console</h2>
-            <p class="text-muted text-sm">Test and verify how the AI detects SQLi, Zero-Days, Ransomware, Spring4Shell, Kerberoasting, and Unknown Anomalies across up to 100 batch attacks.</p>
+            <p class="text-muted text-sm">Test and verify how the AI detects SQLi, Novel Exploits, Ransomware, Spring4Shell, Kerberoasting, and Unknown Anomalies across up to 100 batch attacks.</p>
           </div>
           <div>
             <button class="benchmark-btn-run" id="btn-run-benchmark">
@@ -212,7 +212,7 @@
               <option value="Web Application Exploits & RCE">Web Application Exploits &amp; RCE (10)</option>
               <option value="Active Directory & Identity">Active Directory &amp; Identity (10)</option>
               <option value="Ransomware & Destructive Payloads">Ransomware &amp; Destructive Payloads (10)</option>
-              <option value="Zero-Day Exploits & Unknown Anomalies">Zero-Day &amp; Unknown Anomalies (10)</option>
+              <option value="Novel Exploits & Unknown Anomalies">Novel Exploits &amp; Unknown Anomalies (10)</option>
               <option value="Network Flooding & Volumetric DoS">Network Flooding &amp; Volumetric DoS (10)</option>
               <option value="Command and Control & Exfiltration">Command &amp; Control &amp; Exfiltration (10)</option>
               <option value="Privilege Escalation & Persistence">Privilege Escalation &amp; Persistence (10)</option>

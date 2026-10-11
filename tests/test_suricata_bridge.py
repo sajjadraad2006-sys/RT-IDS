@@ -1391,6 +1391,8 @@ def test_confidence_column_migration_drops_column():
             assert row[0] == "T1071.001"
             assert row[1] == 1.0
 
+        test_eng.dispose()
+
 
 # ──────────────────── CG-RE-003 Timezone Required Fail-Closed ────────────────────
 

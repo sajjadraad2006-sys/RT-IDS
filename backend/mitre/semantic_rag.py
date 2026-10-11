@@ -226,11 +226,13 @@ class SemanticGraphRAG:
         safety_verifier: Optional[FormalSafetyVerifier] = None,
         db_path: Optional[str] = None,
         latent_dimensions: int = 48,
+        use_foundational_only: bool = False,
     ):
         self.knowledge_graph = knowledge_graph or default_knowledge_graph
         self.safety_verifier = safety_verifier or default_safety_verifier
         self.db_path = db_path or str(DB_PATH)
         self.latent_dimensions = latent_dimensions
+        self.use_foundational_only = use_foundational_only
 
         self._lock = threading.Lock()
         self._initialized = False
@@ -257,45 +259,46 @@ class SemanticGraphRAG:
     def _load_and_index(self) -> None:
         loaded: Dict[str, Dict[str, Any]] = {}
 
-        # 1. Attempt loading from SQLite
-        resolved_db = self.db_path
-        master_kb = Path("data/cyberguard.db")
-        if not Path(resolved_db).exists() and master_kb.exists():
-            resolved_db = str(master_kb)
+        if not self.use_foundational_only:
+            # 1. Attempt loading from SQLite
+            resolved_db = self.db_path
+            master_kb = Path("data/cyberguard.db")
+            if not Path(resolved_db).exists() and master_kb.exists():
+                resolved_db = str(master_kb)
 
-        if Path(resolved_db).exists():
-            try:
-                with sqlite3.connect(resolved_db, timeout=10) as conn:
-                    conn.row_factory = sqlite3.Row
-                    cur = conn.cursor()
-                    has_table = cur.execute(
-                        "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='techniques'"
-                    ).fetchone()[0]
-                    if has_table:
-                        cur.execute(
-                            "SELECT id, name, description, tactics, platforms FROM techniques"
-                        )
-                        for row in cur.fetchall():
-                            tid = row["id"].upper().strip()
-                            tactics = []
-                            try:
-                                tactics = json.loads(row["tactics"] or "[]")
-                            except Exception:
-                                pass
-                            platforms = []
-                            try:
-                                platforms = json.loads(row["platforms"] or "[]")
-                            except Exception:
-                                pass
-                            loaded[tid] = {
-                                "id": tid,
-                                "name": row["name"],
-                                "description": row["description"] or "",
-                                "tactics": tactics,
-                                "platforms": platforms,
-                            }
-            except Exception as e:
-                logger.warning("Failed loading techniques from SQLite: %s", e)
+            if Path(resolved_db).exists():
+                try:
+                    with sqlite3.connect(resolved_db, timeout=10) as conn:
+                        conn.row_factory = sqlite3.Row
+                        cur = conn.cursor()
+                        has_table = cur.execute(
+                            "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='techniques'"
+                        ).fetchone()[0]
+                        if has_table:
+                            cur.execute(
+                                "SELECT id, name, description, tactics, platforms FROM techniques"
+                            )
+                            for row in cur.fetchall():
+                                tid = row["id"].upper().strip()
+                                tactics = []
+                                try:
+                                    tactics = json.loads(row["tactics"] or "[]")
+                                except Exception:
+                                    pass
+                                platforms = []
+                                try:
+                                    platforms = json.loads(row["platforms"] or "[]")
+                                except Exception:
+                                    pass
+                                loaded[tid] = {
+                                    "id": tid,
+                                    "name": row["name"],
+                                    "description": row["description"] or "",
+                                    "tactics": tactics,
+                                    "platforms": platforms,
+                                }
+                except Exception as e:
+                    logger.warning("Failed loading techniques from SQLite: %s", e)
 
         # 2. Merge foundational seed to guarantee coverage of core threat vectors
         for tid, data in FOUNDATIONAL_TECHNIQUES.items():

@@ -1,0 +1,3 @@
+# Ensure deterministic dataset fixtures preserve byte length on Windows checkouts
+*.csv text eol=lf
+*.json text eol=lf

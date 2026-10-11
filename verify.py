@@ -10,6 +10,13 @@ import time
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # Verification must prove a fresh database state. Keep all generated SQLite/key
 # files outside the checkout and alive for the duration of this process only.
 _verification_data = tempfile.TemporaryDirectory(prefix="cyberguard-verify-")
@@ -269,14 +276,23 @@ except Exception as e:
 
 elapsed = time.perf_counter() - t_start
 
+def _safe_icon(status: str) -> str:
+    if status == "PASS":
+        char, fallback = "✓", "+"
+    elif status.startswith("SKIP"):
+        char, fallback = "○", "*"
+    else:
+        char, fallback = "✗", "!"
+    try:
+        encoding = getattr(sys.stdout, "encoding", None) or "ascii"
+        char.encode(encoding)
+        return char
+    except Exception:
+        return fallback
+
 print()
 for name, status in checks:
-    if status == "PASS":
-        icon = "✓"
-    elif status.startswith("SKIP"):
-        icon = "○"
-    else:
-        icon = "✗"
+    icon = _safe_icon(status)
     print(f"  [{icon}] {name}: {status}")
 
 passed = sum(1 for _, s in checks if s == "PASS")

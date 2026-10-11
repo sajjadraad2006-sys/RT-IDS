@@ -323,7 +323,8 @@ def validate_intake_manifest(
     fingerprint_rows = 0
     with tempfile.TemporaryDirectory(prefix="cyberguard-intake-") as temporary:
         database = Path(temporary) / "fingerprints.sqlite3"
-        with sqlite3.connect(database) as connection:
+        connection = sqlite3.connect(database)
+        try:
             connection.execute(
                 "CREATE TABLE fingerprints ("
                 "feature_sha256 TEXT PRIMARY KEY, label TEXT NOT NULL, "
@@ -362,6 +363,8 @@ def validate_intake_manifest(
                             f"{reason}:{previous_file}:{file_id}:{feature_hash}"
                         )
             connection.commit()
+        finally:
+            connection.close()
 
     return {
         "schema_version": INTAKE_REPORT_VERSION,

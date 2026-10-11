@@ -633,7 +633,7 @@ Technique T1486 and T1105 identified.`;
 
     const tickerSteps = [
       { pct: 28, text: "🔍 Grounding threat signatures against 697 Enterprise ATT&CK techniques…" },
-      { pct: 54, text: "🤖 Querying Foundation-Sec-8B security reasoning & zero-day anomaly detectors…" },
+      { pct: 54, text: "🤖 Querying Foundation-Sec-8B security reasoning & unseen anomaly detectors…" },
       { pct: 78, text: "🛡️ Formulating zero-hallucination containment plans & cryptographic rollback tokens…" },
       { pct: 92, text: "⚡ Finalizing metrics, actuator safeguards, and audit records…" },
     ];

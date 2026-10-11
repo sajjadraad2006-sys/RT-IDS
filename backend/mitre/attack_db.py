@@ -3,6 +3,7 @@ Powers the MITRE browser: tactics, techniques, groups, software, and
 which techniques were detected in uploaded logs.
 """
 from __future__ import annotations
+from contextlib import contextmanager
 import hashlib
 import json
 import sqlite3
@@ -106,13 +107,18 @@ def validate_snapshot(path: str | Path | None = None) -> dict:
     return {"path": str(snapshot), "objects": len(data["objects"])}
 
 
-def get_conn(db_path: str | Path | None = None) -> sqlite3.Connection:
+@contextmanager
+def get_conn(db_path: str | Path | None = None):
     target = Path(db_path) if db_path is not None else DB_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(target, timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON;")
-    return conn
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def _migrate_sync_log(c: sqlite3.Connection) -> None:

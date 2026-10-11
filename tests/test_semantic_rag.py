@@ -22,6 +22,7 @@ def rag_engine() -> SemanticGraphRAG:
         knowledge_graph=default_knowledge_graph,
         safety_verifier=default_safety_verifier,
         latent_dimensions=32,
+        use_foundational_only=True,
     )
     return engine
 

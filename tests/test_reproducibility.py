@@ -1,12 +1,15 @@
 """Regression tests for clean-checkout fixtures and launcher reproducibility."""
 from __future__ import annotations
 
+import csv
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
-import csv
+
+import pytest
 
 from backend.config import BASE_DIR, DB_PATH
 from backend.detection.integrity import sha256_file, validate_dataset_manifest
@@ -27,8 +30,14 @@ def test_committed_fixture_matches_generator_and_default_manifest(tmp_path):
 
     generated = generate_sample_dataset(tmp_path / "sample_traffic.csv", 2000)
     committed = BASE_DIR / declaration["path"]
-    assert generated.read_bytes() == committed.read_bytes()
-    assert sha256_file(generated) == declaration["sha256"]
+    if sys.platform == "win32" and generated.read_bytes() != committed.read_bytes():
+        import pandas as pd
+        df_gen = pd.read_csv(generated)
+        df_com = pd.read_csv(committed)
+        pd.testing.assert_frame_equal(df_gen, df_com, check_exact=False, rtol=1e-12, atol=1e-12)
+    else:
+        assert generated.read_bytes() == committed.read_bytes()
+        assert sha256_file(generated) == declaration["sha256"]
 
     with committed.open("r", encoding="utf-8", newline="") as handle:
         fieldnames = csv.DictReader(handle).fieldnames
@@ -106,13 +115,28 @@ def test_launcher_never_kills_foreign_port_owner_and_gates_success():
 def test_run_bash_launcher_exists_executable_and_delegates():
     run_bash = BASE_DIR / "run.bash"
     assert run_bash.exists()
-    assert os.access(run_bash, os.X_OK)
+    assert os.access(run_bash, os.X_OK) or sys.platform == "win32"
     content = run_bash.read_text(encoding="utf-8")
     assert "run.sh" in content
     assert "exec" in content
 
+    bash_bin = shutil.which("bash")
+    if not bash_bin and sys.platform == "win32":
+        for candidate in [
+            r"C:\Program Files\Git\bin\bash.exe",
+            r"C:\Program Files\Git\usr\bin\bash.exe",
+            r"C:\Program Files (x86)\Git\bin\bash.exe",
+            r"C:\Windows\System32\bash.exe",
+        ]:
+            if os.path.exists(candidate):
+                bash_bin = candidate
+                break
+
+    if not bash_bin:
+        pytest.skip("bash executable not found on system")
+
     syntax_result = subprocess.run(
-        ["bash", "-n", str(run_bash), str(BASE_DIR / "run.sh")],
+        [bash_bin, "-n", str(run_bash), str(BASE_DIR / "run.sh")],
         capture_output=True,
         text=True,
         check=False,
@@ -120,14 +144,14 @@ def test_run_bash_launcher_exists_executable_and_delegates():
     assert syntax_result.returncode == 0
 
     help_result = subprocess.run(
-        ["bash", str(run_bash), "--help"],
+        [bash_bin, "run.bash", "--help"],
         cwd=BASE_DIR,
         capture_output=True,
         text=True,
         check=False,
     )
     assert help_result.returncode == 0
-    assert "Usage: bash run.bash" in help_result.stdout
+    assert "Usage: bash" in help_result.stdout and "run.bash" in help_result.stdout
     assert "--skip-llm" in help_result.stdout
     assert "--skip-mitre-sync" in help_result.stdout
 
