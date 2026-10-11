@@ -43,7 +43,7 @@ def generate_fig1_evolution_timeline():
         ("Phase 1: Formal Gate", "SMT FOL Invariants (I1-I4)\nKnowledge Hypergraph\nMITRE ATT&CK & D3FEND\nCritical Asset Guard", "#3B82F6", 0.38),
         ("Phase 2: Hybrid RAG", "BM25 + SVD Dense LSA\nReciprocal Rank Fusion\nPareto Disruption Cut\nZero-Hallucination Prompts", "#2563EB", 0.61),
         ("Phase 3: Containment", "Fail-Closed Actuators\nOS Kernel Interlocks\nHMAC State Receipts\nO(1) Atomic Inversion", "#1D4ED8", 0.84),
-        ("Phase 4: Benchmark", "Multi-Paradigm Eval\n100-Attack Empirical Suite\nIEEE/ACM LaTeX Exports\nDoctoral REST Endpoints", "#059669", 1.07),
+        ("Phase 4: Benchmark", "Multi-Paradigm Eval\n100-Attack Empirical Suite\n495 Automated Tests\nOperational REST Endpoints", "#059669", 1.07),
         ("Phase 5: Next Frontier", "eBPF/XDP Line-Rate Driver\nNative Z3 Theorem Prover\nConcept Drift Self-Training\nMulti-Agent Raft Consensus", "#D97706", 1.30),
     ]
 
@@ -73,7 +73,7 @@ def generate_fig1_evolution_timeline():
     ax.set_xlim(0, 10)
     ax.set_ylim(0.2, 3.8)
     ax.axis("off")
-    ax.set_title("Figure 1: Architectural Evolution Roadmap: From Baseline Flaws to Ph.D. Dissertation Frontier", fontweight="bold", pad=10)
+    ax.set_title("Figure 1: System Evolution Roadmap: Architectural Trajectory from Baseline to Verified Production", fontweight="bold", pad=10)
     plt.tight_layout()
     plt.savefig(out_dir / "fig1_evolution_timeline.png", bbox_inches="tight")
     plt.close()

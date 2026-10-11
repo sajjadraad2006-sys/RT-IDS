@@ -163,8 +163,8 @@ pip-audit --local --progress-spinner off
 python -m cyberguard.datasets.generate_sample --check
 ```
 
-The latest closure run passes **335 tests** with **13 deprecation warnings** and
-**19/19 verify.py gates**. Python compilation, 10 JavaScript syntax checks,
+The latest closure run passes **495 tests** with **13 deprecation warnings** and
+**19/19 verify.py gates**. Python compilation, 11 JavaScript syntax checks,
 Bandit (0 findings), and dependency audit (0 known vulnerabilities among
 auditable packages; local development `torchvision` has no matching PyPI
 record) also pass.

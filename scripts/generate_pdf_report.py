@@ -81,15 +81,8 @@ class NumberedCanvas(canvas.Canvas):
 
 
 def build_pdf_report(output_path: str = "docs/DOCTORAL_SYSTEM_AUDIT_REPORT.pdf") -> str:
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    doc = SimpleDocTemplate(
-        output_path,
-        pagesize=letter,
-        leftMargin=54,
-        rightMargin=54,
-        topMargin=54,
-        bottomMargin=54,
-    )
+    from generate_doctoral_monograph_pdf import build_doctoral_monograph_pdf
+    return build_doctoral_monograph_pdf(output_path)
 
     styles = getSampleStyleSheet()
 
