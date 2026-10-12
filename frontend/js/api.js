@@ -21,6 +21,8 @@ window.CG = window.CG || {};
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
       const headers = new Headers(opts.headers || {});
+      const authToken = sessionStorage.getItem("cg-auth-token");
+      if (authToken) headers.set("Authorization", `Bearer ${authToken}`);
       const token = sessionStorage.getItem("cg-api-token");
       if (token) headers.set("X-CyberGuard-Token", token);
       const res = await fetch(API.base + path, { ...fetchOptions, headers, signal: ctrl.signal });
@@ -545,6 +547,43 @@ window.CG = window.CG || {};
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rollback_token: rollbackToken }),
     });
+
+  /* ═══ Authentication & Identity ═══ */
+  API.login = async (username, password) => {
+    const res = await tryFetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (res && res.access_token) {
+      sessionStorage.setItem("cg-auth-token", res.access_token);
+      sessionStorage.setItem("cg-auth-user", JSON.stringify(res));
+    }
+    return res;
+  };
+
+  API.getMe = () => tryFetch("/api/auth/me");
+
+  API.logout = () => {
+    sessionStorage.removeItem("cg-auth-token");
+    sessionStorage.removeItem("cg-auth-user");
+  };
+
+  /* ═══ Live Network Sniffer ═══ */
+  API.liveSnifferStart = (options = {}) =>
+    tryFetch("/api/detect/live/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options),
+    });
+
+  API.liveSnifferStop = () =>
+    tryFetch("/api/detect/live/stop", {
+      method: "POST",
+    });
+
+  API.liveSnifferStatus = () =>
+    tryFetch("/api/detect/live/status");
 
   CG.api = API;
 })();

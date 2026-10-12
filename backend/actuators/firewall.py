@@ -25,6 +25,19 @@ class FirewallActuator(BaseActuator):
         self.is_windows = (platform.system().lower() == "windows") if is_windows is None else is_windows
         self._rollback_registry: Dict[str, Dict[str, Any]] = {}
 
+    @staticmethod
+    def is_elevated() -> bool:
+        """Check whether current process has administrative / root privileges."""
+        try:
+            if platform.system().lower() == "windows":
+                import ctypes
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            else:
+                import os
+                return os.geteuid() == 0
+        except Exception:
+            return False
+
     def execute(
         self,
         action: str,
@@ -42,7 +55,6 @@ class FirewallActuator(BaseActuator):
         rollback_token = f"cg-fw-{uuid.uuid4().hex[:12]}"
         clean_name_target = target.replace(":", "-").replace("/", "-")
         rule_name = f"CyberGuard-Block-{clean_name_target}-{rollback_token}"
-
 
         # Generate platform-specific command
         if self.is_windows:
@@ -87,6 +99,24 @@ class FirewallActuator(BaseActuator):
             )
 
         # Real Execution
+        if not self.is_elevated():
+            err_msg = (
+                "Insufficient OS privileges: Host firewall rule injection requires "
+                "elevated Administrator (Windows) or Root (Linux) privileges. "
+                "Start the process as Administrator or operate in simulation mode."
+            )
+            logger.warning("[FIREWALL REJECTED] %s", err_msg)
+            return ActuatorResult(
+                success=False,
+                action=action,
+                target=target,
+                command_executed=cmd,
+                output="",
+                simulated=False,
+                error=err_msg,
+                metadata={"privilege_check": "failed_unprivileged", "rule_name": rule_name},
+            )
+
         try:
             logger.warning("[LIVE ENFORCEMENT] Executing firewall command: %s", cmd)
             proc = subprocess.run(

@@ -62,6 +62,17 @@ def test_firewall_actuator_linux_syntax():
     assert "--dport 80" in res.command_executed
 
 
+def test_firewall_actuator_elevation_check(monkeypatch):
+    fw = FirewallActuator(is_windows=True)
+    # Simulate unprivileged execution
+    monkeypatch.setattr(fw, "is_elevated", lambda: False)
+    res = fw.execute("block_ip", "198.51.100.42", dry_run=False)
+    assert res.success is False
+    assert res.simulated is False
+    assert "Insufficient OS privileges" in res.error
+    assert res.metadata.get("privilege_check") == "failed_unprivileged"
+
+
 def test_suricata_actuator_generates_valid_drop_rule():
     with tempfile.TemporaryDirectory() as tmpdir:
         rules_path = Path(tmpdir) / "dynamic.rules"

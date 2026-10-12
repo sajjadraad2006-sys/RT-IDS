@@ -382,10 +382,106 @@
     }
   });
 
+  /* ---------- Live Sniffer Controller ---------- */
+  let snifferActive = false;
+  let snifferPollTimer = null;
+
+  async function checkSnifferStatus() {
+    try {
+      const st = await CG.api.liveSnifferStatus();
+      if (st && st.active) {
+        setSnifferUI(true, st);
+      } else {
+        setSnifferUI(false);
+      }
+    } catch {
+      setSnifferUI(false);
+    }
+  }
+
+  function setSnifferUI(active, statusData = null) {
+    snifferActive = active;
+    const btn = document.getElementById("btn-live-sniffer");
+    const txt = document.getElementById("btn-live-sniffer-text");
+    const note = document.getElementById("pipeline-note");
+    if (!btn || !txt) return;
+
+    if (active) {
+      btn.style.background = "linear-gradient(135deg, #dc2626, #ef4444)";
+      btn.style.borderColor = "#f87171";
+      txt.textContent = "Stop Sniffer";
+      if (note) {
+        const pkts = statusData?.packets_captured ?? 0;
+        const flws = statusData?.flows_aggregated ?? 0;
+        note.textContent = `● Live network capture active (${pkts} pkts, ${flws} flows)`;
+        note.style.color = "var(--green)";
+      }
+      if (!snifferPollTimer) {
+        snifferPollTimer = setInterval(pollLiveSniffer, 3000);
+      }
+    } else {
+      btn.style.background = "linear-gradient(135deg, #059669, #10b981)";
+      btn.style.borderColor = "#34d399";
+      txt.textContent = "Start Live Sniffer";
+      if (note && note.textContent.includes("Live network capture")) {
+        note.textContent = "live sniffer stopped";
+        note.style.color = "";
+      }
+      if (snifferPollTimer) {
+        clearInterval(snifferPollTimer);
+        snifferPollTimer = null;
+      }
+    }
+  }
+
+  async function pollLiveSniffer() {
+    if (!snifferActive) return;
+    try {
+      const st = await CG.api.liveSnifferStatus();
+      if (st && st.active) {
+        const note = document.getElementById("pipeline-note");
+        if (note) {
+          note.textContent = `● Live network capture active (${st.packets_captured} pkts, ${st.flows_aggregated} flows)`;
+        }
+        if (st.flows_aggregated > 0) {
+          flowsTotal += st.flows_aggregated;
+          paintKpis();
+        }
+      } else {
+        setSnifferUI(false);
+      }
+    } catch { /* ignore network error during polling */ }
+  }
+
+  const btnSniffer = document.getElementById("btn-live-sniffer");
+  if (btnSniffer) {
+    btnSniffer.addEventListener("click", async () => {
+      btnSniffer.disabled = true;
+      try {
+        if (!snifferActive) {
+          CG.util.toast("Starting live network packet sniffer on host interfaces…");
+          const res = await CG.api.liveSnifferStart();
+          setSnifferUI(true, res);
+          CG.util.toast(`Live capture armed on interface: ${res.interface || 'default'}`);
+        } else {
+          CG.util.toast("Stopping live sniffer and flushing aggregated flows…");
+          await CG.api.liveSnifferStop();
+          setSnifferUI(false);
+          CG.util.toast("Live packet capture stopped.");
+        }
+      } catch (err) {
+        CG.util.toast("Live sniffer error: " + err.message, 4000);
+      } finally {
+        btnSniffer.disabled = false;
+      }
+    });
+  }
+
   /* ---------- view lifecycle ---------- */
   CG.onView.dashboard = async function () {
     ALERTS = await CG.api.alerts();
     await CG.util.paintOperationalState();
+    await checkSnifferStatus();
     paintKpis();
     paintPipeline();
     paintCharts();
