@@ -439,6 +439,48 @@ def parse_and_guard_ai_decision(
                     cleaned_items.append(str(item)[:280])
             decoded[list_key] = cleaned_items
 
+    # Normalize and canonicalize recommended_action to avoid unhandled validation errors
+    raw_action = str(decoded.get("recommended_action", "")).strip().lower()
+    ACTION_ALIAS_MAP = {
+        "isolate_host": "isolate_host",
+        "isolate_machine": "isolate_host",
+        "quarantine_host": "isolate_host",
+        "host_isolation": "isolate_host",
+        "kill_process": "kill_process",
+        "terminate_process": "kill_process",
+        "process_termination": "kill_process",
+        "suspend_process": "suspend_process",
+        "block": "block_ip",
+        "block_ip": "block_ip",
+        "block_address": "block_ip",
+        "block_traffic": "block_ip",
+        "firewall_block": "block_ip",
+        "isolate_port": "isolate_port",
+        "port_isolation": "isolate_port",
+        "rate_limit": "rate_limit",
+        "throttle": "rate_limit",
+        "drop_suricata_signature": "drop_suricata_signature",
+        "drop": "drop_suricata_signature",
+        "quarantine_recommended": "quarantine_recommended",
+        "block_recommended": "block_recommended",
+        "observe": "observe",
+        "monitor": "observe",
+        "alert": "alert",
+        "warn": "alert",
+        "escalate": "escalate",
+        "investigate": "escalate",
+    }
+    if raw_action in ACTION_ALIAS_MAP:
+        decoded["recommended_action"] = ACTION_ALIAS_MAP[raw_action]
+    elif raw_action not in [a.value for a in RecommendedAction]:
+        v_hint = str(decoded.get("verdict", "")).strip().lower()
+        if v_hint == "malicious":
+            decoded["recommended_action"] = "block_ip"
+        elif v_hint == "benign":
+            decoded["recommended_action"] = "observe"
+        else:
+            decoded["recommended_action"] = "alert"
+
     payload = AiDecisionPayload.model_validate(decoded)
 
     limitations = list(payload.limitations)

@@ -27,6 +27,9 @@ class RecommendedAction(str, Enum):
     isolate_port = "isolate_port"
     rate_limit = "rate_limit"
     drop_suricata_signature = "drop_suricata_signature"
+    isolate_host = "isolate_host"
+    kill_process = "kill_process"
+    suspend_process = "suspend_process"
 
 
 
