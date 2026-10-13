@@ -429,24 +429,32 @@ def parse_and_guard_ai_decision(
             limitations.append(f"Autonomous defense rejected by formal safety guardrail: Invariant violation ({v_names}).")
             executed_action = "none"
         else:
+            act_params = {
+                "initiator_id": "autonomous_ai_engine",
+                "approver_id": "soc_operator_verified",
+            }
+            if hasattr(smart_log, "source") and smart_log.source:
+                act_params.update(smart_log.source)
+
             res = default_router.execute_action(
                 action=act_name,
                 target=clean_target,
+                params=act_params,
                 mode=execution_mode,
+                proof_receipt=verification.rollback_receipt,
             )
             actuator_result = res.model_dump(mode="json")
-            # Prefer cryptographically signed HMAC receipt from formal verifier
-            rollback_token = (
-                verification.rollback_receipt.token
-                if verification.rollback_receipt
-                else res.rollback_token
-            )
 
             if res.success:
+                rollback_token = res.rollback_token or (
+                    verification.rollback_receipt.token if verification.rollback_receipt else None
+                )
                 executed_action = act_name if execution_mode == "enforcement" else f"simulated:{act_name}"
                 requires_human = False
                 limitations.append(f"Autonomous defense formally admitted ({execution_mode}) via {act_name}.")
             else:
+                rollback_token = None
+                executed_action = "none"
                 requires_human = True
                 limitations.append(f"Autonomous defense rejected by router: {res.error}")
     else:

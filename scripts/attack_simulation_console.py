@@ -192,15 +192,25 @@ def execute_attack_simulation(scenario: dict, enforce_live: bool = False):
         cmd = actuator_res.get("command_executed", "")
         token = actuator_res.get("rollback_token") or ai_res.get("rollback_token")
         simulated = actuator_res.get("simulated", True)
+        success = actuator_res.get("success", False) if actuator_res else bool(token)
+        error_msg = actuator_res.get("error")
 
-        mode_str = f"{YELLOW}[SIMULATED RULE]{RESET}" if simulated else f"{RED}[LIVE OS FIREWALL BLOCK]{RESET}"
-        print(f"  Status:           {mode_str}")
-        if cmd:
-            print(f"  Executed Command: {DIM}{cmd}{RESET}")
-        print(f"  Rollback Token:   {CYAN}{BOLD}{token}{RESET}")
+        if not success and error_msg:
+            print(f"  Status:           {RED}[BLOCKED / NOT EXECUTED]{RESET}")
+            print(f"  Reason:           {YELLOW}{error_msg}{RESET}")
+            if "Insufficient OS privileges" in error_msg:
+                print(f"  {CYAN}Tip: To inject live OS firewall rules, run Window 1 CMD as Administrator.{RESET}")
+                print(f"  {CYAN}     Or press ENTER to run in Safe Simulation mode (tests the entire loop & rollback).{RESET}")
+        else:
+            mode_str = f"{YELLOW}[SIMULATED RULE - SAFE]{RESET}" if simulated else f"{RED}[LIVE OS FIREWALL BLOCK]{RESET}"
+            print(f"  Status:           {mode_str}")
+            if cmd:
+                print(f"  Executed Command: {DIM}{cmd}{RESET}")
+            if token:
+                print(f"  Rollback Token:   {CYAN}{BOLD}{token}{RESET}")
 
         # Interactive Rollback Option
-        if token:
+        if token and success:
             print(f"\n{BOLD}Would you like to test instant atomic rollback for this token? (y/n): {RESET}", end="")
             choice = input().strip().lower()
             if choice == "y":
