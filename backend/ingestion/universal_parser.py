@@ -215,18 +215,33 @@ class UniversalDocumentParser:
 
         # IPs
         all_ips = [ip for ip in _IPV4_PATTERN.findall(text) if _valid_ip(ip)]
-        # Filter obvious broadcast / subnet masks
+        # Filter obvious broadcast / subnet masks / link-local metadata
         cleaned_ips = [ip for ip in all_ips if not ip.startswith(("255.", "0.", "127."))]
-        # External candidate IP (prefer non-RFC1918 if found, else first valid)
-        external_ips = [ip for ip in cleaned_ips if not ip.startswith(("10.", "172.16.", "192.168."))]
+        # External candidate IP (prefer non-RFC1918 and non-link-local if found, else first valid)
+        external_ips = [
+            ip for ip in cleaned_ips
+            if not ip.startswith(("10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.", "192.168.", "169.254."))
+        ]
 
         primary_ip = None
         if structured_hints:
             for key in ["src_ip", "source_ip", "attacker_ip", "client_ip", "ip"]:
                 val = structured_hints.get(key)
-                if val and isinstance(val, str) and _valid_ip(val):
+                if val and isinstance(val, str) and _valid_ip(val) and not val.startswith("169.254."):
                     primary_ip = val
                     break
+
+        # Check raw text headers for explicit client / attacker IP
+        if not primary_ip:
+            header_client_match = re.search(
+                r"(?:client[-_]ip|x-forwarded-for|attacker[-_]ip|src[-_]ip|source[-_]ip)\s*[:=]\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",
+                text,
+                re.IGNORECASE,
+            )
+            if header_client_match and _valid_ip(header_client_match.group(1)):
+                cand = header_client_match.group(1)
+                if not cand.startswith(("169.254.", "127.", "0.", "255.")):
+                    primary_ip = cand
 
         if not primary_ip:
             primary_ip = external_ips[0] if external_ips else (cleaned_ips[0] if cleaned_ips else "198.51.100.50")
