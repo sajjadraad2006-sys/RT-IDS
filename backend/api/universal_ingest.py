@@ -44,14 +44,23 @@ def _get_provider_config() -> dict:
 
 
 class MockIngestRecord:
-    def __init__(self, alert_id: int, threat_type: str, severity: str, confidence: float, evidence: dict, mitre_techniques: list):
+    def __init__(
+        self,
+        alert_id: int,
+        threat_type: str,
+        severity: str,
+        confidence: float,
+        evidence: dict,
+        mitre_techniques: list,
+        route: str = "autonomous_containment",
+    ):
         self.id = alert_id
         self.type = threat_type
         self.severity = severity
         self.stage = "classifier"
-        self.route = "autonomous_containment"
+        self.route = route
         self.confidence = confidence
-        self.anomaly_score = 0.95
+        self.anomaly_score = 0.95 if severity in ("high", "critical") else (0.3 if severity == "medium" else 0.0)
         self.created_at = time.time()
         self.evidence_json = json.dumps(evidence)
         self.input_schema_json = json.dumps({"detected_input_profile": "universal_document", "feature_coverage_percentage": 100.0})
@@ -86,7 +95,9 @@ async def _execute_doc_triage(
     if auto_triage:
         primary_ip = iocs["primary_ip"]
         primary_port = iocs["primary_port"]
-        techniques = suggested_log["mitre_techniques"] or ["T1190"]
+        techniques = suggested_log["mitre_techniques"]
+        is_known_benign = not techniques and not iocs.get("cve_identifiers") and not iocs.get("observed_keywords")
+        route_str = "known_benign" if is_known_benign else "document_triage"
 
         record = MockIngestRecord(
             alert_id=int(time.time() % 100000) + 1,
@@ -100,11 +111,12 @@ async def _execute_doc_triage(
                 "keywords": iocs["observed_keywords"],
             },
             mitre_techniques=techniques,
+            route=route_str,
         )
 
         smart_log = build_smart_log(record)
         smart_log.source["src_ip"] = primary_ip
-        smart_log.source["dest_port"] = str(primary_port)
+        smart_log.source["dest_port"] = str(primary_port) if primary_port is not None else ""
 
         defense_context = default_defense_rag.format_prompt_context(playbook)
         mitre_context = f"File: {target_name}. Techniques: {', '.join(techniques)}. CVEs: {', '.join(iocs['cve_identifiers'])}."

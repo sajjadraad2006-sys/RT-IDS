@@ -260,7 +260,7 @@ class UniversalDocumentParser:
                         pass
 
         if primary_port is None:
-            primary_port = int(list(ports)[0]) if ports else 80
+            primary_port = int(list(ports)[0]) if ports else None
 
         # ATT&CK IDs & CVEs
         t_ids = list(set(m.upper() for m in _ATTACK_ID_PATTERN.findall(text)))
@@ -299,13 +299,26 @@ class UniversalDocumentParser:
     ) -> Dict[str, Any]:
         """Synthesize an actionable SmartLog compatible with CyberGuard AI decision engine."""
         matched_techniques = [t["technique_id"] for t in playbook.get("techniques", [])]
-        severity = "high" if len(matched_techniques) >= 2 or iocs["cve_identifiers"] else "medium"
+        has_critical_indicators = bool(iocs.get("cve_identifiers") or iocs.get("observed_keywords"))
+
+        if matched_techniques and has_critical_indicators:
+            severity = "high"
+            confidence = 0.90
+            threat_label = playbook.get("query", filename)[:60].replace("\n", " ")
+        elif matched_techniques or has_critical_indicators:
+            severity = "medium"
+            confidence = 0.70
+            threat_label = playbook.get("query", filename)[:60].replace("\n", " ")
+        else:
+            severity = "low"
+            confidence = 0.20
+            threat_label = "Routine Operational Telemetry Baseline"
 
         return {
             "source_file": filename,
-            "threat_label": playbook.get("query", filename)[:60].replace("\n", " "),
+            "threat_label": threat_label,
             "severity": severity,
-            "confidence": 0.90 if matched_techniques else 0.65,
+            "confidence": confidence,
             "src_ip": iocs["primary_ip"],
             "dest_port": iocs["primary_port"],
             "mitre_techniques": matched_techniques,
@@ -313,8 +326,8 @@ class UniversalDocumentParser:
             "evidence_summary": [
                 f"Source Document: {filename}",
                 f"Primary Suspect IP: {iocs['primary_ip']}",
-                f"Correlated Techniques: {', '.join(matched_techniques) or 'Anomaly baseline'}",
-                f"Observed Indicators: {', '.join(iocs['observed_keywords']) or 'Heuristic match'}",
+                f"Correlated Techniques: {', '.join(matched_techniques) or 'None (Operational Baseline)'}",
+                f"Observed Indicators: {', '.join(iocs['observed_keywords']) or 'No Malicious Keywords'}",
             ],
             "raw_excerpt": text[:600],
         }

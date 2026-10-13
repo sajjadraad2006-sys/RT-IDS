@@ -637,7 +637,7 @@ class GeniusDefenseRAG:
         # -------------------------------------------------------------------
         ontology_hits = []
         for term, tids in CYBER_CONCEPT_GRAPH.items():
-            if term in lower_query:
+            if re.search(rf"\b{re.escape(term)}\b", lower_query):
                 for tid in tids:
                     if tid in self._techniques and tid not in ontology_hits:
                         ontology_hits.append(tid)
@@ -656,7 +656,23 @@ class GeniusDefenseRAG:
         fts_techniques = []
         threat_techniques = []
 
-        tokens = [t for t in re.findall(r"[A-Za-z0-9_-]+", lower_query) if len(t) >= 3]
+        common_stopwords = {
+            "the", "and", "for", "with", "from", "that", "this", "all", "are", "was", "were",
+            "log", "logs", "audit", "status", "client", "host", "server", "user", "users",
+            "telemetry", "notice", "corp", "change", "window", "scheduled", "script",
+            "date", "time", "command", "system", "file", "files", "name", "path",
+            "operational", "maintenance", "activity", "approved", "success", "standard",
+            "http", "post", "get", "api", "query", "request", "response", "data", "info",
+            "select", "where", "line", "text", "body", "code", "case", "true", "false",
+            "process", "object", "cpu", "gt", "single", "transaction", "quick", "prod",
+            "null", "none", "item", "list", "array", "type", "string", "int", "value",
+            "operator", "backup", "admin", "sysadmin", "authorized", "sql", "ps1", "sh",
+            "bat", "dump", "metrics", "prometheus", "snmp", "nessus", "scanner", "scan",
+        }
+        tokens = [
+            t for t in re.findall(r"[A-Za-z0-9]+", lower_query)
+            if len(t) >= 3 and t not in common_stopwords
+        ]
         if tokens:
             try:
                 conn = sqlite3.connect(self._corpus_db_path, timeout=10)
@@ -667,35 +683,37 @@ class GeniusDefenseRAG:
                 clean_fts_terms = [f'"{tok}"*' for tok in tokens[:8] if tok.isalnum()]
                 if clean_fts_terms:
                     fts_query_str = " OR ".join(clean_fts_terms)
-                    sql = """
-                        SELECT doc_id, doc_type, name, bm25(cyber_knowledge_fts) as score
+                    sql_tech = """
+                        SELECT doc_id, bm25(cyber_knowledge_fts) as score
                         FROM cyber_knowledge_fts
-                        WHERE cyber_knowledge_fts MATCH ?
+                        WHERE doc_type = 'technique' AND cyber_knowledge_fts MATCH ?
                         ORDER BY score
                         LIMIT 15
                     """
-                    rows = c.execute(sql, (fts_query_str,)).fetchall()
-                    matched_software_or_groups = []
-
-                    for r in rows:
+                    tech_rows = c.execute(sql_tech, (fts_query_str,)).fetchall()
+                    for r in tech_rows:
                         d_id = r["doc_id"]
-                        d_type = r["doc_type"]
-                        if d_type == "technique":
-                            if d_id in self._techniques and d_id not in fts_techniques:
-                                fts_techniques.append(d_id)
-                        elif d_type in ("software", "group"):
-                            matched_software_or_groups.append((d_id, r["name"]))
+                        if d_id in self._techniques and d_id not in fts_techniques:
+                            fts_techniques.append(d_id)
 
-                    # Expand matched software / groups via threat_relationships
-                    for entity_id, entity_name in matched_software_or_groups:
-                        rel_rows = c.execute(
-                            "SELECT technique_id FROM threat_relationships WHERE source_id = ? OR source_name = ? LIMIT 10",
-                            (entity_id, entity_name)
-                        ).fetchall()
-                        for rrow in rel_rows:
-                            tid = rrow["technique_id"].upper()
-                            if tid in self._techniques and tid not in threat_techniques:
-                                threat_techniques.append(tid)
+                    entity_clauses = [f'name MATCH \'"{tok}"*\' OR aliases MATCH \'"{tok}"*\'' for tok in tokens[:8] if tok.isalnum()]
+                    if entity_clauses:
+                        sql_ent = f"""
+                            SELECT doc_id, name
+                            FROM cyber_knowledge_fts
+                            WHERE (doc_type = 'software' OR doc_type = 'group') AND ({' OR '.join(entity_clauses)})
+                            LIMIT 10
+                        """
+                        ent_rows = c.execute(sql_ent).fetchall()
+                        for r in ent_rows:
+                            rel_rows = c.execute(
+                                "SELECT technique_id FROM threat_relationships WHERE source_id = ? OR source_name = ? LIMIT 10",
+                                (r["doc_id"], r["name"])
+                            ).fetchall()
+                            for rrow in rel_rows:
+                                tid = rrow["technique_id"].upper()
+                                if tid in self._techniques and tid not in threat_techniques:
+                                    threat_techniques.append(tid)
 
                 conn.close()
             except Exception as exc:
@@ -744,8 +762,21 @@ class GeniusDefenseRAG:
 
         results = []
         for tid, score in sorted_candidates:
+            # Check if this technique was confirmed by domain cyber channels (exact, ontology, threat graph, fuzzy)
+            is_confirmed_by_domain_channel = bool(
+                (channel_ranks.get("exact") and tid in channel_ranks["exact"])
+                or (channel_ranks.get("ontology") and tid in channel_ranks["ontology"])
+                or (channel_ranks.get("threat_entity") and tid in channel_ranks["threat_entity"])
+                or (channel_ranks.get("fuzzy") and tid in channel_ranks["fuzzy"])
+            )
+            rel_score = round(score * 100.0, 3)
+            # If candidate was ONLY matched by broad FTS5 keywords without domain channel confirmation
+            # and its score is below threshold, filter it out as ungrounded noise.
+            if not is_confirmed_by_domain_channel and rel_score < 2.0:
+                continue
+
             tech = self._techniques[tid].copy()
-            tech["relevance_score"] = round(score * 100.0, 3)
+            tech["relevance_score"] = rel_score
             results.append(tech)
 
         return results
