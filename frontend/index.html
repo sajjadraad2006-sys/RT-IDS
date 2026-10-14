@@ -189,56 +189,113 @@
 
       <!-- 100-Attack Stress Test & Benchmark Suite Card -->
       <div class="benchmark-card reveal is-in">
-        <div class="benchmark-header">
-          <div>
-            <div class="benchmark-badge-row">
-              <span class="benchmark-badge-100"><svg style="width:12px;height:12px"><use href="#i-bolt"/></svg> 100 Threat Vectors Ready</span>
-              <span class="badge badge-enforced">RAG + Foundation-Sec-8B</span>
-              <span class="badge badge-simulated">10 Threat Families</span>
+        <!-- Top Hero Section -->
+        <div class="benchmark-hero">
+          <div class="benchmark-hero-left">
+            <div class="cyber-badge-strip">
+              <span class="cyber-pill pill-radar"><span class="radar-dot"></span> Radar Online</span>
+              <span class="cyber-pill pill-cyan"><svg style="width:13px;height:13px"><use href="#i-bolt"/></svg> 100 Multi-Vector Threats</span>
+              <span class="cyber-pill pill-purple"><svg style="width:13px;height:13px"><use href="#i-chip"/></svg> Foundation-Sec-8B (GPU)</span>
+              <span class="cyber-pill pill-emerald"><svg style="width:13px;height:13px"><use href="#i-shield"/></svg> Zero-Hallucination SafePath</span>
             </div>
-            <h2 style="color:var(--text);margin-top:4px;">Automated Defense Benchmark Console</h2>
-            <p class="text-muted text-sm">Test and verify how the AI detects SQLi, Novel Exploits, Ransomware, Spring4Shell, Kerberoasting, and Unknown Anomalies across up to 100 batch attacks.</p>
-          </div>
-          <div>
-            <button class="benchmark-btn-run" id="btn-run-benchmark">
-              <svg style="width:18px;height:18px"><use href="#i-bolt"/></svg>
-              <span>🚀 Launch 100-Vector Stress Test</span>
-            </button>
+            <h2 class="benchmark-hero-title">Automated Defense Benchmark Console</h2>
+            <p class="benchmark-hero-sub">Autonomous multi-vector cyber attack stress-testing engine. Evaluates MITRE ATT&amp;CK / D3FEND Graph-RAG precision, Foundation-Sec-8B neural reasoning, and autonomous containment actuators with cryptographic rollback tokens.</p>
           </div>
         </div>
 
-        <div class="benchmark-controls">
-          <div>
-            <label class="field-label" style="font-size:0.75rem;">Threat Category Filter:</label>
-            <select class="select" id="benchmark-category-select" style="width:100%;">
-              <option value="">All Categories (100 Vectors)</option>
-              <option value="SQL Injection & Database Exploits">SQL Injection &amp; Database Exploits (10)</option>
-              <option value="Web Application Exploits & RCE">Web Application Exploits &amp; RCE (10)</option>
-              <option value="Active Directory & Identity">Active Directory &amp; Identity (10)</option>
-              <option value="Ransomware & Destructive Payloads">Ransomware &amp; Destructive Payloads (10)</option>
-              <option value="Novel Exploits & Unknown Anomalies">Novel Exploits &amp; Unknown Anomalies (10)</option>
-              <option value="Network Flooding & Volumetric DoS">Network Flooding &amp; Volumetric DoS (10)</option>
-              <option value="Command and Control & Exfiltration">Command &amp; Control &amp; Exfiltration (10)</option>
-              <option value="Privilege Escalation & Persistence">Privilege Escalation &amp; Persistence (10)</option>
-              <option value="Defense Evasion & Obfuscation">Defense Evasion &amp; Obfuscation (10)</option>
-              <option value="Cloud, API & Container Exploits">Cloud, API &amp; Container Exploits (10)</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label" style="font-size:0.75rem;">Attack Batch Count:</label>
-            <div class="segmented" id="benchmark-count-seg">
-              <button class="seg" data-count="10">10 Attacks</button>
-              <button class="seg" data-count="25">25 Attacks</button>
-              <button class="seg" data-count="50">50 Attacks</button>
-              <button class="seg is-active" data-count="100">100 (Full)</button>
+        <!-- Cockpit Command Grid (3 Spacious Parameter Pods) -->
+        <div class="benchmark-cockpit">
+          <!-- Pod 1: Threat Vector Scope -->
+          <div class="cockpit-pod">
+            <div class="pod-header">
+              <div class="pod-icon icon-cyan"><svg style="width:16px;height:16px;"><use href="#i-filter"/></svg></div>
+              <div>
+                <span class="pod-label">THREAT VECTOR SCOPE</span>
+                <span class="pod-title">Category Target</span>
+              </div>
+            </div>
+            <div class="pod-body">
+              <select class="cyber-select" id="benchmark-category-select">
+                <option value="">All Categories (100 Vectors)</option>
+                <option value="SQL Injection & Database Exploits">SQL Injection &amp; Database Exploits (10)</option>
+                <option value="Web Application Exploits & RCE">Web Application Exploits &amp; RCE (10)</option>
+                <option value="Active Directory & Identity">Active Directory &amp; Identity (10)</option>
+                <option value="Ransomware & Destructive Payloads">Ransomware &amp; Destructive Payloads (10)</option>
+                <option value="Novel Exploits & Unknown Anomalies">Novel Exploits &amp; Unknown Anomalies (10)</option>
+                <option value="Network Flooding & Volumetric DoS">Network Flooding &amp; Volumetric DoS (10)</option>
+                <option value="Command and Control & Exfiltration">Command &amp; Control &amp; Exfiltration (10)</option>
+                <option value="Privilege Escalation & Persistence">Privilege Escalation &amp; Persistence (10)</option>
+                <option value="Defense Evasion & Obfuscation">Defense Evasion &amp; Obfuscation (10)</option>
+                <option value="Cloud, API & Container Exploits">Cloud, API &amp; Container Exploits (10)</option>
+              </select>
             </div>
           </div>
-          <div>
-            <label class="field-label" style="font-size:0.75rem;">Execution Safeguard:</label>
-            <div style="font-size:0.8rem;color:var(--text-2);padding-top:6px;">
-              <span class="mono text-green">● Guardrail Armed:</span> Zero-hallucination actuator policy active.
+
+          <!-- Pod 2: AI Reasoning Engine -->
+          <div class="cockpit-pod">
+            <div class="pod-header">
+              <div class="pod-icon icon-purple"><svg style="width:16px;height:16px;"><use href="#i-chip"/></svg></div>
+              <div>
+                <span class="pod-label">INTELLIGENCE ENGINE</span>
+                <span class="pod-title">Reasoning Mode</span>
+              </div>
+            </div>
+            <div class="pod-body">
+              <div class="engine-switch" id="benchmark-mode-seg">
+                <button class="engine-card is-active" id="btn-mode-fast" type="button">
+                  <span class="engine-card-icon">⚡</span>
+                  <div class="engine-card-info">
+                    <span class="engine-name">Fast Policy</span>
+                    <span class="engine-meta">Sub-10ms Rulebook</span>
+                  </div>
+                </button>
+                <button class="engine-card" id="btn-mode-deep" type="button">
+                  <span class="engine-card-icon">🧠</span>
+                  <div class="engine-card-info">
+                    <span class="engine-name">Deep Neural AI</span>
+                    <span class="engine-meta">RTX 5050 · Foundation-Sec</span>
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
+
+          <!-- Pod 3: Batch Count Scale -->
+          <div class="cockpit-pod">
+            <div class="pod-header">
+              <div class="pod-icon icon-blue"><svg style="width:16px;height:16px;"><use href="#i-bolt"/></svg></div>
+              <div>
+                <span class="pod-label">STRESS-TEST SCALE</span>
+                <span class="pod-title">Attack Batch</span>
+              </div>
+            </div>
+            <div class="pod-body">
+              <div class="batch-selector" id="benchmark-count-seg">
+                <button class="batch-btn" data-count="10">10</button>
+                <button class="batch-btn" data-count="25">25</button>
+                <button class="batch-btn" data-count="50">50</button>
+                <button class="batch-btn is-active" data-count="100">100 (Full)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cockpit Launchbar -->
+        <div class="cockpit-launchbar">
+          <div class="launchbar-safeguard">
+            <span class="safeguard-light"></span>
+            <div class="safeguard-details">
+              <strong class="safeguard-title">Zero-Hallucination SafePath &amp; Rollback Ledger Armed</strong>
+              <span id="ai-engine-hint" class="safeguard-hint">⚡ Fast Policy: Instant deterministic rulebook check (sub-10ms).</span>
+            </div>
+          </div>
+          <button class="cyber-launch-btn" id="btn-run-benchmark">
+            <span class="btn-ambient-glow"></span>
+            <span class="btn-inner">
+              <svg class="btn-svg" style="width:18px;height:18px;"><use href="#i-bolt"/></svg>
+              <span class="btn-text">🚀 Launch 100-Vector Stress Test</span>
+            </span>
+          </button>
         </div>
 
         <!-- Progress Box (hidden by default) -->
@@ -254,37 +311,55 @@
 
         <!-- Scorecard Container -->
         <div class="benchmark-scorecard" id="benchmark-scorecard">
-          <div class="scorecard-item">
-            <span class="sc-label">Total Attacks Tested</span>
+          <div class="scorecard-pod pod-cyan">
+            <div class="scorecard-top">
+              <span class="sc-label">TOTAL ATTACKS</span>
+              <span class="sc-badge">VECTORS</span>
+            </div>
             <span class="sc-val text-cyan" id="sc-total">100</span>
             <span class="sc-hint">Simulated threat vectors</span>
           </div>
-          <div class="scorecard-item">
-            <span class="sc-label">Detection Accuracy</span>
+          <div class="scorecard-pod pod-emerald">
+            <div class="scorecard-top">
+              <span class="sc-label">DETECTION ACCURACY</span>
+              <span class="sc-badge">PRECISION</span>
+            </div>
             <span class="sc-val text-green" id="sc-accuracy">100.0%</span>
             <span class="sc-hint">Malicious signals detected</span>
           </div>
-          <div class="scorecard-item">
-            <span class="sc-label">Autonomous Mitigations</span>
+          <div class="scorecard-pod pod-blue">
+            <div class="scorecard-top">
+              <span class="sc-label">AUTONOMOUS MITIGATIONS</span>
+              <span class="sc-badge">ACTUATORS</span>
+            </div>
             <span class="sc-val text-cyan" id="sc-mitigations">100.0%</span>
-            <span class="sc-hint">Firewall / drop executed</span>
+            <span class="sc-hint">Firewall &amp; drop executed</span>
           </div>
-          <div class="scorecard-item">
-            <span class="sc-label">RAG Grounding Precision</span>
+          <div class="scorecard-pod pod-purple">
+            <div class="scorecard-top">
+              <span class="sc-label">RAG GROUNDING</span>
+              <span class="sc-badge">MITRE</span>
+            </div>
             <span class="sc-val text-amber" id="sc-grounding">100%</span>
             <span class="sc-hint">ATT&amp;CK + D3FEND mapped</span>
           </div>
-          <div class="scorecard-item">
-            <span class="sc-label">Mean Latency</span>
+          <div class="scorecard-pod pod-amber">
+            <div class="scorecard-top">
+              <span class="sc-label">MEAN LATENCY</span>
+              <span class="sc-badge">SPEED</span>
+            </div>
             <span class="sc-val text-cyan" id="sc-latency">~28 ms</span>
             <span class="sc-hint">Inference + containment</span>
           </div>
         </div>
 
         <!-- Table of Results -->
-        <div class="panel-head" style="margin-top:var(--s4);margin-bottom:var(--s2);">
-          <h3 class="panel-title" style="font-size:0.95rem;">Live Attack Execution Stream &amp; Containment Ledger</h3>
-          <div class="search-box" style="width:280px;">
+        <div class="panel-head" style="margin-top:var(--s5);margin-bottom:var(--s2);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="table-pulse-icon"><svg style="width:16px;height:16px;color:var(--cyan);"><use href="#i-sync"/></svg></div>
+            <h3 class="panel-title" style="font-size:1.05rem;letter-spacing:-0.01em;">Live Attack Execution Stream &amp; Containment Ledger</h3>
+          </div>
+          <div class="search-box" style="width:320px;">
             <svg><use href="#i-search"/></svg>
             <input type="text" id="benchmark-table-filter" placeholder="Filter by attack name, CVE, or IP…">
           </div>
@@ -293,7 +368,7 @@
           <table class="benchmark-table">
             <thead>
               <tr>
-                <th>#</th>
+                <th style="width:40px;">#</th>
                 <th>Scenario Title</th>
                 <th>Category</th>
                 <th>ATT&amp;CK</th>
@@ -306,7 +381,7 @@
               </tr>
             </thead>
             <tbody id="benchmark-results-body">
-              <tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-3);">Click "Launch 100-Vector Stress Test" to execute automated benchmark.</td></tr>
+              <tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-3);">Click "Launch 100-Vector Stress Test" to execute automated benchmark.</td></tr>
             </tbody>
           </table>
         </div>

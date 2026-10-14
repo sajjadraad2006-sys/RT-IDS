@@ -8,8 +8,9 @@ echo =======================================================================
 echo.
 
 set PYTHONUTF8=1
+chcp 65001 >nul 2>&1
 
-:: Activate virtual environment if present
+REM Activate virtual environment if present
 if exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
 ) else if exist "venv\Scripts\activate.bat" (
@@ -17,5 +18,4 @@ if exist ".venv\Scripts\activate.bat" (
 )
 
 python scripts\attack_simulation_console.py
-
 pause

@@ -213,6 +213,7 @@ window.CG = window.CG || {};
 
   document.getElementById("provider-badge").addEventListener("click", () => route("settings"));
 
+  CG.toast = toast;
   CG.util = { esc, fmtNum, fmtTime, timeAgo, toast, md, watchReveals, paintProvider, paintOperationalState, route };
   CG.onView = {};
   CG.onLeave = {};

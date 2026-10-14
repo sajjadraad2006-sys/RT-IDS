@@ -552,6 +552,25 @@ Technique T1486 and T1105 identified.`;
   /* ═══ 2b. 100-VECTOR ATTACK STRESS TEST & BENCHMARK SUITE ═══ */
   let currentBenchmarkBatch = 100;
   let benchmarkResultsData = [];
+  let isDeepReasoningMode = false;
+
+  function updateLaunchButton(isLoading = false, customText = null) {
+    const btnRun = document.getElementById("btn-run-benchmark");
+    if (!btnRun) return;
+    if (isLoading) {
+      btnRun.disabled = true;
+      btnRun.innerHTML = `<span class="btn-inner"><span class="spinner" style="width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;"></span> <span class="btn-text">${esc(customText || 'Executing Attack Stream…')}</span></span>`;
+      return;
+    }
+    btnRun.disabled = false;
+    if (isDeepReasoningMode) {
+      btnRun.classList.add("is-deep");
+      btnRun.innerHTML = `<span class="btn-inner"><svg class="btn-svg" style="width:18px;height:18px;"><use href="#i-chip"/></svg> <span class="btn-text">🧠 Launch Deep AI Defense (${currentBenchmarkBatch} Attacks)</span></span>`;
+    } else {
+      btnRun.classList.remove("is-deep");
+      btnRun.innerHTML = `<span class="btn-inner"><svg class="btn-svg" style="width:18px;height:18px;"><use href="#i-bolt"/></svg> <span class="btn-text">🚀 Launch ${currentBenchmarkBatch}-Vector Stress Test</span></span>`;
+    }
+  }
 
   function initBenchmarkSuite() {
     const btnRun = document.getElementById("btn-run-benchmark");
@@ -561,13 +580,45 @@ Technique T1486 and T1105 identified.`;
 
     if (!btnRun) return;
 
+    const btnModeFast = document.getElementById("btn-mode-fast");
+    const btnModeDeep = document.getElementById("btn-mode-deep");
+    const hintEl = document.getElementById("ai-engine-hint");
+
+    if (btnModeFast && btnModeDeep) {
+      btnModeFast.addEventListener("click", () => {
+        isDeepReasoningMode = false;
+        btnModeFast.classList.add("is-active");
+        btnModeDeep.classList.remove("is-active");
+        if (hintEl) hintEl.innerHTML = '<span class="mono text-cyan">⚡ Fast Policy:</span> Instant deterministic rulebook check (sub-10ms).';
+        updateLaunchButton();
+      });
+
+      btnModeDeep.addEventListener("click", () => {
+        isDeepReasoningMode = true;
+        btnModeDeep.classList.add("is-active");
+        btnModeFast.classList.remove("is-active");
+        if (hintEl) hintEl.innerHTML = '<span class="mono text-green">🧠 Deep AI Mode:</span> Live token generation on RTX 5050 GPU for every attack vector.';
+        if (currentBenchmarkBatch > 10) {
+          currentBenchmarkBatch = 10;
+          if (countSeg) {
+            countSeg.querySelectorAll(".batch-btn, .seg").forEach((b) => {
+              b.classList.toggle("is-active", b.dataset.count === "10");
+            });
+          }
+          CG.toast("Set to 10 attacks for Deep Neural AI reasoning so results stream smoothly.", 3500);
+        }
+        updateLaunchButton();
+      });
+    }
+
     // Segmented button count switching
     if (countSeg) {
-      countSeg.querySelectorAll(".seg").forEach((b) => {
+      countSeg.querySelectorAll(".batch-btn, .seg").forEach((b) => {
         b.addEventListener("click", () => {
-          countSeg.querySelectorAll(".seg").forEach((s) => s.classList.remove("is-active"));
+          countSeg.querySelectorAll(".batch-btn, .seg").forEach((s) => s.classList.remove("is-active"));
           b.classList.add("is-active");
           currentBenchmarkBatch = parseInt(b.dataset.count, 10) || 100;
+          updateLaunchButton();
         });
       });
     }
@@ -582,7 +633,8 @@ Technique T1486 and T1105 identified.`;
           r.category.toLowerCase().includes(query) ||
           r.technique_id.toLowerCase().includes(query) ||
           (r.d3fend || "").toLowerCase().includes(query) ||
-          (r.action || "").toLowerCase().includes(query)
+          (r.action || "").toLowerCase().includes(query) ||
+          (r.rationale || "").toLowerCase().includes(query)
         ));
       });
     }
@@ -621,17 +673,23 @@ Technique T1486 and T1105 identified.`;
     const category = catSelect ? catSelect.value : "";
     const enforce = liveToggle ? liveToggle.checked : false;
 
-    btnRun.disabled = true;
-    btnRun.innerHTML = '⚡ Testing ' + batchSize + ' Vectors…';
+    updateLaunchButton(true, (isDeepReasoningMode ? '🧠 Reasoning ' : '⚡ Testing ') + batchSize + ' Vectors…');
     if (progBox) progBox.hidden = false;
 
     // Animated progress simulation while backend computes
     let currentPct = 12;
     if (progFill) progFill.style.width = currentPct + "%";
     if (tickerPct) tickerPct.textContent = currentPct + "%";
-    if (tickerText) tickerText.textContent = "⚡ Ingesting " + batchSize + " attack vectors into MITRE ATT&CK & D3FEND RAG…";
+    if (tickerText) tickerText.textContent = isDeepReasoningMode
+      ? `🧠 Initializing Foundation-Sec-8B on RTX 5050 for ${batchSize} vectors…`
+      : `⚡ Ingesting ${batchSize} attack vectors into MITRE ATT&CK & D3FEND RAG…`;
 
-    const tickerSteps = [
+    const tickerSteps = isDeepReasoningMode ? [
+      { pct: 25, text: "🔍 Performing Hybrid Graph-RAG retrieval for each attack vector…" },
+      { pct: 50, text: "🧠 Foundation-Sec-8B generating neural reasoning tokens on RTX 5050…" },
+      { pct: 75, text: "🛡️ Enforcing zero-hallucination guardrails & autonomous containment actuators…" },
+      { pct: 90, text: "⚡ Finalizing MITRE defense audit trail and rollback tokens…" },
+    ] : [
       { pct: 28, text: "🔍 Grounding threat signatures against 697 Enterprise ATT&CK techniques…" },
       { pct: 54, text: "🤖 Querying Foundation-Sec-8B security reasoning & unseen anomaly detectors…" },
       { pct: 78, text: "🛡️ Formulating zero-hallucination containment plans & cryptographic rollback tokens…" },
@@ -646,19 +704,20 @@ Technique T1486 and T1105 identified.`;
         if (tickerPct) tickerPct.textContent = s.pct + "%";
         if (tickerText) tickerText.textContent = s.text;
       }
-    }, 400);
+    }, isDeepReasoningMode ? 1500 : 400);
 
     try {
       const res = await CG.api.runBatchBenchmark({
         batch_size: batchSize,
         category: category || null,
         enforce_live: enforce,
+        deep_reasoning: isDeepReasoningMode,
       });
 
       clearInterval(interval);
       if (progFill) progFill.style.width = "100%";
       if (tickerPct) tickerPct.textContent = "100%";
-      if (tickerText) tickerText.textContent = `✓ Benchmark Complete: ${res.benchmark_summary.total_attacks_tested} Vectors Tested · ${res.benchmark_summary.detection_accuracy_percent}% Detection Rate!`;
+      if (tickerText) tickerText.textContent = `✓ Benchmark Complete: ${res.benchmark_summary.total_attacks_tested} Vectors Tested · ${res.benchmark_summary.detection_accuracy_percent}% Detection Rate (${res.benchmark_summary.engine || 'Active Defense'})!`;
 
       // Update Scorecard KPIs
       const summary = res.benchmark_summary;
@@ -688,14 +747,13 @@ Technique T1486 and T1105 identified.`;
         } catch (_) {}
       }
 
-      CG.toast(`✅ 100-Vector Benchmark Success: ${summary.threats_detected}/${summary.total_attacks_tested} attacks detected (${summary.detection_accuracy_percent}%) with zero hallucinations!`, 5000);
+      CG.toast(`✅ Benchmark Success: ${summary.threats_detected}/${summary.total_attacks_tested} attacks detected (${summary.detection_accuracy_percent}%) with zero hallucinations!`, 5000);
     } catch (err) {
       clearInterval(interval);
       if (tickerText) tickerText.textContent = `❌ Benchmark Failed: ${err.message}`;
       CG.toast(`Benchmark error: ${err.message}`, 4000);
     } finally {
-      btnRun.disabled = false;
-      btnRun.innerHTML = '<svg style="width:18px;height:18px"><use href="#i-bolt"/></svg> <span>🚀 Launch 100-Vector Stress Test</span>';
+      updateLaunchButton();
     }
   }
 
@@ -714,9 +772,12 @@ Technique T1486 and T1105 identified.`;
         ? '<span class="badge badge-critical">MALICIOUS</span>'
         : '<span class="badge badge-benign">BENIGN</span>';
       return `
-        <tr>
+        <tr class="benchmark-row" data-idx="${i}" style="cursor:pointer;" title="Click to view full AI reasoning">
           <td class="mono text-muted text-xs">${i + 1}</td>
-          <td><strong>${esc(r.title)}</strong></td>
+          <td>
+            <strong>${esc(r.title)}</strong>
+            <span class="text-xs text-cyan" style="display:block;opacity:0.8;">▾ View AI Reasoning</span>
+          </td>
           <td><span class="text-xs text-muted">${esc(r.category)}</span></td>
           <td><span class="badge badge-technique">${esc(r.technique_id)}</span></td>
           <td><span class="badge badge-d3fend" title="${esc(r.d3fend)}">${esc((r.d3fend || "").split(" ")[0])}</span></td>
@@ -726,8 +787,39 @@ Technique T1486 and T1105 identified.`;
           <td><code class="mono text-xs token-code">${esc(r.rollback_token || 'N/A')}</code></td>
           <td class="mono text-xs text-muted">${r.latency_ms} ms</td>
         </tr>
+        <tr class="benchmark-detail-row" id="bench-detail-${i}" style="display:none;background:rgba(15,23,42,0.85);">
+          <td colspan="10" style="padding:14px 20px;border-left:3px solid var(--cyan);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <strong style="color:var(--cyan);font-size:0.85rem;">🧠 AI Security Rationale (${esc(r.provider || 'AI Engine')} · ${esc(r.model_version || 'Foundation-Sec-8B')}):</strong>
+              <span class="mono text-xs text-muted">Latency: ${r.latency_ms} ms</span>
+            </div>
+            <p style="font-size:0.84rem;color:var(--text-2);margin:0 0 10px 0;line-height:1.45;">${esc(r.rationale || 'High-confidence automated mitigation enacted.')}</p>
+            <div style="display:flex;gap:16px;font-size:0.75rem;flex-wrap:wrap;" class="mono text-muted">
+              <span>Executed Actuator: <strong class="text-amber">${esc(r.action || 'none')}</strong></span>
+              <span>Rollback Token: <strong class="text-cyan">${esc(r.rollback_token || 'N/A')}</strong></span>
+              <span>ATT&amp;CK Mapping: <strong class="text-technique">${esc(r.technique_id)}</strong></span>
+              <span>D3FEND Countermeasure: <strong class="text-d3fend">${esc(r.d3fend || 'N/A')}</strong></span>
+            </div>
+          </td>
+        </tr>
       `;
     }).join("");
+
+    // Bind row click to toggle detail expansion
+    body.querySelectorAll(".benchmark-row").forEach((row) => {
+      row.addEventListener("click", () => {
+        const idx = row.dataset.idx;
+        const detailRow = document.getElementById(`bench-detail-${idx}`);
+        if (detailRow) {
+          const isHidden = detailRow.style.display === "none";
+          detailRow.style.display = isHidden ? "table-row" : "none";
+          const viewHint = row.querySelector(".text-cyan");
+          if (viewHint) {
+            viewHint.textContent = isHidden ? "▴ Hide AI Reasoning" : "▾ View AI Reasoning";
+          }
+        }
+      });
+    });
   }
 
   /* ═══ VIEW LIFECYCLE HOOKS ═══ */
