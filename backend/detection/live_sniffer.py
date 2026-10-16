@@ -24,6 +24,37 @@ from .features import FEATURE_NAMES
 logger = logging.getLogger("cyberguard.detection.live_sniffer")
 
 
+class PacketParseResult(tuple):
+    """8-tuple for backward compatibility with attribute extensions for header length."""
+
+    def __new__(
+        cls,
+        src_ip: str,
+        dst_ip: str,
+        src_port: int,
+        dst_port: int,
+        proto: int,
+        length: int,
+        tcp_flags: int,
+        win_size: int,
+        header_len: int = 20,
+    ):
+        obj = super().__new__(
+            cls,
+            (src_ip, dst_ip, src_port, dst_port, proto, length, tcp_flags, win_size),
+        )
+        obj.src_ip = src_ip
+        obj.dst_ip = dst_ip
+        obj.src_port = src_port
+        obj.dst_port = dst_port
+        obj.proto = proto
+        obj.length = length
+        obj.tcp_flags = tcp_flags
+        obj.win_size = win_size
+        obj.header_len = header_len
+        return obj
+
+
 class FlowRecord:
     """Tracks state and packet dynamics for a single bidirectional communication flow."""
 
@@ -38,6 +69,8 @@ class FlowRecord:
         self.bwd_packets = 0
         self.fwd_bytes = 0
         self.bwd_bytes = 0
+        self.fwd_header_bytes = 0
+        self.bwd_header_bytes = 0
 
         # Packet length histories
         self.fwd_lengths: List[int] = []
@@ -58,11 +91,24 @@ class FlowRecord:
         self.ack_count = 0
         self.urg_count = 0
 
+        # TCP Teardown State Tracking
+        self.fin_fwd = False
+        self.fin_bwd = False
+        self.rst_seen = False
+
         # TCP Window bytes
         self.init_win_bytes_fwd = 0
         self.init_win_bytes_bwd = 0
 
-    def update(self, length: int, is_fwd: bool, tcp_flags: int, win_size: int, timestamp: float) -> None:
+    def update(
+        self,
+        length: int,
+        is_fwd: bool,
+        tcp_flags: int,
+        win_size: int,
+        timestamp: float,
+        header_len: int = 20,
+    ) -> None:
         """Update flow metrics with an incoming packet."""
         dt = timestamp - self.last_time
         if dt > 0:
@@ -73,6 +119,9 @@ class FlowRecord:
             self.fwd_packets += 1
             self.fwd_bytes += length
             self.fwd_lengths.append(length)
+            self.fwd_header_bytes += header_len
+            if tcp_flags & 0x01: self.fin_fwd = True
+            if tcp_flags & 0x04: self.rst_seen = True
             if self.last_fwd_time is not None:
                 self.fwd_iats.append(timestamp - self.last_fwd_time)
             self.last_fwd_time = timestamp
@@ -82,6 +131,9 @@ class FlowRecord:
             self.bwd_packets += 1
             self.bwd_bytes += length
             self.bwd_lengths.append(length)
+            self.bwd_header_bytes += header_len
+            if tcp_flags & 0x01: self.fin_bwd = True
+            if tcp_flags & 0x04: self.rst_seen = True
             if self.last_bwd_time is not None:
                 self.bwd_iats.append(timestamp - self.last_bwd_time)
             self.last_bwd_time = timestamp
@@ -98,7 +150,7 @@ class FlowRecord:
 
     def to_feature_dict(self) -> Dict[str, float]:
         """Convert accumulated flow statistics to the 32 standard CICFlowMeter features."""
-        duration_us = max(1.0, (self.last_time - self.start_time) * 1e6)
+        duration_us = max(0.0, (self.last_time - self.start_time) * 1e6)
         total_packets = self.fwd_packets + self.bwd_packets
         total_bytes = self.fwd_bytes + self.bwd_bytes
 
@@ -127,12 +179,21 @@ class FlowRecord:
         bwd_iat_max = (max(self.bwd_iats) * 1e6) if self.bwd_iats else 0.0
         bwd_iat_min = (min(self.bwd_iats) * 1e6) if self.bwd_iats else 0.0
 
-        duration_sec = max(1e-6, duration_us / 1e6)
-        flow_bytes_per_sec = total_bytes / duration_sec
-        flow_pkts_per_sec = total_packets / duration_sec
+        # Safe rate calculation: for single-packet or sub-millisecond flows, avoid epsilon division blowup
+        if total_packets <= 1 or duration_us <= 0.0:
+            flow_bytes_per_sec = 0.0
+            flow_pkts_per_sec = 0.0
+        else:
+            duration_sec = duration_us / 1e6
+            rate_duration_sec = max(1e-3, duration_sec)
+            flow_bytes_per_sec = total_bytes / rate_duration_sec
+            flow_pkts_per_sec = total_packets / rate_duration_sec
 
         fwd_bytes_ratio = float(self.fwd_bytes / max(1, self.bwd_bytes))
         avg_pkt_sz = float(total_bytes / max(1, total_packets))
+
+        fwd_hdr_len = float(self.fwd_header_bytes if self.fwd_header_bytes > 0 else self.fwd_packets * 20)
+        bwd_hdr_len = float(self.bwd_header_bytes if self.bwd_header_bytes > 0 else self.bwd_packets * 20)
 
         return {
             # Canonical feature names (32 features)
@@ -162,8 +223,8 @@ class FlowRecord:
             "flow_iat_std": float(flow_iat_std),
             "flow_iat_max": float(flow_iat_max),
             "fwd_iat_mean": float(fwd_iat_mean),
-            "fwd_header_len": float(self.fwd_packets * 20),
-            "bwd_header_len": float(self.bwd_packets * 20),
+            "fwd_header_len": fwd_hdr_len,
+            "bwd_header_len": bwd_hdr_len,
             "down_up_ratio": float(self.bwd_packets / max(1, self.fwd_packets)),
             "flow_bytes_ratio": fwd_bytes_ratio,
             "active_mean": 0.0,
@@ -206,18 +267,35 @@ class LiveFlowSniffer:
         self.total_flows_flushed = 0
         self.last_capture_mode = "idle"
 
-    def parse_ipv4_packet(self, data: bytes) -> Optional[Tuple[str, str, int, int, int, int, int, int]]:
+    def parse_ipv4_packet(
+        self,
+        data: bytes,
+        has_ethernet: Optional[bool] = None,
+    ) -> Optional[PacketParseResult]:
         """Parse raw Ethernet/IP frame into packet dynamics.
         
-        Returns: (src_ip, dst_ip, src_port, dst_port, protocol, length, tcp_flags, win_size)
+        Returns: PacketParseResult (unpacks as 8-tuple for backwards compatibility, with .header_len).
         """
         if len(data) < 20:
             return None
 
-        # Detect and skip Ethernet header (14 bytes) if present
+        # Detect and skip Ethernet header (14 bytes) safely
         offset = 0
-        if len(data) >= 34 and data[12:14] == b"\x08\x00":
+        if has_ethernet is True:
             offset = 14
+        elif has_ethernet is False:
+            offset = 0
+        else:
+            # Auto-detection: safely differentiate between Ethernet+IPv4 and raw IPv4 (e.g. 8.0.x.x IPs)
+            if len(data) >= 34 and data[12:14] == b"\x08\x00" and ((data[14] >> 4) == 4):
+                eth_ip_len = struct.unpack("!H", data[16:18])[0]
+                raw_ip_len = struct.unpack("!H", data[2:4])[0] if ((data[0] >> 4) == 4) else -1
+                if len(data) == eth_ip_len + 14 or (raw_ip_len != len(data) and eth_ip_len <= len(data) - 14):
+                    offset = 14
+                elif raw_ip_len == len(data):
+                    offset = 0
+                else:
+                    offset = 14
 
         ip_header = data[offset:offset + 20]
         if len(ip_header) < 20:
@@ -228,6 +306,8 @@ class LiveFlowSniffer:
         if version != 4:
             return None
         ihl = (version_ihl & 0x0F) * 4
+        if ihl < 20 or len(data) < offset + ihl:
+            return None
 
         total_length = struct.unpack("!H", ip_header[2:4])[0]
         proto = ip_header[9]
@@ -236,19 +316,26 @@ class LiveFlowSniffer:
 
         payload_offset = offset + ihl
         src_port, dst_port, tcp_flags, win_size = 0, 0, 0, 0
+        transport_hdr_len = 0
 
         if proto == 6 and len(data) >= payload_offset + 20:  # TCP
             tcp_header = data[payload_offset:payload_offset + 20]
             src_port, dst_port = struct.unpack("!HH", tcp_header[0:4])
             tcp_flags = tcp_header[13]
             win_size = struct.unpack("!H", tcp_header[14:16])[0]
+            data_offset = (tcp_header[12] >> 4) * 4
+            transport_hdr_len = max(20, data_offset)
         elif proto == 17 and len(data) >= payload_offset + 8:  # UDP
             udp_header = data[payload_offset:payload_offset + 8]
             src_port, dst_port = struct.unpack("!HH", udp_header[0:4])
+            transport_hdr_len = 8
         else:
             return None
 
-        return (src_ip, dst_ip, src_port, dst_port, proto, total_length, tcp_flags, win_size)
+        header_len = ihl + transport_hdr_len
+        return PacketParseResult(
+            src_ip, dst_ip, src_port, dst_port, proto, total_length, tcp_flags, win_size, header_len
+        )
 
     def process_packet(
         self,
@@ -261,6 +348,7 @@ class LiveFlowSniffer:
         tcp_flags: int = 0,
         win_size: int = 0,
         timestamp: Optional[float] = None,
+        header_len: int = 20,
     ) -> None:
         """Process a parsed packet into the flow aggregation table."""
         now = timestamp or time.time()
@@ -275,20 +363,30 @@ class LiveFlowSniffer:
         with self._lock:
             if fwd_key in self._active_flows:
                 flow = self._active_flows[fwd_key]
-                flow.update(length, is_fwd=True, tcp_flags=tcp_flags, win_size=win_size, timestamp=now)
+                flow.update(length, is_fwd=True, tcp_flags=tcp_flags, win_size=win_size, timestamp=now, header_len=header_len)
             elif rev_key in self._active_flows:
                 flow = self._active_flows[rev_key]
-                flow.update(length, is_fwd=False, tcp_flags=tcp_flags, win_size=win_size, timestamp=now)
+                flow.update(length, is_fwd=False, tcp_flags=tcp_flags, win_size=win_size, timestamp=now, header_len=header_len)
             else:
                 flow = FlowRecord(fwd_key, is_forward=True, timestamp=now)
-                flow.update(length, is_fwd=True, tcp_flags=tcp_flags, win_size=win_size, timestamp=now)
+                flow.update(length, is_fwd=True, tcp_flags=tcp_flags, win_size=win_size, timestamp=now, header_len=header_len)
                 self._active_flows[fwd_key] = flow
 
-            # TCP connection termination check (FIN or RST)
-            if tcp_flags & (0x01 | 0x04):
-                flow_to_flush = self._active_flows.pop(
-                    fwd_key if fwd_key in self._active_flows else rev_key, None
-                )
+            # TCP stateful connection termination check:
+            # - Immediate flush on RST (connection aborted)
+            # - Immediate flush on bidirectional completion (both forward and backward FIN seen)
+            # - Flush on unidirectional teardown if flow never established reverse traffic (bwd_packets == 0 and fin_fwd)
+            should_flush = False
+            if flow.rst_seen:
+                should_flush = True
+            elif flow.fin_fwd and flow.fin_bwd:
+                should_flush = True
+            elif flow.bwd_packets == 0 and flow.fin_fwd:
+                should_flush = True
+
+            if should_flush:
+                flow_key = fwd_key if fwd_key in self._active_flows else rev_key
+                flow_to_flush = self._active_flows.pop(flow_key, None)
                 if flow_to_flush:
                     self.total_flows_flushed += 1
                     flushed_features = flow_to_flush.to_feature_dict()
@@ -378,9 +476,13 @@ class LiveFlowSniffer:
                     pkt = self.parse_ipv4_packet(data)
                     if pkt:
                         src_ip, dst_ip, src_port, dst_port, proto, length, tcp_flags, win_size = pkt
+                        header_len = getattr(pkt, "header_len", 20)
                         if port_filter and (src_port != port_filter and dst_port != port_filter):
                             continue
-                        self.process_packet(src_ip, dst_ip, src_port, dst_port, proto, length, tcp_flags, win_size)
+                        self.process_packet(
+                            src_ip, dst_ip, src_port, dst_port, proto, length,
+                            tcp_flags=tcp_flags, win_size=win_size, header_len=header_len
+                        )
 
                     now = time.time()
                     if now - last_flush_check >= 1.0:

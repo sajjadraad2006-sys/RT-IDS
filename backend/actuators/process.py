@@ -113,22 +113,43 @@ class ProcessActuator(BaseActuator):
         live_procs = self._find_running_processes(clean_target)
         snapshots = [self._snapshot_process(p) for p in live_procs]
 
-        # Generate platform-specific command
+        # Generate platform-specific command and argv list (secure execution without shell=True)
         if is_suspend:
             if self.is_windows:
-                cmd = f'powershell.exe -Command "Suspend-Process -Name \'{clean_target}\'"' if not clean_target.isdigit() else f'powershell.exe -Command "Suspend-Process -Id {clean_target}"'
+                if clean_target.isdigit():
+                    cmd_args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", f"Suspend-Process -Id {clean_target}"]
+                    cmd = f'powershell.exe -Command "Suspend-Process -Id {clean_target}"'
+                else:
+                    cmd_args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", f"Suspend-Process -Name '{clean_target}'"]
+                    cmd = f'powershell.exe -Command "Suspend-Process -Name \'{clean_target}\'"'
             else:
-                cmd = f"kill -STOP {clean_target}" if clean_target.isdigit() else f'pkill -STOP -f "{clean_target}"'
+                if clean_target.isdigit():
+                    cmd_args = ["kill", "-STOP", clean_target]
+                    cmd = f"kill -STOP {clean_target}"
+                else:
+                    cmd_args = ["pkill", "-x", "-STOP", clean_target]
+                    cmd = f'pkill -x -STOP "{clean_target}"'
         else:
             if self.is_windows:
-                cmd = f"taskkill.exe /F /PID {clean_target}" if clean_target.isdigit() else f'taskkill.exe /F /IM "{clean_target}"'
+                if clean_target.isdigit():
+                    cmd_args = ["taskkill.exe", "/F", "/PID", clean_target]
+                    cmd = f"taskkill.exe /F /PID {clean_target}"
+                else:
+                    cmd_args = ["taskkill.exe", "/F", "/IM", clean_target]
+                    cmd = f'taskkill.exe /F /IM "{clean_target}"'
             else:
-                cmd = f"kill -9 {clean_target}" if clean_target.isdigit() else f'pkill -9 -f "{clean_target}"'
+                if clean_target.isdigit():
+                    cmd_args = ["kill", "-9", clean_target]
+                    cmd = f"kill -9 {clean_target}"
+                else:
+                    cmd_args = ["pkill", "-x", "-9", clean_target]
+                    cmd = f'pkill -x -9 "{clean_target}"'
 
         self._rollback_registry[rollback_token] = {
             "action": action,
             "target": target,
             "cmd": cmd,
+            "cmd_args": cmd_args,
             "executed_live": not dry_run,
             "is_suspend": is_suspend,
             "snapshots": snapshots,
@@ -164,10 +185,19 @@ class ProcessActuator(BaseActuator):
                         logger.warning("Failed to suspend pid %s: %s", p.pid, err)
                 success = True
                 output = f"Suspended {len(live_procs)} processes for target '{target}'"
+            elif not is_suspend and live_procs:
+                # Real in-process termination via psutil
+                for p in live_procs:
+                    try:
+                        p.terminate()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied) as err:
+                        logger.warning("Failed to terminate pid %s: %s", p.pid, err)
+                success = True
+                output = f"Terminated {len(live_procs)} processes for target '{target}'"
             else:
                 proc = subprocess.run(
-                    cmd,
-                    shell=True,
+                    cmd_args,
+                    shell=False,
                     capture_output=True,
                     text=True,
                     timeout=5,

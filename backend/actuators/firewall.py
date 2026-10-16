@@ -56,32 +56,37 @@ class FirewallActuator(BaseActuator):
         clean_name_target = target.replace(":", "-").replace("/", "-")
         rule_name = f"CyberGuard-Block-{clean_name_target}-{rollback_token}"
 
-        # Generate platform-specific command
+        # Generate platform-specific command and argv list (secure execution without shell=True)
         if self.is_windows:
-            cmd = (
-                f'powershell.exe -NoProfile -Command "New-NetFirewallRule '
-                f'-DisplayName \\"{rule_name}\\" -Direction {direction} '
-                f'-Action Block -RemoteAddress \\"{target}\\"'
+            ps_script = (
+                f'New-NetFirewallRule -DisplayName "{rule_name}" -Direction {direction} '
+                f'-Action Block -RemoteAddress "{target}"'
             )
             if port:
-                cmd += f' -LocalPort {port} -Protocol {protocol}'
-            cmd += '"'
-            rollback_cmd = (
-                f'powershell.exe -NoProfile -Command "Remove-NetFirewallRule '
-                f'-DisplayName \\"{rule_name}\\""'
-            )
+                ps_script += f' -LocalPort {port} -Protocol {protocol}'
+            cmd_args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps_script]
+            cmd = f'powershell.exe -NoProfile -Command "{ps_script}"'
+
+            rollback_ps = f'Remove-NetFirewallRule -DisplayName "{rule_name}"'
+            rollback_args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", rollback_ps]
+            rollback_cmd = f'powershell.exe -NoProfile -Command "{rollback_ps}"'
         else:
             # Linux iptables
-            cmd = f"iptables -I INPUT -s {target} -j DROP"
+            cmd_args = ["iptables", "-I", "INPUT", "-s", target, "-j", "DROP"]
             if port:
-                proto_flag = f"-p {protocol.lower()}" if protocol != "Any" else "-p tcp"
-                cmd += f" {proto_flag} --dport {port}"
-            rollback_cmd = cmd.replace("-I INPUT", "-D INPUT")
+                proto_flag = protocol.lower() if protocol != "Any" else "tcp"
+                cmd_args.extend(["-p", proto_flag, "--dport", str(port)])
+            cmd = " ".join(cmd_args)
+
+            rollback_args = list(cmd_args)
+            rollback_args[1] = "-D"
+            rollback_cmd = " ".join(rollback_args)
 
         self._rollback_registry[rollback_token] = {
             "rule_name": rule_name,
             "target": target,
             "rollback_cmd": rollback_cmd,
+            "rollback_args": rollback_args,
             "executed_live": not dry_run,
         }
 
@@ -120,8 +125,8 @@ class FirewallActuator(BaseActuator):
         try:
             logger.warning("[LIVE ENFORCEMENT] Executing firewall command: %s", cmd)
             proc = subprocess.run(
-                cmd,
-                shell=True,
+                cmd_args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -161,15 +166,24 @@ class FirewallActuator(BaseActuator):
             del self._rollback_registry[rollback_token]
             return True
 
-        rollback_cmd = record["rollback_cmd"]
+        rollback_args = record.get("rollback_args")
         try:
-            proc = subprocess.run(
-                rollback_cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
+            if rollback_args:
+                proc = subprocess.run(
+                    rollback_args,
+                    shell=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+            else:
+                proc = subprocess.run(
+                    record["rollback_cmd"].split(),
+                    shell=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
             success = (proc.returncode == 0)
             if success:
                 del self._rollback_registry[rollback_token]

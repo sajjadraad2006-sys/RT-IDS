@@ -183,3 +183,69 @@ def test_sniffer_lifecycle_and_status():
     # Stop capture
     sniffer.stop_capture()
     assert sniffer.get_status()["is_capturing"] is False
+
+
+def test_raw_packet_with_8_0_ip_not_mistaken_for_ethernet():
+    sniffer = LiveFlowSniffer()
+    raw_pkt = build_synthetic_ipv4_tcp_packet(src_ip="8.0.1.2", dst_ip="10.0.0.1")
+    parsed = sniffer.parse_ipv4_packet(raw_pkt)
+    assert parsed is not None
+    src_ip, dst_ip, src_port, dst_port, proto, length, tcp_flags, win_size = parsed
+    assert src_ip == "8.0.1.2"
+    assert dst_ip == "10.0.0.1"
+    assert parsed.header_len == 40  # 20 IP + 20 TCP
+
+
+def test_ethernet_encapsulated_ipv4_packet():
+    sniffer = LiveFlowSniffer()
+    raw_ip_pkt = build_synthetic_ipv4_tcp_packet(src_ip="192.168.1.100", dst_ip="172.16.0.1")
+    # 14-byte Ethernet header: Dst MAC (6) + Src MAC (6) + EtherType 0x0800 (2)
+    eth_hdr = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\x08\x00"
+    eth_pkt = eth_hdr + raw_ip_pkt
+    parsed = sniffer.parse_ipv4_packet(eth_pkt)
+    assert parsed is not None
+    src_ip, dst_ip, src_port, dst_port, proto, length, tcp_flags, win_size = parsed
+    assert src_ip == "192.168.1.100"
+    assert dst_ip == "172.16.0.1"
+
+
+def test_tcp_bidirectional_stateful_teardown():
+    flushed = []
+    sniffer = LiveFlowSniffer(on_flow_flushed=lambda r: flushed.append(r))
+    t0 = 200.0
+
+    # 1. Forward SYN
+    sniffer.process_packet("192.168.1.10", "10.0.0.1", 5000, 80, 6, length=60, tcp_flags=0x02, timestamp=t0)
+    # 2. Backward SYN-ACK
+    sniffer.process_packet("10.0.0.1", "192.168.1.10", 80, 5000, 6, length=60, tcp_flags=0x12, timestamp=t0 + 0.01)
+    # 3. Client FIN-ACK (first FIN)
+    sniffer.process_packet("192.168.1.10", "10.0.0.1", 5000, 80, 6, length=52, tcp_flags=0x11, timestamp=t0 + 0.05)
+
+    # In stateful teardown, bidirectional flow remains active until reciprocal FIN or RST arrives
+    assert len(flushed) == 0
+    assert sniffer.get_status()["active_flows"] == 1
+
+    # 4. Server FIN-ACK (reciprocal FIN)
+    sniffer.process_packet("10.0.0.1", "192.168.1.10", 80, 5000, 6, length=52, tcp_flags=0x11, timestamp=t0 + 0.06)
+
+    # Now connection is fully closed: exactly 1 unified flow flushed
+    assert len(flushed) == 1
+    assert sniffer.get_status()["active_flows"] == 0
+    rec = flushed[0]
+    assert rec["total_fwd_packets"] == 2.0
+    assert rec["total_bwd_packets"] == 2.0
+    assert rec["fin_flag_count"] == 2.0
+
+
+def test_header_length_accumulation_and_microflow_rates():
+    flow = FlowRecord(key=("192.168.1.1", "10.0.0.1", 1234, 80, 6), is_forward=True, timestamp=100.0)
+    flow.update(length=100, is_fwd=True, tcp_flags=0x02, win_size=1000, timestamp=100.0, header_len=40)
+    flow.update(length=200, is_fwd=False, tcp_flags=0x12, win_size=1000, timestamp=100.0001, header_len=32)
+
+    features = flow.to_feature_dict()
+    assert features["fwd_header_len"] == 40.0
+    assert features["bwd_header_len"] == 32.0
+    assert not math.isinf(features["packets_per_sec"])
+    assert not math.isnan(features["packets_per_sec"])
+    # Safe rate capping ensures packets_per_sec <= 2 / 0.001 = 2000 pkts/sec instead of 20,000,000 pkts/sec
+    assert features["packets_per_sec"] <= 2000.0

@@ -99,3 +99,30 @@ def test_decision_messages_includes_defense_grounding():
     assert len(msgs) == 2
     assert "D3-NIPF" in msgs[1]["content"]
     assert "autonomous defense decision engine" in msgs[0]["content"]
+
+
+def test_parse_and_guard_two_person_rule_blocks_unauthorized_enforcement():
+    smart_log = _make_dummy_smart_log(src_ip="203.0.113.60")
+    llm_payload = json.dumps({
+        "verdict": "malicious",
+        "confidence": 0.95,
+        "recommended_action": "block_ip",
+        "rationale": "High confidence attack",
+        "evidence": [],
+        "containment": [],
+        "limitations": [],
+    })
+
+    # Enforcement mode without dual credentials must be blocked
+    decision = parse_and_guard_ai_decision(
+        llm_payload,
+        smart_log,
+        provider="test-provider",
+        autonomous_actuate=True,
+        execution_mode="enforcement",
+    )
+
+    assert decision.requires_human is True
+    assert decision.executed_action == "none"
+    assert any("two-person rule" in lim.lower() for lim in decision.limitations)
+    assert decision.actuator_result is None

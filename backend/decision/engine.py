@@ -579,34 +579,46 @@ def parse_and_guard_ai_decision(
             limitations.append(f"Autonomous defense rejected by formal safety guardrail: Invariant violation ({v_names}).")
             executed_action = "none"
         else:
-            act_params = {
-                "initiator_id": "autonomous_ai_engine",
-                "approver_id": "soc_operator_verified",
-            }
+            act_params = {}
             if hasattr(smart_log, "source") and smart_log.source:
                 act_params.update(smart_log.source)
 
-            res = default_router.execute_action(
-                action=act_name,
-                target=clean_target,
-                params=act_params,
-                mode=execution_mode,
-                proof_receipt=verification.rollback_receipt,
-            )
-            actuator_result = res.model_dump(mode="json")
+            # Strict Two-Person Rule enforcement: never forge fake human operator identities
+            two_person_ok = True
+            if execution_mode == "enforcement":
+                initiator = str(act_params.get("initiator_id") or "").strip()
+                approver = str(act_params.get("approver_id") or "").strip()
+                if not initiator or not approver or initiator.lower() == approver.lower():
+                    two_person_ok = False
+                    requires_human = True
+                    executed_action = "none"
+                    limitations.append(
+                        "Autonomous enforcement blocked: Two-Person Rule requires verified distinct human initiator and approver."
+                    )
+                    actuator_result = None
 
-            if res.success:
-                rollback_token = res.rollback_token or (
-                    verification.rollback_receipt.token if verification.rollback_receipt else None
+            if two_person_ok:
+                res = default_router.execute_action(
+                    action=act_name,
+                    target=clean_target,
+                    params=act_params,
+                    mode=execution_mode,
+                    proof_receipt=verification.rollback_receipt,
                 )
-                executed_action = act_name if execution_mode == "enforcement" else f"simulated:{act_name}"
-                requires_human = False
-                limitations.append(f"Autonomous defense formally admitted ({execution_mode}) via {act_name}.")
-            else:
-                rollback_token = None
-                executed_action = "none"
-                requires_human = True
-                limitations.append(f"Autonomous defense rejected by router: {res.error}")
+                actuator_result = res.model_dump(mode="json")
+
+                if res.success:
+                    rollback_token = res.rollback_token or (
+                        verification.rollback_receipt.token if verification.rollback_receipt else None
+                    )
+                    executed_action = act_name if execution_mode == "enforcement" else f"simulated:{act_name}"
+                    requires_human = False
+                    limitations.append(f"Autonomous defense formally admitted ({execution_mode}) via {act_name}.")
+                else:
+                    rollback_token = None
+                    executed_action = "none"
+                    requires_human = True
+                    limitations.append(f"Autonomous defense rejected by router: {res.error}")
     else:
         if action in {
             RecommendedAction.block_recommended,
