@@ -585,5 +585,8 @@ window.CG = window.CG || {};
   API.liveSnifferStatus = () =>
     tryFetch("/api/detect/live/status");
 
+  API.liveSnifferAlerts = (limit = 50) =>
+    tryFetch(`/api/detect/live/alerts?limit=${encodeURIComponent(limit)}`);
+
   CG.api = API;
 })();

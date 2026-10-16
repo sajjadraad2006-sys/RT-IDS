@@ -434,6 +434,8 @@
     }
   }
 
+  let lastSnifferFlushed = 0;
+
   async function pollLiveSniffer() {
     if (!snifferActive) return;
     try {
@@ -443,10 +445,32 @@
         if (note) {
           note.textContent = `● Live network capture active (${st.packets_captured} pkts, ${st.flows_aggregated} flows)`;
         }
-        if (st.flows_aggregated > 0) {
-          flowsTotal += st.flows_aggregated;
+        const delta = Math.max(0, (st.flows_aggregated || 0) - lastSnifferFlushed);
+        if (delta > 0) {
+          flowsTotal += delta;
+          lastSnifferFlushed = st.flows_aggregated;
           paintKpis();
         }
+
+        // Live alert ingestion stream
+        try {
+          const alertData = await CG.api.liveSnifferAlerts(20);
+          if (alertData && alertData.alerts && alertData.alerts.length) {
+            const existingIds = new Set(ALERTS.map(a => a.id));
+            let added = false;
+            for (const a of alertData.alerts) {
+              if (!existingIds.has(a.id)) {
+                ALERTS.unshift(a);
+                existingIds.add(a.id);
+                added = true;
+              }
+            }
+            if (added) {
+              paintKpis();
+              paintAlerts();
+            }
+          }
+        } catch { /* ignore alert fetch errors */ }
       } else {
         setSnifferUI(false);
       }
