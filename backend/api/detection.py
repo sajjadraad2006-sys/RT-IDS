@@ -634,23 +634,51 @@ def export_alerts_csv(limit: int = Query(default=5000, ge=1, le=5000)) -> Stream
 
 @router.post("/live/start")
 def start_live_capture(request: Request, port_filter: int | None = None) -> dict:
-    """Start the live network packet sniffer daemon."""
+    """Start the live network packet sniffer daemon and detection pipeline worker."""
     from ..detection.live_sniffer import default_live_sniffer
+    from ..detection.live_worker import default_live_worker
+
+    # Wire flushed flows to the bounded pipeline worker queue
+    default_live_sniffer.on_flow_flushed = default_live_worker.enqueue_flow
+    default_live_worker.set_pipeline_getter(_get_pipeline)
+    default_live_worker.start()
+
     success = default_live_sniffer.start_capture(port_filter=port_filter)
     status = default_live_sniffer.get_status()
+    status["worker"] = default_live_worker.get_status()
     return {"success": success, "status": status}
 
 
 @router.post("/live/stop")
 def stop_live_capture() -> dict:
-    """Stop the live network packet sniffer daemon."""
+    """Stop the live network packet sniffer daemon and flush remaining flows."""
     from ..detection.live_sniffer import default_live_sniffer
+    from ..detection.live_worker import default_live_worker
+
     default_live_sniffer.stop_capture()
-    return {"success": True, "status": default_live_sniffer.get_status()}
+    default_live_worker.stop(drain=True)
+    status = default_live_sniffer.get_status()
+    status["worker"] = default_live_worker.get_status()
+    return {"success": True, "status": status}
 
 
 @router.get("/live/status")
 def get_live_capture_status() -> dict:
-    """Retrieve runtime telemetry from the live packet sniffer."""
+    """Retrieve runtime telemetry from the live packet sniffer and pipeline worker."""
     from ..detection.live_sniffer import default_live_sniffer
-    return default_live_sniffer.get_status()
+    from ..detection.live_worker import default_live_worker
+
+    status = default_live_sniffer.get_status()
+    status["worker"] = default_live_worker.get_status()
+    return status
+
+
+@router.get("/live/alerts")
+def get_live_alerts(limit: int = 50) -> dict:
+    """Retrieve recent live detection alerts produced by the real-time pipeline worker."""
+    from ..detection.live_worker import default_live_worker
+    return {
+        "alerts": default_live_worker.get_recent_alerts(limit=limit),
+        "total_alerts": default_live_worker.total_alerts,
+    }
+

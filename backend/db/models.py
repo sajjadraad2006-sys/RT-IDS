@@ -17,11 +17,13 @@ engine = create_engine(
     connect_args={"check_same_thread": False, "timeout": 30}
 )
 
-# Enable foreign key enforcement on every SQLite connection (required by SQLite spec)
+# Enable foreign key enforcement and WAL mode for high-throughput concurrency
 @event.listens_for(engine, "connect")
 def _set_sqlite_pragmas(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON;")
+    cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.execute("PRAGMA synchronous=NORMAL;")
     cursor.close()
 
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)

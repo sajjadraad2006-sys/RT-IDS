@@ -117,6 +117,9 @@ class SafetyGuardrails:
                 return False, f"Port target '{clean_target}' must specify a valid integer port between 1 and 65535"
 
         elif action in {"kill_process", "suspend_process"}:
+            import re
+            if not (clean_target.isdigit() or re.fullmatch(r"^[A-Za-z0-9_\-\.\\/]+$", clean_target)):
+                return False, f"Target process '{clean_target}' contains invalid characters (command injection prevention)"
             base_name = clean_target.split("\\")[-1].split("/")[-1].lower()
             from .process import PROTECTED_PROCESS_NAMES
             if base_name in PROTECTED_PROCESS_NAMES:

@@ -264,12 +264,14 @@ class LiveFlowSniffer:
     ) -> None:
         """Process a parsed packet into the flow aggregation table."""
         now = timestamp or time.time()
-        self.total_packets_captured += 1
+        with self._lock:
+            self.total_packets_captured += 1
 
         # Canonical directional key
         fwd_key = (src_ip, dst_ip, src_port, dst_port, proto)
         rev_key = (dst_ip, src_ip, dst_port, src_port, proto)
 
+        flushed_features = None
         with self._lock:
             if fwd_key in self._active_flows:
                 flow = self._active_flows[fwd_key]
@@ -284,14 +286,28 @@ class LiveFlowSniffer:
 
             # TCP connection termination check (FIN or RST)
             if tcp_flags & (0x01 | 0x04):
-                self._flush_flow_internal(fwd_key if fwd_key in self._active_flows else rev_key)
+                flow_to_flush = self._active_flows.pop(
+                    fwd_key if fwd_key in self._active_flows else rev_key, None
+                )
+                if flow_to_flush:
+                    self.total_flows_flushed += 1
+                    flushed_features = flow_to_flush.to_feature_dict()
+
+        # Dispatch outside the lock to prevent stalling packet ingestion
+        if flushed_features and self.on_flow_flushed:
+            try:
+                self.on_flow_flushed(flushed_features)
+            except Exception as exc:
+                logger.error("Error dispatching flushed flow to pipeline: %s", exc)
 
     def _flush_flow_internal(self, key: Tuple[str, str, int, int, int]) -> Optional[Dict[str, float]]:
-        flow = self._active_flows.pop(key, None)
-        if not flow:
-            return None
-        self.total_flows_flushed += 1
-        features = flow.to_feature_dict()
+        with self._lock:
+            flow = self._active_flows.pop(key, None)
+            if not flow:
+                return None
+            self.total_flows_flushed += 1
+            features = flow.to_feature_dict()
+
         if self.on_flow_flushed:
             try:
                 self.on_flow_flushed(features)
@@ -302,7 +318,7 @@ class LiveFlowSniffer:
     def flush_expired_flows(self, now: Optional[float] = None) -> List[Dict[str, float]]:
         """Flush flows that have exceeded active or idle timeout thresholds."""
         cur_time = now or time.time()
-        flushed: List[Dict[str, float]] = []
+        to_dispatch: List[Dict[str, float]] = []
 
         with self._lock:
             expired_keys = []
@@ -311,11 +327,20 @@ class LiveFlowSniffer:
                     expired_keys.append(key)
 
             for key in expired_keys:
-                rec = self._flush_flow_internal(key)
-                if rec:
-                    flushed.append(rec)
+                flow = self._active_flows.pop(key, None)
+                if flow:
+                    self.total_flows_flushed += 1
+                    to_dispatch.append(flow.to_feature_dict())
 
-        return flushed
+        # Dispatch outside the lock
+        if self.on_flow_flushed:
+            for feat in to_dispatch:
+                try:
+                    self.on_flow_flushed(feat)
+                except Exception as exc:
+                    logger.error("Error dispatching flushed flow to pipeline: %s", exc)
+
+        return to_dispatch
 
     def start_capture(self, host: str = "0.0.0.0", port_filter: Optional[int] = None) -> bool:
         """Start background packet listener thread using raw sockets (requires admin/root)."""
@@ -346,6 +371,7 @@ class LiveFlowSniffer:
             return True
 
         def _worker():
+            last_flush_check = time.time()
             while self._running and self._raw_socket:
                 try:
                     data, _ = self._raw_socket.recvfrom(65535)
@@ -355,10 +381,16 @@ class LiveFlowSniffer:
                         if port_filter and (src_port != port_filter and dst_port != port_filter):
                             continue
                         self.process_packet(src_ip, dst_ip, src_port, dst_port, proto, length, tcp_flags, win_size)
-                    self.flush_expired_flows()
+
+                    now = time.time()
+                    if now - last_flush_check >= 1.0:
+                        self.flush_expired_flows(now=now)
+                        last_flush_check = now
                 except socket.timeout:
                     self.flush_expired_flows()
-                except Exception:
+                except Exception as exc:
+                    logger.error("Live packet sniffer worker encountered fatal error: %s", exc)
+                    self._running = False
                     break
 
         self._thread = threading.Thread(target=_worker, daemon=True, name="CyberGuard-LiveSniffer")
@@ -383,8 +415,8 @@ class LiveFlowSniffer:
         # Flush all remaining flows
         with self._lock:
             remaining_keys = list(self._active_flows.keys())
-            for key in remaining_keys:
-                self._flush_flow_internal(key)
+        for key in remaining_keys:
+            self._flush_flow_internal(key)
 
         self.last_capture_mode = "idle"
         logger.info("Live packet sniffer stopped. Flushed all flows.")
@@ -401,6 +433,10 @@ class LiveFlowSniffer:
             "total_flows_flushed": self.total_flows_flushed,
             "idle_timeout_sec": self.idle_timeout,
             "active_timeout_sec": self.active_timeout,
+            # Frontend dashboard compatibility
+            "active": self._running,
+            "packets_captured": self.total_packets_captured,
+            "flows_aggregated": self.total_flows_flushed,
         }
 
 

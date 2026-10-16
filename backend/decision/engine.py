@@ -559,15 +559,19 @@ def parse_and_guard_ai_decision(
 
     if autonomous_actuate and action in active_defense_actions and payload.confidence >= 0.85:
         act_name = "block_ip" if action in {RecommendedAction.block_recommended, RecommendedAction.block_ip} else action.value
-        clean_target = target or smart_log.source.get("src_ip") or smart_log.source.get("remote_ip") or "192.168.1.100"
-
-        # ── Doctoral Neuro-Symbolic Safety Gate Pass (Invariants I_1 to I_4) ──
-        verification = default_safety_verifier.verify_and_sign(
-            action=act_name,
-            target=clean_target,
-            severity=smart_log.detection.severity,
-            confidence=payload.confidence,
-        )
+        clean_target = (target or smart_log.source.get("src_ip") or smart_log.source.get("remote_ip") or "").strip()
+        if not clean_target:
+            requires_human = True
+            limitations.append("Autonomous defense rejected: no target IP or identifier found in source telemetry.")
+            executed_action = "none"
+        else:
+            # ── Doctoral Neuro-Symbolic Safety Gate Pass (Invariants I_1 to I_4) ──
+            verification = default_safety_verifier.verify_and_sign(
+                action=act_name,
+                target=clean_target,
+                severity=smart_log.detection.severity,
+                confidence=payload.confidence,
+            )
 
         if not verification.admitted:
             requires_human = True
