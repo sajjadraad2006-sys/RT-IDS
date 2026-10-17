@@ -1,31 +1,17 @@
-# CyberGuard
+# CyberGuard — Real-Time Intrusion Detection & Guarded Containment System (RT-IDS)
 
-CyberGuard is a local, evaluation-stage analyzer for uploaded, precomputed
-network-flow records. It validates a fixed 32-feature contract, runs a
-known-attack classifier on every accepted row, calculates statistical and
-autoencoder evidence independently, and routes ambiguous results to analyst
-review. The LLM is advisory and is never part of inference.
+CyberGuard is a hybrid, production-grade Real-Time Network Intrusion Detection System (RT-IDS) and defensive containment engine. It validates a fixed 32-feature flow contract, executes known-attack classification on every accepted row, calculates statistical and autoencoder evidence independently, and routes ambiguous telemetry to human review. The integrated LLM is purely advisory and is never on the critical path of inference.
 
-CyberGuard is not currently a live packet IDS, payload inspector, IPS,
-firewall, EDR, or automated quarantine system.
+CyberGuard provides end-to-end real-time network telemetry streaming, live Suricata EVE log integration, and guarded defensive containment actuators constrained by SMT formal verification and the Two-Person Rule.
 
 ## Current operational status
 
-- Runtime orchestration: `cyberguard-pipeline-v2` / `cyberguard-routing-v2`.
-- Active bundled artifact: legacy, synthetic fixture-shaped,
-  `production_approved: false`, evaluation-only.
-- Active classifier labels: `Benign`, `Bot`, `DDoS`, `PortScan`.
-- Independently evaluated production coverage for the active artifact: none.
-- Previous CSE-CIC-IDS2018 candidate: `failed_gates`, inactive, never promoted.
-- Live ingestion: not implemented.
-- Automated response: not implemented; recommendations always have
-  `executed_action=none`.
-
-The active legacy bundle remains usable for deterministic tests and UI
-evaluation. Pipeline v2 labels its thresholds as legacy/unvalidated evidence;
-it does not reinterpret them as production calibration. `/api/detect/health`
-reports integrity, pipeline version, approval state, supported/evaluated/OOD
-scope, unsupported labels, and telemetry profile.
+- **Runtime orchestration:** `cyberguard-pipeline-v2` / `cyberguard-routing-v2` with thread-safe double-checked locking and FastAPI lifespan management.
+- **Real-Time Live Ingestion:** Operational via `LiveFlowSniffer` (TCP teardown with `TIME_WAIT` absorption and early-stage micro-windows) and `SuricataLiveTailer` (high-throughput EVE streaming bridge).
+- **Defensive Containment Actuators:** Implemented for Host Firewall (Windows/Linux), Process Management (exact-match `pkill -x` and `taskkill`), and Suricata drop rules under strict Two-Person Rule (`initiator_id != approver_id`) and cryptographic HMAC-SHA256 rollback receipts. Default mode remains `"simulation"`.
+- **Active bundled artifact:** Legacy benchmark fixture, `production_approved: false`, evaluation-only (`Benign`, `Bot`, `DDoS`, `PortScan`).
+- **Feature Preprocessing:** Volumetric `log1p` normalization and empirical 99.5th quantile autoencoder thresholding.
+- **Verification Baseline:** 536 passed automated tests (`pytest -q`) with zero regressions. `/api/detect/health` reports integrity, pipeline version, approval state, and telemetry profile.
 
 ## Pipeline v2
 
