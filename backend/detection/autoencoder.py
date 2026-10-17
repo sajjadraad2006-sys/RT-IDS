@@ -72,9 +72,11 @@ class AutoencoderDetector:
     """
 
     def __init__(self, n_features: int, k: float = 3.0,
+                 quantile: float | None = 99.5,
                  device: str | None = None) -> None:
         self.n_features = n_features
         self.k = k
+        self.quantile = quantile
         self.threshold: float | None = None
         self._mean_err: float = 0.0
         self._std_err: float = 0.0
@@ -84,10 +86,6 @@ class AutoencoderDetector:
         else:
             self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
             self.net = _AE(n_features).to(self.device)
-        self.k = k
-        self.threshold: float | None = None
-        self._mean_err: float = 0.0
-        self._std_err: float = 0.0
 
     def fit(self, X_benign: np.ndarray, X_val: np.ndarray,
             epochs: int = 50, lr: float = 1e-3, batch: int = 512,
@@ -130,9 +128,15 @@ class AutoencoderDetector:
         errs = self.errors(X_val)
         self._mean_err = float(errs.mean())
         self._std_err = float(errs.std())
-        self.threshold = self._mean_err + self.k * self._std_err
-        log.info("Autoencoder trained (%d epochs). Threshold=%.4f (mean=%.4f + %.1f*std=%.4f)",
-                 epochs, self.threshold, self._mean_err, self.k, self._std_err)
+        if self.quantile is not None:
+            q = float(self.quantile if self.quantile > 1.0 else self.quantile * 100.0)
+            self.threshold = float(np.percentile(errs, q))
+            log.info("Autoencoder threshold calibrated via %.2fth empirical percentile: %.4f (mean=%.4f, std=%.4f)",
+                     q, self.threshold, self._mean_err, self._std_err)
+        else:
+            self.threshold = self._mean_err + self.k * self._std_err
+            log.info("Autoencoder trained (%d epochs). Threshold=%.4f (mean=%.4f + %.1f*std=%.4f)",
+                     epochs, self.threshold, self._mean_err, self.k, self._std_err)
         return self
 
     @_no_grad
@@ -185,6 +189,7 @@ class AutoencoderDetector:
             "state": self.net.state_dict(),
             "threshold": self.threshold,
             "k": self.k,
+            "quantile": self.quantile,
             "mean_err": self._mean_err,
             "std_err": self._std_err,
             "n_features": self.n_features,
@@ -201,6 +206,7 @@ class AutoencoderDetector:
         self.net.load_state_dict(ckpt["state"])
         self.threshold = ckpt["threshold"]
         self.k = ckpt.get("k", self.k)
+        self.quantile = ckpt.get("quantile", self.quantile)
         self._mean_err = ckpt.get("mean_err", 0.0)
         self._std_err = ckpt.get("std_err", 0.0)
         self.n_features = nf

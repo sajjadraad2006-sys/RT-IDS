@@ -27,7 +27,26 @@ logging.basicConfig(
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     init_all()
+    import os
+    if os.getenv("CG_EAGER_LOAD_PIPELINE", "false").lower() in ("true", "1", "yes"):
+        detection.eager_load_pipeline()
+
+    from .detection.live_worker import default_live_worker
+    from .detection.live_sniffer import default_live_sniffer
+
+    default_live_sniffer.on_flow_flushed = default_live_worker.enqueue_flow
+    default_live_worker.set_pipeline_getter(detection._get_pipeline)
+
+    if os.getenv("CG_AUTOSTART_LIVE_WORKER", "false").lower() in ("true", "1", "yes"):
+        default_live_worker.start()
+
     yield
+
+    if default_live_worker.get_status()["is_running"]:
+        default_live_worker.stop(drain=True)
+    else:
+        default_live_worker._drain_remaining()
+
 
 
 from slowapi import _rate_limit_exceeded_handler

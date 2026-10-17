@@ -66,6 +66,15 @@ MAX_URL_BYTES = int(os.getenv("CG_MAX_URL_BYTES", "4096"))
 
 # Web/API hardening. The app remains zero-configuration on localhost. To expose
 # it remotely, configure both an explicit allowed host and a strong API token.
+CG_ENV = os.getenv("CG_ENV", "development").lower()
+CG_TRUSTED_PROXIES = [
+    net.strip() for net in os.getenv("CG_TRUSTED_PROXIES", "127.0.0.1/32,::1/128").split(",")
+    if net.strip()
+]
+CG_ADMIN_PASSWORD = os.getenv("CG_ADMIN_PASSWORD", "")
+CG_ANALYST_PASSWORD = os.getenv("CG_ANALYST_PASSWORD", "")
+CG_AUDITOR_PASSWORD = os.getenv("CG_AUDITOR_PASSWORD", "")
+
 API_TOKEN = os.getenv("CG_API_TOKEN", "")
 ANALYST_ID = os.getenv("CG_ANALYST_ID", "local-analyst")[:64]
 SIMULATOR_ALLOWED_ASSETS = {

@@ -652,3 +652,96 @@ def suricata_stats() -> dict:
 def suricata_attack_status() -> dict:
     """Report dynamic active ATT&CK snapshot honesty status."""
     return get_active_attack_snapshot_info()
+
+
+# ── Suricata Live Stream & Replayer Management ───────────────────────────────
+
+@router.post("/stream/start")
+def start_suricata_stream(
+    eve_path: str | None = None,
+    from_end: bool = True,
+) -> dict:
+    """Start the real-time background Suricata EVE log tailer and connect to RT-IDS pipeline."""
+    from ..detection.live_worker import default_live_worker
+    from ..suricata.tailer import default_suricata_tailer
+    from .detection import _get_pipeline
+
+    if eve_path:
+        from pathlib import Path
+        p = Path(eve_path).resolve()
+        default_suricata_tailer.eve_path = p
+
+    # Ensure pipeline worker is ready to receive EVE flow telemetry
+    default_live_worker.set_pipeline_getter(_get_pipeline)
+    default_live_worker.start()
+
+    default_suricata_tailer.start(from_end=from_end)
+    return {
+        "success": True,
+        "tailer_status": default_suricata_tailer.get_status(),
+        "worker_status": default_live_worker.get_status(),
+    }
+
+
+@router.post("/stream/stop")
+def stop_suricata_stream() -> dict:
+    """Stop the background Suricata EVE stream tailer."""
+    from ..suricata.tailer import default_suricata_tailer
+    default_suricata_tailer.stop()
+    return {
+        "success": True,
+        "tailer_status": default_suricata_tailer.get_status(),
+    }
+
+
+@router.get("/stream/status")
+def get_suricata_stream_status() -> dict:
+    """Retrieve runtime telemetry and health status of the Suricata EVE tailer."""
+    from ..detection.live_worker import default_live_worker
+    from ..suricata.tailer import default_suricata_tailer
+    return {
+        "tailer": default_suricata_tailer.get_status(),
+        "worker": default_live_worker.get_status(),
+    }
+
+
+@router.post("/stream/replay")
+def replay_synthetic_suricata_stream(
+    flows_count: int = 5,
+    alerts_count: int = 2,
+) -> dict:
+    """Inject synthetic EVE flow and alert records directly into the live bridge for testing."""
+    from ..suricata.tailer import SyntheticEveReplayer, default_suricata_tailer
+
+    processed_events = []
+    # 1. Generate & feed synthetic flows
+    for i in range(max(0, min(100, flows_count))):
+        flow_line = SyntheticEveReplayer.generate_eve_flow_event(
+            src_ip=f"192.168.1.{10 + i}",
+            dest_port=80 + (i % 2) * 4343,
+            pkts_toserver=20 + i * 5,
+            bytes_toserver=1000 + i * 200,
+        )
+        evt, feats = default_suricata_tailer.process_line(flow_line)
+        if evt:
+            processed_events.append({"event_ref": evt.event_ref, "type": "flow"})
+
+    # 2. Generate & feed synthetic alerts
+    for i in range(max(0, min(50, alerts_count))):
+        alert_line = SyntheticEveReplayer.generate_eve_alert_event(
+            sig=f"ET EXPLOIT Simulated Ingestion Vector {i + 1}",
+            sid=2099000 + i,
+            sev=1 if i == 0 else 2,
+            src_ip=f"198.51.100.{100 + i}",
+        )
+        evt, feats = default_suricata_tailer.process_line(alert_line)
+        if evt:
+            processed_events.append({"event_ref": evt.event_ref, "type": "alert"})
+
+    return {
+        "success": True,
+        "injected_count": len(processed_events),
+        "events": processed_events,
+        "tailer_status": default_suricata_tailer.get_status(),
+    }
+

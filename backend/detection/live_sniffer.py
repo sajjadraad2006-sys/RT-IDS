@@ -100,6 +100,10 @@ class FlowRecord:
         self.init_win_bytes_fwd = 0
         self.init_win_bytes_bwd = 0
 
+        # Phase 4: Interim early evaluation tracking
+        self.interim_eval_count = 0
+        self.last_interim_eval_time = timestamp
+
     def update(
         self,
         length: int,
@@ -267,6 +271,29 @@ class LiveFlowSniffer:
         self.total_flows_flushed = 0
         self.last_capture_mode = "idle"
 
+        # Phase 2: TCP Teardown & Trailing ACK absorption (TIME_WAIT)
+        self.time_wait_sec = 2.0
+        self._closed_flows: collections.OrderedDict[Tuple[str, str, int, int, int], float] = collections.OrderedDict()
+        self.max_closed_flows = 10000
+        self.total_teardown_acks_absorbed = 0
+
+        # Phase 4: Early Flow Anomaly Detection & Micro-Windows
+        self.early_packet_threshold = 10
+        self.interim_time_interval = 5.0
+        self.total_interim_evals = 0
+
+    def _register_closed_flow(
+        self,
+        fwd_key: Tuple[str, str, int, int, int],
+        rev_key: Tuple[str, str, int, int, int],
+        timestamp: float,
+    ) -> None:
+        """Register closed 5-tuple in bounded LRU cache to absorb trailing teardown packets."""
+        self._closed_flows[fwd_key] = timestamp
+        self._closed_flows[rev_key] = timestamp
+        while len(self._closed_flows) > self.max_closed_flows:
+            self._closed_flows.popitem(last=False)
+
     def parse_ipv4_packet(
         self,
         data: bytes,
@@ -352,14 +379,24 @@ class LiveFlowSniffer:
     ) -> None:
         """Process a parsed packet into the flow aggregation table."""
         now = timestamp or time.time()
-        with self._lock:
-            self.total_packets_captured += 1
-
         # Canonical directional key
         fwd_key = (src_ip, dst_ip, src_port, dst_port, proto)
         rev_key = (dst_ip, src_ip, dst_port, src_port, proto)
 
+        # Phase 2: Absorb trailing teardown ACKs of recently closed flows before creating any ghost flow
+        with self._lock:
+            self.total_packets_captured += 1
+            if fwd_key not in self._active_flows and rev_key not in self._active_flows:
+                closed_time = self._closed_flows.get(fwd_key) or self._closed_flows.get(rev_key)
+                if closed_time is not None and (now - closed_time) <= self.time_wait_sec:
+                    # Pure ACK without SYN (or retransmitted FIN) belonging to a closed flow is absorbed
+                    if (tcp_flags & 0x10) and not (tcp_flags & 0x02):
+                        self.total_teardown_acks_absorbed += 1
+                        logger.debug("Absorbed trailing teardown ACK for recently closed flow %s", fwd_key)
+                        return
+
         flushed_features = None
+        interim_features = None
         with self._lock:
             if fwd_key in self._active_flows:
                 flow = self._active_flows[fwd_key]
@@ -390,21 +427,51 @@ class LiveFlowSniffer:
                 if flow_to_flush:
                     self.total_flows_flushed += 1
                     flushed_features = flow_to_flush.to_feature_dict()
+                    flushed_features["is_interim"] = 0.0
+                    flushed_features["session_id"] = f"{flow_to_flush.key[0]}:{flow_to_flush.key[2]}->{flow_to_flush.key[1]}:{flow_to_flush.key[3]}@{flow_to_flush.start_time}"
+                    self._register_closed_flow(fwd_key, rev_key, now)
+            else:
+                # Phase 4: Early-stage flow anomaly classification & micro-windows
+                total_pkts = flow.fwd_packets + flow.bwd_packets
+                is_early_stage = (flow.interim_eval_count == 0 and total_pkts >= self.early_packet_threshold)
+                is_micro_window = (
+                    (now - flow.last_interim_eval_time) >= self.interim_time_interval
+                    and total_pkts > flow.interim_eval_count * self.early_packet_threshold
+                )
+                if is_early_stage or is_micro_window:
+                    flow.interim_eval_count += 1
+                    flow.last_interim_eval_time = now
+                    self.total_interim_evals += 1
+                    interim_features = flow.to_feature_dict()
+                    interim_features["is_interim"] = 1.0
+                    interim_features["interim_eval_count"] = float(flow.interim_eval_count)
+                    interim_features["session_id"] = f"{flow.key[0]}:{flow.key[2]}->{flow.key[1]}:{flow.key[3]}@{flow.start_time}"
 
         # Dispatch outside the lock to prevent stalling packet ingestion
-        if flushed_features and self.on_flow_flushed:
-            try:
-                self.on_flow_flushed(flushed_features)
-            except Exception as exc:
-                logger.error("Error dispatching flushed flow to pipeline: %s", exc)
+        to_dispatch = []
+        if flushed_features:
+            to_dispatch.append(flushed_features)
+        elif interim_features:
+            to_dispatch.append(interim_features)
+
+        if to_dispatch and self.on_flow_flushed:
+            for feat in to_dispatch:
+                try:
+                    self.on_flow_flushed(feat)
+                except Exception as exc:
+                    logger.error("Error dispatching flow to pipeline: %s", exc)
 
     def _flush_flow_internal(self, key: Tuple[str, str, int, int, int]) -> Optional[Dict[str, float]]:
+        rev_key = (key[1], key[0], key[3], key[2], key[4])
         with self._lock:
             flow = self._active_flows.pop(key, None)
             if not flow:
                 return None
             self.total_flows_flushed += 1
             features = flow.to_feature_dict()
+            features["is_interim"] = 0.0
+            features["session_id"] = f"{flow.key[0]}:{flow.key[2]}->{flow.key[1]}:{flow.key[3]}@{flow.start_time}"
+            self._register_closed_flow(key, rev_key, time.time())
 
         if self.on_flow_flushed:
             try:
@@ -425,10 +492,15 @@ class LiveFlowSniffer:
                     expired_keys.append(key)
 
             for key in expired_keys:
+                rev_key = (key[1], key[0], key[3], key[2], key[4])
                 flow = self._active_flows.pop(key, None)
                 if flow:
                     self.total_flows_flushed += 1
-                    to_dispatch.append(flow.to_feature_dict())
+                    feat = flow.to_feature_dict()
+                    feat["is_interim"] = 0.0
+                    feat["session_id"] = f"{flow.key[0]}:{flow.key[2]}->{flow.key[1]}:{flow.key[3]}@{flow.start_time}"
+                    to_dispatch.append(feat)
+                    self._register_closed_flow(key, rev_key, cur_time)
 
         # Dispatch outside the lock
         if self.on_flow_flushed:
@@ -535,11 +607,15 @@ class LiveFlowSniffer:
             "total_flows_flushed": self.total_flows_flushed,
             "idle_timeout_sec": self.idle_timeout,
             "active_timeout_sec": self.active_timeout,
+            "teardown_acks_absorbed": self.total_teardown_acks_absorbed,
+            "total_interim_evals": self.total_interim_evals,
+            "time_wait_sec": self.time_wait_sec,
             # Frontend dashboard compatibility
             "active": self._running,
             "packets_captured": self.total_packets_captured,
             "flows_aggregated": self.total_flows_flushed,
         }
+
 
 
 # Global default instance

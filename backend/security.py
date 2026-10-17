@@ -14,6 +14,8 @@ from .config import (
     ALLOWED_LOCAL_LLM_PORTS,
     ALLOWED_ORIGINS,
     API_TOKEN,
+    CG_ENV,
+    CG_TRUSTED_PROXIES,
     MAX_HEADER_BYTES,
     MAX_REQUEST_BODY_MB,
     MAX_UPLOAD_MB,
@@ -67,13 +69,56 @@ def safe_llm_url(value: str, default: str, *, local: bool) -> str:
         return validate_llm_url(default, local=local)
 
 
+def is_ip_in_networks(ip_str: str, networks: list[str]) -> bool:
+    """Check if an IP address belongs to any CIDR network in allowlist."""
+    try:
+        ip = ipaddress.ip_address(ip_str.strip())
+    except ValueError:
+        return False
+    for net_str in networks:
+        try:
+            net = ipaddress.ip_network(net_str.strip(), strict=False)
+            if ip in net:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def resolve_client_ip(request: Request) -> str:
+    """Resolve true client IP, validating reverse proxy trust boundary.
+
+    If the immediate peer (request.client.host) is within CG_TRUSTED_PROXIES,
+    parses X-Forwarded-For right-to-left to find the originating client IP.
+    Otherwise, strictly uses the direct peer IP to prevent header spoofing.
+    """
+    peer_host = request.client.host if request.client else None
+    if not peer_host or peer_host in ("testclient", "testserver"):
+        # If in test/loopback harness, still inspect X-Forwarded-For if peer is trusted loopback
+        peer_host = "127.0.0.1"
+
+    # Only trust X-Forwarded-For if immediate peer is verified in CG_TRUSTED_PROXIES
+    if is_ip_in_networks(peer_host, CG_TRUSTED_PROXIES):
+        xff = request.headers.get("x-forwarded-for", "")
+        if xff:
+            parts = [p.strip() for p in xff.split(",") if p.strip()]
+            for ip_cand in reversed(parts):
+                if not is_ip_in_networks(ip_cand, CG_TRUSTED_PROXIES):
+                    return ip_cand
+            if parts:
+                return parts[0]
+
+    return peer_host
+
+
 def _is_loopback_client(host: str | None) -> bool:
-    if host in (None, "testclient"):
+    if host in (None, "testclient", "testserver"):
         return True
     try:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
-        return False
+        return host.lower() == "localhost"
+
 
 
 class _BodyTooLarge(Exception):
@@ -152,7 +197,7 @@ class ApiAccessMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-store"
             return response
 
-        client_host = request.client.host if request.client else None
+        client_host = resolve_client_ip(request)
         supplied = request.headers.get("x-cyberguard-token", "")
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
@@ -166,7 +211,16 @@ class ApiAccessMiddleware(BaseHTTPMiddleware):
             elif decode_access_token(supplied) is not None:
                 is_token_valid = True
 
-        if API_TOKEN:
+        from .config import CG_ENV
+        is_production = CG_ENV == "production"
+
+        if is_production:
+            if not is_token_valid:
+                return JSONResponse(
+                    {"detail": "production mode requires valid X-CyberGuard-Token or Bearer authentication"},
+                    status_code=401,
+                )
+        elif API_TOKEN:
             if not is_token_valid:
                 return JSONResponse({"detail": "valid API token required"}, status_code=401)
         elif not _is_loopback_client(client_host) and not is_token_valid:

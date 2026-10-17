@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CyberGuard — Autonomous AI Active Defense SOC</title>
 <meta name="description" content="CyberGuard Autonomous AI Active Defense & SOC Platform. Powered by local Foundation-Sec-8B, MITRE ATT&amp;CK / D3FEND RAG, and automated containment actuators.">
-<link rel="stylesheet" href="css/style.css?v=4.5">
+<link rel="stylesheet" href="css/style.css?v=5.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
@@ -94,6 +94,7 @@
             <span id="btn-live-sniffer-text">Start Live Sniffer</span>
           </button>
           <button class="btn" id="btn-export" title="Export alerts as CSV"><svg><use href="#i-doc"/></svg>Export</button>
+          <button class="btn" id="btn-clear-alerts" title="Clear all alerts database" style="color:var(--text-3);"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;"><use href="#i-cross"/></svg>Clear Alerts</button>
         </div>
       </div>
       <div class="kpi-grid reveal-group">
@@ -216,17 +217,18 @@
             </div>
             <div class="pod-body">
               <select class="cyber-select" id="benchmark-category-select">
-                <option value="">All Categories (100 Vectors)</option>
+                <option value="">All Categories (110 Vectors)</option>
                 <option value="SQL Injection & Database Exploits">SQL Injection &amp; Database Exploits (10)</option>
                 <option value="Web Application Exploits & RCE">Web Application Exploits &amp; RCE (10)</option>
                 <option value="Active Directory & Identity">Active Directory &amp; Identity (10)</option>
                 <option value="Ransomware & Destructive Payloads">Ransomware &amp; Destructive Payloads (10)</option>
-                <option value="Novel Exploits & Unknown Anomalies">Novel Exploits &amp; Unknown Anomalies (10)</option>
                 <option value="Network Flooding & Volumetric DoS">Network Flooding &amp; Volumetric DoS (10)</option>
-                <option value="Command and Control & Exfiltration">Command &amp; Control &amp; Exfiltration (10)</option>
+                <option value="Command & Control & Exfiltration">Command &amp; Control &amp; Exfiltration (10)</option>
                 <option value="Privilege Escalation & Persistence">Privilege Escalation &amp; Persistence (10)</option>
-                <option value="Defense Evasion & Obfuscation">Defense Evasion &amp; Obfuscation (10)</option>
-                <option value="Cloud, API & Container Exploits">Cloud, API &amp; Container Exploits (10)</option>
+                <option value="Defense Evasion & Anti-Forensics">Defense Evasion &amp; Anti-Forensics (10)</option>
+                <option value="Cloud & Container Infrastructure">Cloud &amp; Container Infrastructure (10)</option>
+                <option value="Novel Exploits & Unknown Anomalies">Novel Exploits &amp; Unknown Anomalies (10)</option>
+                <option value="Benign Enterprise & User Traffic">Normal User &amp; Benign Traffic (10)</option>
               </select>
             </div>
           </div>
@@ -740,16 +742,16 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/api.js?v=4.5"></script>
-<script src="js/charts.js?v=4.5"></script>
-<script src="js/app.js?v=4.5"></script>
-<script src="js/dashboard.js?v=4.5"></script>
-<script src="js/live-operations.js?v=4.5"></script>
-<script src="js/suricata.js?v=4.5"></script>
-<script src="js/review.js?v=4.5"></script>
-<script src="js/chat.js?v=4.5"></script>
-<script src="js/mitre.js?v=4.5"></script>
-<script src="js/settings.js?v=4.5"></script>
-<script src="js/defense-simulator.js?v=4.5"></script>
+<script src="js/api.js?v=5.1"></script>
+<script src="js/charts.js?v=5.1"></script>
+<script src="js/app.js?v=5.1"></script>
+<script src="js/dashboard.js?v=5.1"></script>
+<script src="js/live-operations.js?v=5.1"></script>
+<script src="js/suricata.js?v=5.1"></script>
+<script src="js/review.js?v=5.1"></script>
+<script src="js/chat.js?v=5.1"></script>
+<script src="js/mitre.js?v=5.1"></script>
+<script src="js/settings.js?v=5.1"></script>
+<script src="js/defense-simulator.js?v=5.1"></script>
 </body>
 </html>

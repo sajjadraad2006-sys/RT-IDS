@@ -249,3 +249,115 @@ def test_header_length_accumulation_and_microflow_rates():
     assert not math.isnan(features["packets_per_sec"])
     # Safe rate capping ensures packets_per_sec <= 2 / 0.001 = 2000 pkts/sec instead of 20,000,000 pkts/sec
     assert features["packets_per_sec"] <= 2000.0
+
+
+@pytest.mark.parametrize("sequence_type", [
+    "standard_4way",      # Client FIN -> Server ACK -> Server FIN -> Client final ACK
+    "piggybacked_finack", # Client FIN-ACK -> Server FIN-ACK -> Client pure ACK
+    "rst_with_stray_ack", # Data -> RST -> Stray ACK
+])
+def test_tcp_teardown_final_ack_absorption_no_ghost_flows(sequence_type):
+    """Verify that completed flows absorb trailing teardown ACKs without creating orphan ghost flows."""
+    flushed = []
+    sniffer = LiveFlowSniffer(on_flow_flushed=lambda r: flushed.append(r))
+    t0 = 500.0
+
+    if sequence_type == "standard_4way":
+        # 1. SYN
+        sniffer.process_packet("192.168.1.5", "10.0.0.8", 12345, 80, 6, length=60, tcp_flags=0x02, timestamp=t0)
+        # 2. SYN-ACK
+        sniffer.process_packet("10.0.0.8", "192.168.1.5", 80, 12345, 6, length=60, tcp_flags=0x12, timestamp=t0 + 0.01)
+        # 3. Client FIN
+        sniffer.process_packet("192.168.1.5", "10.0.0.8", 12345, 80, 6, length=52, tcp_flags=0x01, timestamp=t0 + 0.02)
+        assert len(flushed) == 0
+        assert sniffer.get_status()["active_flows"] == 1
+        # 4. Server ACK
+        sniffer.process_packet("10.0.0.8", "192.168.1.5", 80, 12345, 6, length=52, tcp_flags=0x10, timestamp=t0 + 0.03)
+        assert len(flushed) == 0
+        # 5. Server FIN
+        sniffer.process_packet("10.0.0.8", "192.168.1.5", 80, 12345, 6, length=52, tcp_flags=0x01, timestamp=t0 + 0.04)
+        assert len(flushed) == 1
+        assert sniffer.get_status()["active_flows"] == 0
+        # 6. Trailing final pure ACK from Client
+        sniffer.process_packet("192.168.1.5", "10.0.0.8", 12345, 80, 6, length=40, tcp_flags=0x10, timestamp=t0 + 0.05)
+        # MUST NOT create a ghost flow!
+        assert sniffer.get_status()["active_flows"] == 0
+        assert len(flushed) == 1
+        assert sniffer.get_status()["teardown_acks_absorbed"] == 1
+
+    elif sequence_type == "piggybacked_finack":
+        sniffer.process_packet("192.168.1.5", "10.0.0.8", 12345, 80, 6, length=60, tcp_flags=0x02, timestamp=t0)
+        sniffer.process_packet("10.0.0.8", "192.168.1.5", 80, 12345, 6, length=60, tcp_flags=0x12, timestamp=t0 + 0.01)
+        sniffer.process_packet("192.168.1.5", "10.0.0.8", 12345, 80, 6, length=52, tcp_flags=0x11, timestamp=t0 + 0.02)
+        sniffer.process_packet("10.0.0.8", "192.168.1.5", 80, 12345, 6, length=52, tcp_flags=0x11, timestamp=t0 + 0.03)
+        assert len(flushed) == 1
+        assert sniffer.get_status()["active_flows"] == 0
+        # Trailing pure ACK
+        sniffer.process_packet("192.168.1.5", "10.0.0.8", 12345, 80, 6, length=40, tcp_flags=0x10, timestamp=t0 + 0.04)
+        assert sniffer.get_status()["active_flows"] == 0
+        assert len(flushed) == 1
+        assert sniffer.get_status()["teardown_acks_absorbed"] == 1
+
+    elif sequence_type == "rst_with_stray_ack":
+        sniffer.process_packet("192.168.1.5", "10.0.0.8", 12345, 80, 6, length=60, tcp_flags=0x02, timestamp=t0)
+        sniffer.process_packet("192.168.1.5", "10.0.0.8", 12345, 80, 6, length=40, tcp_flags=0x04, timestamp=t0 + 0.01)
+        assert len(flushed) == 1
+        assert sniffer.get_status()["active_flows"] == 0
+        # Stray pure ACK
+        sniffer.process_packet("10.0.0.8", "192.168.1.5", 80, 12345, 6, length=40, tcp_flags=0x10, timestamp=t0 + 0.02)
+        assert sniffer.get_status()["active_flows"] == 0
+        assert len(flushed) == 1
+        assert sniffer.get_status()["teardown_acks_absorbed"] == 1
+
+
+def test_early_flow_anomaly_interim_classification_and_micro_windows():
+    """Verify that active long-running flows emit interim features early (after 10 packets) without waiting 120s."""
+    dispatched = []
+    sniffer = LiveFlowSniffer(
+        idle_timeout_sec=15.0,
+        active_timeout_sec=120.0,
+        on_flow_flushed=lambda rec: dispatched.append(rec),
+    )
+    t0 = 1000.0
+
+    # Stream 9 packets (below early threshold of 10)
+    for i in range(9):
+        sniffer.process_packet(
+            "10.0.0.50", "192.168.1.1", 44444, 80, 6,
+            length=100, tcp_flags=0x10, timestamp=t0 + (i * 0.01),
+        )
+
+    assert len(dispatched) == 0
+    assert sniffer.get_status()["active_flows"] == 1
+
+    # 10th packet triggers early-stage interim classification
+    sniffer.process_packet(
+        "10.0.0.50", "192.168.1.1", 44444, 80, 6,
+        length=100, tcp_flags=0x10, timestamp=t0 + 0.10,
+    )
+
+    assert len(dispatched) == 1
+    assert dispatched[0]["is_interim"] == 1.0
+    assert dispatched[0]["Total Fwd Packets"] == 10.0
+    # Flow MUST remain active in table (continuity maintained)
+    assert sniffer.get_status()["active_flows"] == 1
+    assert sniffer.get_status()["total_interim_evals"] == 1
+
+
+def test_early_flow_throughput_and_latency_benchmark():
+    """Benchmark interim classification throughput and latency."""
+    sniffer = LiveFlowSniffer()
+    t_start = time.perf_counter()
+    n_packets = 2000
+
+    for i in range(n_packets):
+        sniffer.process_packet(
+            f"10.0.{i % 10}.1", "192.168.1.1", 10000 + (i % 50), 80, 6,
+            length=64, tcp_flags=0x10, timestamp=1000.0 + (i * 0.001),
+        )
+
+    elapsed = time.perf_counter() - t_start
+    throughput = n_packets / elapsed
+    # Must process at least 5,000 pkts/sec online
+    assert throughput > 5000.0, f"Throughput was {throughput:.1f} pkts/sec"
+

@@ -512,6 +512,52 @@ window.CG = window.CG || {};
   /* ═══ Active Defense, Attack Simulation & Universal Ingestion ═══ */
   API.simulationScenarios = () => tryFetch("/api/simulation/scenarios");
   API.simulationCategories = () => tryFetch("/api/simulation/categories");
+  API.alertsDistribution = () => tryFetch("/api/detect/alerts/distribution");
+  API.clearAlerts = () =>
+    tryFetch("/api/detect/alerts/clear", { method: "DELETE" });
+
+  API.streamBatchBenchmark = async function (payload, onAttack, onCompleted, onError) {
+    try {
+      const response = await fetch("/api/simulation/benchmark/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split("\n\n");
+        buffer = blocks.pop() || "";
+        for (const block of blocks) {
+          const trimmed = block.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const jsonStr = trimmed.replace(/^data:\s*/, "");
+          try {
+            const data = JSON.parse(jsonStr);
+            if (data.type === "attack_result") {
+              onAttack?.(data);
+            } else if (data.type === "completed") {
+              onCompleted?.(data);
+            }
+          } catch (e) {
+            console.warn("SSE parse error", e, jsonStr);
+          }
+        }
+      }
+    } catch (err) {
+      if (onError) await onError(err);
+      else throw err;
+    }
+  };
+
   API.runBatchBenchmark = (payload) =>
     tryFetch("/api/simulation/benchmark/run", {
       method: "POST",

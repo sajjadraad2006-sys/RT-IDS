@@ -72,3 +72,38 @@ def test_save_and_load(tmp_path):
     ae2 = AutoencoderDetector(n_features=N_FEATURES).load(path, N_FEATURES)
     assert ae2.threshold is not None
     assert abs(ae2.threshold - ae.threshold) < 1e-4
+
+
+def test_autoencoder_empirical_quantile_calibration():
+    """Verify that autoencoder thresholding uses empirical quantile / percentile calibration."""
+    rng = np.random.default_rng(42)
+    X_benign = rng.normal(0, 1, size=(500, N_FEATURES))
+    X_val = rng.normal(0, 1, size=(200, N_FEATURES))
+
+    ae = AutoencoderDetector(n_features=N_FEATURES, quantile=99.0).fit(
+        X_benign, X_val, epochs=2, batch=256
+    )
+    val_errs = ae.errors(X_val)
+    expected_p99 = float(np.percentile(val_errs, 99.0))
+    assert abs(ae.threshold - expected_p99) < 1e-5
+    assert ae.quantile == 99.0
+
+
+def test_normalizer_volumetric_log1p():
+    """Verify that Normalizer with log_transform_skewed handles heavy-tailed volumetric features."""
+    from backend.detection.normalizer import Normalizer, apply_log1p_volumetric
+
+    # Heavy-tailed values like bytes_per_sec = 10,000,000
+    sample = np.zeros((5, N_FEATURES))
+    sample[:, 6] = [100.0, 1000.0, 100000.0, 5000000.0, 10000000.0]  # bytes_per_sec column
+
+    norm = Normalizer(log_transform_skewed=True)
+    norm.fit(sample)
+    trans = norm.transform(sample)
+
+    assert trans.shape == (5, N_FEATURES)
+    assert not np.isnan(trans).any()
+    assert not np.isinf(trans).any()
+    # Check that heavy tail was squashed logarithmically rather than linearly blowing up
+    assert np.all(np.abs(trans) < 100.0)
+

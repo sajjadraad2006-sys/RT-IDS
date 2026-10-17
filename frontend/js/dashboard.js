@@ -91,12 +91,28 @@
   }
 
   /* ---------- charts ---------- */
-  function paintCharts(featureImportance) {
-    const byType = {};
-    ALERTS.forEach((a) => { byType[a.type] = (byType[a.type] || 0) + 1; });
-    const dist = Object.entries(byType)
-      .map(([label, value]) => ({ label, value, color: CLASS_COLORS[label] }))
-      .sort((a, b) => b.value - a.value);
+  async function paintCharts(featureImportance) {
+    let dist = [];
+    if (CG.api.alertsDistribution) {
+      try {
+        const res = await CG.api.alertsDistribution();
+        if (res && res.distribution && res.distribution.length) {
+          dist = res.distribution.map(d => ({
+            label: d.label,
+            value: d.value,
+            color: CLASS_COLORS[d.label] || null,
+          }));
+        }
+      } catch (_) {}
+    }
+
+    if (!dist.length) {
+      const byType = {};
+      ALERTS.forEach((a) => { byType[a.type] = (byType[a.type] || 0) + 1; });
+      dist = Object.entries(byType)
+        .map(([label, value]) => ({ label, value, color: CLASS_COLORS[label] }))
+        .sort((a, b) => b.value - a.value);
+    }
     CG.charts.donut(document.getElementById("chart-distribution"), dist);
 
     // timeline: bucket last 60 min into 20 slots
@@ -181,14 +197,15 @@
     const topFeats = alert.top_features || [];
     if (!topFeats.length) {
       featEl.innerHTML = `<p class="text-muted">No persisted feature evidence is available for this alert.</p>`;
+    } else {
+      const maxFeat = Math.max(...topFeats.map(f => typeof f[1] === "number" ? f[1] : 1), 0.01);
+      featEl.innerHTML = topFeats.map(([name, val]) => `
+        <div class="modal-feat-bar">
+          <span class="feat-name">${CG.util.esc(name)}</span>
+          <div class="feat-track"><div class="feat-fill" style="width:${(typeof val === "number" ? (val/maxFeat*100).toFixed(0) : 50)}%"></div></div>
+          <span class="feat-val">${typeof val === "number" ? val.toFixed(3) : CG.util.esc(val)}</span>
+        </div>`).join("");
     }
-    const maxFeat = Math.max(...topFeats.map(f => f[1]), 0.01);
-    if (topFeats.length) featEl.innerHTML = topFeats.map(([name, val]) => `
-      <div class="modal-feat-bar">
-        <span class="feat-name">${CG.util.esc(name)}</span>
-        <div class="feat-track"><div class="feat-fill" style="width:${(val/maxFeat*100).toFixed(0)}%"></div></div>
-        <span class="feat-val">${val.toFixed(3)}</span>
-      </div>`).join("");
 
     // MITRE mapping
     const mitreEl = document.getElementById("modal-mitre");
@@ -200,9 +217,22 @@
       mitreEl.innerHTML = `<p class="text-muted">No candidate ATT&amp;CK technique. Unknown-anomaly evidence never invents a technique.</p>`;
     }
 
-    // Reset explanation
-    document.getElementById("modal-explanation").innerHTML =
-      `<p class="text-muted">Click "Explain with AI" for an advisory analysis of this bounded model evidence.</p>`;
+    // AI Reasoning / Explanation
+    const expEl = document.getElementById("modal-explanation");
+    if (alert.explanation && alert.explanation.trim()) {
+      expEl.innerHTML = `
+        <div style="background:rgba(6,182,212,0.08);border-left:3px solid var(--cyan);padding:12px 16px;border-radius:4px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <strong style="color:var(--cyan);font-size:0.85rem;">🧠 AI Security Decision &amp; Rationale:</strong>
+            <span class="mono text-xs text-muted">${alert.latency_ms ? alert.latency_ms + ' ms' : ''}</span>
+          </div>
+          <div style="font-size:0.88rem;line-height:1.55;color:var(--text-1);">${CG.util.md(alert.explanation)}</div>
+        </div>
+      `;
+    } else {
+      expEl.innerHTML =
+        `<p class="text-muted">Click "Explain with AI" for an advisory analysis of this bounded model evidence.</p>`;
+    }
 
     // Show modal
     modal.hidden = false;
@@ -468,6 +498,7 @@
             if (added) {
               paintKpis();
               paintAlerts();
+              paintCharts();
             }
           }
         } catch { /* ignore alert fetch errors */ }
@@ -501,6 +532,52 @@
     });
   }
 
+  const btnClear = document.getElementById("btn-clear-alerts");
+  if (btnClear) {
+    btnClear.addEventListener("click", async () => {
+      if (!confirm("Are you sure you want to clear all recorded alerts from the database? This resets all alert counters to 0.")) return;
+      try {
+        btnClear.disabled = true;
+        const res = await CG.api.clearAlerts();
+        CG.util.toast(`All alerts cleared (${res.deleted_count || 0} removed from database).`);
+        ALERTS = [];
+        flowsTotal = 0;
+        paintKpis();
+        paintPipeline();
+        await paintCharts();
+        paintAlerts();
+      } catch (err) {
+        CG.util.toast("Failed to clear alerts: " + err.message, 4000);
+      } finally {
+        btnClear.disabled = false;
+      }
+    });
+  }
+
+  /* ---------- public dashboard controller ---------- */
+  CG.dashboard = {
+    refresh: async function () {
+      try {
+        ALERTS = await CG.api.alerts();
+        paintKpis();
+        paintPipeline();
+        await paintCharts();
+        paintAlerts();
+      } catch (err) {
+        console.warn("Dashboard refresh error:", err);
+      }
+    },
+    renderAlerts: function (alerts) {
+      if (Array.isArray(alerts)) {
+        ALERTS = alerts;
+        paintKpis();
+        paintPipeline();
+        paintCharts();
+        paintAlerts();
+      }
+    }
+  };
+
   /* ---------- view lifecycle ---------- */
   CG.onView.dashboard = async function () {
     ALERTS = await CG.api.alerts();
@@ -508,7 +585,7 @@
     await checkSnifferStatus();
     paintKpis();
     paintPipeline();
-    paintCharts();
+    await paintCharts();
     paintAlerts();
   };
 })();

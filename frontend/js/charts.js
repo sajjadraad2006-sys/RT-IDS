@@ -34,12 +34,42 @@ window.CG = window.CG || {};
 
   /* Donut — attack type distribution */
   function donut(container, data) {
-    const total = data.reduce((s, d) => s + d.value, 0) || 1;
+    const rawTotal = (data || []).reduce((s, d) => s + (d.value || 0), 0);
     const svg = el("svg", { viewBox: "0 0 220 160", role: "img", "aria-label": "Attack type distribution" });
     const cx = 72, cy = 80, r = 52, ir = 32;
+
+    if (rawTotal <= 0) {
+      el("circle", { cx, cy, r: (r + ir) / 2, fill: "none", stroke: "rgba(255,255,255,0.08)", "stroke-width": r - ir }, svg);
+      const t1 = el("text", { x: cx, y: cy - 4, "text-anchor": "middle", fill: "#EDF1F6", "font-size": "20", "font-weight": "650", "font-family": "ui-monospace, Menlo, Consolas, monospace" }, svg);
+      t1.textContent = "0";
+      const t2 = el("text", { x: cx, y: cy + 14, "text-anchor": "middle", fill: "rgba(237,241,246,.45)", "font-size": "9" }, svg);
+      t2.textContent = "alerts";
+      mount(container, svg, [["No active threats", "#64748b"]]);
+      return;
+    }
+
+    // Sort descending
+    const sorted = [...data].sort((a, b) => b.value - a.value);
+
+    // If more than 5 distinct types, group smaller ones into "Other"
+    let chartData = sorted;
+    if (sorted.length > 5) {
+      const topItems = sorted.slice(0, 4);
+      const otherItems = sorted.slice(4);
+      const otherVal = otherItems.reduce((acc, x) => acc + x.value, 0);
+      if (otherVal > 0) {
+        chartData = [
+          ...topItems,
+          { label: `Other Threats (${otherItems.length} types)`, value: otherVal, color: "#64748b" }
+        ];
+      }
+    }
+
+    const total = chartData.reduce((s, d) => s + d.value, 0) || 1;
     let angle = -Math.PI / 2;
     const legend = [];
-    data.forEach((d, i) => {
+
+    chartData.forEach((d, i) => {
       const frac = d.value / total;
       if (frac <= 0) return;
       const a0 = angle, a1 = angle + frac * Math.PI * 2;
@@ -56,11 +86,12 @@ window.CG = window.CG || {};
       }, svg).appendChild(Object.assign(document.createElementNS(NS, "title"), { textContent: `${d.label}: ${d.value}` }));
       legend.push([`${d.label} (${d.value})`, color]);
     });
+
     const t1 = el("text", { x: cx, y: cy - 4, "text-anchor": "middle", fill: "#EDF1F6", "font-size": "20", "font-weight": "650", "font-family": "ui-monospace, Menlo, Consolas, monospace" }, svg);
-    t1.textContent = total;
+    t1.textContent = rawTotal;
     const t2 = el("text", { x: cx, y: cy + 14, "text-anchor": "middle", fill: "rgba(237,241,246,.45)", "font-size": "9" }, svg);
     t2.textContent = "alerts";
-    mount(container, svg, legend.slice(0, 8));
+    mount(container, svg, legend);
   }
 
   /* Area — alert timeline (per-minute counts) */

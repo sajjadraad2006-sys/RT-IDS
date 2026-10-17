@@ -51,6 +51,7 @@ class LiveFlowWorker:
         self.total_alerts = 0
         self.total_dropped = 0
         self.last_processed_time: float = 0.0
+        self._session_alert_cache: Dict[str, Tuple[str, float]] = {}
 
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -184,12 +185,32 @@ class LiveFlowWorker:
         persist_records: List[AlertRecord] = []
         now = time.time()
 
-        for alert in batch_results:
+        for alert, flow_input in zip(batch_results, batch):
             if alert.route == "benign":
                 continue
 
+            session_id = str(flow_input.get("session_id", ""))
+            is_interim = bool(flow_input.get("is_interim", 0.0))
+
+            # Deduplication: suppress duplicate alerts of same type for the same session within 15 seconds
+            if session_id:
+                with self._lock:
+                    last_alert = self._session_alert_cache.get(session_id)
+                    if last_alert:
+                        last_type, last_time = last_alert
+                        if last_type == alert.type and (now - last_time) < 15.0:
+                            logger.debug("Deduplicated repeated alert '%s' for session %s (is_interim=%s)", alert.type, session_id, is_interim)
+                            continue
+                    self._session_alert_cache[session_id] = (alert.type, now)
+                    if len(self._session_alert_cache) > 10000:
+                        oldest = list(self._session_alert_cache.keys())[:2000]
+                        for k in oldest:
+                            self._session_alert_cache.pop(k, None)
+
             alert_dict = alert.to_dict()
             alert_dict["source"] = "live_stream"
+            alert_dict["is_interim"] = is_interim
+            alert_dict["session_id"] = session_id
             generated_alerts.append(alert_dict)
 
             evidence_payload = {
@@ -198,6 +219,8 @@ class LiveFlowWorker:
                 "artifact_version": alert.artifact_pipeline_version,
                 "source": "live_flow_sniffer",
                 "feature_schema_version": FEATURE_SCHEMA_VERSION,
+                "is_interim": is_interim,
+                "session_id": session_id,
             }
 
             schema_payload = {

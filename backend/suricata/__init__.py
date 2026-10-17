@@ -8,6 +8,12 @@ from .schema import (
     SecurityEventV1,
     SuricataIngestionReport,
 )
+from .tailer import (
+    SuricataLiveTailer,
+    SyntheticEveReplayer,
+    default_suricata_tailer,
+    eve_to_flow_features,
+)
 
 __all__ = [
     "SECURITY_EVENT_SCHEMA_VERSION",
@@ -15,4 +21,9 @@ __all__ = [
     "AttackValidationStatus",
     "SecurityEventV1",
     "SuricataIngestionReport",
+    "SuricataLiveTailer",
+    "SyntheticEveReplayer",
+    "default_suricata_tailer",
+    "eve_to_flow_features",
 ]
+

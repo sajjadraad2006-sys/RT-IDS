@@ -660,6 +660,111 @@ Technique T1486 and T1105 identified.`;
     });
   }
 
+  function createBenchmarkRowHTML(r, i) {
+    const isMal = r.verdict === "malicious";
+    const isBenign = r.is_benign || r.verdict === "benign";
+    const verdictBadge = isBenign
+      ? '<span class="badge badge-benign" style="background:rgba(16,185,129,0.18);color:#34d399;border:1px solid rgba(16,185,129,0.35);">BENIGN (PERMITTED)</span>'
+      : isMal
+      ? '<span class="badge badge-critical">MALICIOUS</span>'
+      : '<span class="badge badge-warning">SUSPICIOUS</span>';
+    const actionText = isBenign && (!r.action || r.action === "none")
+      ? '<span class="mono text-muted">none (allowed)</span>'
+      : `<span class="mono text-amber">${esc(r.action || 'none')}</span>`;
+    const tokenText = isBenign && (!r.rollback_token || r.rollback_token === "None")
+      ? '<code class="mono text-xs token-code text-muted">N/A (Authorized)</code>'
+      : `<code class="mono text-xs token-code">${esc(r.rollback_token || 'N/A')}</code>`;
+
+    return `
+      <tr class="benchmark-row reveal is-in" data-idx="${i}" style="cursor:pointer;" title="Click to view full AI reasoning">
+        <td class="mono text-muted text-xs">${i + 1}</td>
+        <td>
+          <strong>${esc(r.title)}</strong>
+          <span class="text-xs text-cyan view-hint" style="display:block;opacity:0.85;">▾ View AI Reasoning</span>
+        </td>
+        <td><span class="text-xs text-muted">${esc(r.category)}</span></td>
+        <td><span class="badge badge-technique">${esc(r.technique_id)}</span></td>
+        <td><span class="badge badge-d3fend" title="${esc(r.d3fend)}">${esc((r.d3fend || "").split(" ")[0])}</span></td>
+        <td>${verdictBadge}</td>
+        <td class="mono text-cyan">${(r.confidence * 100).toFixed(1)}%</td>
+        <td>${actionText}</td>
+        <td>${tokenText}</td>
+        <td class="mono text-xs text-muted">${r.latency_ms} ms</td>
+      </tr>
+      <tr class="benchmark-detail-row" id="bench-detail-${i}" style="display:none;background:rgba(15,23,42,0.92);">
+        <td colspan="10" style="padding:16px 22px;border-left:4px solid ${isBenign ? 'var(--green, #10b981)' : 'var(--cyan)'};border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:1.15rem;">${isBenign ? '🛡️' : '🧠'}</span>
+              <strong style="color:${isBenign ? '#34d399' : 'var(--cyan)'};font-size:0.9rem;">${isBenign ? 'Operational Activity Reasoning' : 'AI Defense Reasoning'} (${esc(r.provider || 'AI Engine')} · ${esc(r.model_version || 'Foundation-Sec-8B')}):</strong>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;">
+              <span class="badge ${isBenign ? 'badge-benign' : isMal ? 'badge-critical' : 'badge-warning'}">${r.verdict.toUpperCase()} (${(r.confidence * 100).toFixed(1)}%)</span>
+              <span class="mono text-xs text-muted">Inference: ${r.latency_ms} ms</span>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.35);padding:12px 16px;border-radius:6px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:0.75rem;color:${isBenign ? '#34d399' : 'var(--cyan)'};font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Cognitive Defense Rationale &amp; Grounding:</div>
+            <p style="font-size:0.86rem;color:var(--text-1);margin:0;line-height:1.55;">${esc(r.rationale || 'High-confidence automated mitigation enacted.')}</p>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;font-size:0.76rem;" class="mono text-muted">
+            <div style="background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:4px;">
+              <span style="display:block;color:var(--text-3);font-size:0.7rem;">EXECUTED ACTUATOR</span>
+              <strong class="${isBenign ? 'text-muted' : 'text-amber'}" style="font-size:0.85rem;">${esc(r.action || 'none')}</strong>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:4px;">
+              <span style="display:block;color:var(--text-3);font-size:0.7rem;">ROLLBACK TOKEN</span>
+              <strong class="text-cyan" style="font-size:0.85rem;">${esc(r.rollback_token || 'N/A')}</strong>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:4px;">
+              <span style="display:block;color:var(--text-3);font-size:0.7rem;">ATT&amp;CK TECHNIQUE</span>
+              <strong class="text-technique" style="font-size:0.85rem;">${esc(r.technique_id)}</strong>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:4px;">
+              <span style="display:block;color:var(--text-3);font-size:0.7rem;">D3FEND COUNTERMEASURE</span>
+              <strong class="text-d3fend" style="font-size:0.85rem;">${esc(r.d3fend || 'N/A')}</strong>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  function attachBenchmarkRowListener(row) {
+    row.addEventListener("click", () => {
+      const idx = row.dataset.idx;
+      const detailRow = document.getElementById(`bench-detail-${idx}`);
+      if (detailRow) {
+        const isHidden = detailRow.style.display === "none";
+        detailRow.style.display = isHidden ? "table-row" : "none";
+        const viewHint = row.querySelector(".view-hint");
+        if (viewHint) {
+          viewHint.textContent = isHidden ? "▴ Hide AI Reasoning" : "▾ View AI Reasoning";
+        }
+      }
+    });
+  }
+
+  function appendBenchmarkTableRow(item, index) {
+    const body = document.getElementById("benchmark-results-body");
+    if (!body) return;
+    if (index === 0) {
+      body.innerHTML = "";
+    }
+    const temp = document.createElement("tbody");
+    temp.innerHTML = createBenchmarkRowHTML(item, index);
+    const newRow = temp.querySelector(".benchmark-row");
+    const detailRow = temp.querySelector(".benchmark-detail-row");
+    if (newRow && detailRow) {
+      body.appendChild(newRow);
+      body.appendChild(detailRow);
+      attachBenchmarkRowListener(newRow);
+      try {
+        newRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } catch (_) {}
+    }
+  }
+
   async function runBenchmarkSuite() {
     const btnRun = document.getElementById("btn-run-benchmark");
     const catSelect = document.getElementById("benchmark-category-select");
@@ -676,80 +781,114 @@ Technique T1486 and T1105 identified.`;
     updateLaunchButton(true, (isDeepReasoningMode ? '🧠 Reasoning ' : '⚡ Testing ') + batchSize + ' Vectors…');
     if (progBox) progBox.hidden = false;
 
-    // Animated progress simulation while backend computes
-    let currentPct = 12;
-    if (progFill) progFill.style.width = currentPct + "%";
-    if (tickerPct) tickerPct.textContent = currentPct + "%";
+    if (progFill) progFill.style.width = "4%";
+    if (tickerPct) tickerPct.textContent = "0%";
     if (tickerText) tickerText.textContent = isDeepReasoningMode
-      ? `🧠 Initializing Foundation-Sec-8B on RTX 5050 for ${batchSize} vectors…`
-      : `⚡ Ingesting ${batchSize} attack vectors into MITRE ATT&CK & D3FEND RAG…`;
+      ? `🧠 Initializing Foundation-Sec-8B neural stream for ${batchSize} vectors…`
+      : `⚡ Streaming ${batchSize} attack vectors through MITRE ATT&CK & D3FEND RAG…`;
 
-    const tickerSteps = isDeepReasoningMode ? [
-      { pct: 25, text: "🔍 Performing Hybrid Graph-RAG retrieval for each attack vector…" },
-      { pct: 50, text: "🧠 Foundation-Sec-8B generating neural reasoning tokens on RTX 5050…" },
-      { pct: 75, text: "🛡️ Enforcing zero-hallucination guardrails & autonomous containment actuators…" },
-      { pct: 90, text: "⚡ Finalizing MITRE defense audit trail and rollback tokens…" },
-    ] : [
-      { pct: 28, text: "🔍 Grounding threat signatures against 697 Enterprise ATT&CK techniques…" },
-      { pct: 54, text: "🤖 Querying Foundation-Sec-8B security reasoning & unseen anomaly detectors…" },
-      { pct: 78, text: "🛡️ Formulating zero-hallucination containment plans & cryptographic rollback tokens…" },
-      { pct: 92, text: "⚡ Finalizing metrics, actuator safeguards, and audit records…" },
-    ];
+    const body = document.getElementById("benchmark-results-body");
+    if (body) {
+      body.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-3);"><span class="spinner" style="display:inline-block;width:16px;height:16px;border:2px solid var(--cyan);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span> <strong class="text-cyan">Streaming attacks live:</strong> Results will appear row-by-row as the AI completes each decision…</td></tr>`;
+    }
 
-    let stepIndex = 0;
-    const interval = setInterval(() => {
-      if (stepIndex < tickerSteps.length) {
-        const s = tickerSteps[stepIndex++];
-        if (progFill) progFill.style.width = s.pct + "%";
-        if (tickerPct) tickerPct.textContent = s.pct + "%";
-        if (tickerText) tickerText.textContent = s.text;
-      }
-    }, isDeepReasoningMode ? 1500 : 400);
+    benchmarkResultsData = [];
+
+    const elTotal = document.getElementById("sc-total");
+    const elAcc = document.getElementById("sc-accuracy");
+    const elMit = document.getElementById("sc-mitigations");
+    const elGrd = document.getElementById("sc-grounding");
+    const elLat = document.getElementById("sc-latency");
 
     try {
-      const res = await CG.api.runBatchBenchmark({
-        batch_size: batchSize,
-        category: category || null,
-        enforce_live: enforce,
-        deep_reasoning: isDeepReasoningMode,
-      });
+      await CG.api.streamBatchBenchmark(
+        {
+          batch_size: batchSize,
+          category: category || null,
+          enforce_live: enforce,
+          deep_reasoning: isDeepReasoningMode,
+        },
+        // onAttack: append row live immediately!
+        (data) => {
+          benchmarkResultsData.push(data.item);
+          appendBenchmarkTableRow(data.item, data.index);
 
-      clearInterval(interval);
-      if (progFill) progFill.style.width = "100%";
-      if (tickerPct) tickerPct.textContent = "100%";
-      if (tickerText) tickerText.textContent = `✓ Benchmark Complete: ${res.benchmark_summary.total_attacks_tested} Vectors Tested · ${res.benchmark_summary.detection_accuracy_percent}% Detection Rate (${res.benchmark_summary.engine || 'Active Defense'})!`;
+          updateLaunchButton(true, (isDeepReasoningMode ? '🧠 Reasoning [' : '⚡ Testing [') + (data.index + 1) + '/' + data.total + ']…');
 
-      // Update Scorecard KPIs
-      const summary = res.benchmark_summary;
-      const elTotal = document.getElementById("sc-total");
-      const elAcc = document.getElementById("sc-accuracy");
-      const elMit = document.getElementById("sc-mitigations");
-      const elGrd = document.getElementById("sc-grounding");
-      const elLat = document.getElementById("sc-latency");
+          const pct = Math.min(100, Math.round(((data.index + 1) / data.total) * 100));
+          if (progFill) progFill.style.width = pct + "%";
+          if (tickerPct) tickerPct.textContent = pct + "%";
+          if (tickerText) {
+            const extra = data.item.is_benign ? ' [Benign Traffic Permitted]' : ` [Action: ${data.item.action || 'block_ip'}]`;
+            tickerText.textContent = isDeepReasoningMode
+              ? `🧠 [${data.index + 1}/${data.total}] Reasoning: ${esc(data.item.title)}${extra}`
+              : `⚡ [${data.index + 1}/${data.total}] Evaluated: ${esc(data.item.title)}${extra}`;
+          }
 
-      if (elTotal) elTotal.textContent = `${summary.total_attacks_tested} / ${summary.total_attacks_tested}`;
-      if (elAcc) elAcc.textContent = `${summary.detection_accuracy_percent}%`;
-      if (elMit) elMit.textContent = `${summary.mitigation_success_rate}%`;
-      if (elGrd) elGrd.textContent = "100%";
-      if (elLat) elLat.textContent = `${summary.mean_containment_latency_ms} ms`;
+          if (data.summary_so_far) {
+            const s = data.summary_so_far;
+            if (elTotal) elTotal.textContent = `${s.total_attacks_tested} / ${s.total_batch_target || data.total}`;
+            if (elAcc) elAcc.textContent = `${s.detection_accuracy_percent}%`;
+            if (elMit) elMit.textContent = `${s.mitigation_success_rate}%`;
+            if (elGrd) elGrd.textContent = "100%";
+            if (elLat) elLat.textContent = `${s.mean_containment_latency_ms} ms`;
+          }
+        },
+        // onCompleted: finalize metrics
+        (data) => {
+          if (progFill) progFill.style.width = "100%";
+          if (tickerPct) tickerPct.textContent = "100%";
+          const s = data.benchmark_summary;
+          if (tickerText) tickerText.textContent = `✓ Benchmark Complete: ${s.total_attacks_tested} Vectors Tested · ${s.detection_accuracy_percent}% Detection Rate (${s.engine || 'Active Defense'})!`;
 
-      // Store and render results
-      benchmarkResultsData = res.attack_results || [];
-      renderBenchmarkTableRows(benchmarkResultsData);
+          if (elTotal) elTotal.textContent = `${s.total_attacks_tested} / ${s.total_attacks_tested}`;
+          if (elAcc) elAcc.textContent = `${s.detection_accuracy_percent}%`;
+          if (elMit) elMit.textContent = `${s.mitigation_success_rate}%`;
+          if (elGrd) elGrd.textContent = "100%";
+          if (elLat) elLat.textContent = `${s.mean_containment_latency_ms} ms`;
 
-      // Refresh other active defense UI and dashboard alerts
-      refreshActiveDefense();
-      if (CG.api?.alerts) {
-        try {
-          const alerts = await CG.api.alerts();
-          const body = document.getElementById("alerts-body");
-          if (body && CG.dashboard?.renderAlerts) CG.dashboard.renderAlerts(alerts);
-        } catch (_) {}
-      }
+          if (data.attack_results && data.attack_results.length) {
+            benchmarkResultsData = data.attack_results;
+          }
 
-      CG.toast(`✅ Benchmark Success: ${summary.threats_detected}/${summary.total_attacks_tested} attacks detected (${summary.detection_accuracy_percent}%) with zero hallucinations!`, 5000);
+          refreshActiveDefense();
+          if (CG.dashboard?.refresh) {
+            CG.dashboard.refresh();
+          }
+
+          CG.toast(`✅ Benchmark Success: ${s.threats_detected}/${s.total_attacks_tested} attacks detected (${s.detection_accuracy_percent}%) with zero hallucinations!`, 5000);
+        },
+        // onError fallback
+        async (err) => {
+          console.warn("SSE stream failed, falling back to synchronous execution:", err);
+          if (tickerText) tickerText.textContent = "Executing synchronous benchmark fallback…";
+          const res = await CG.api.runBatchBenchmark({
+            batch_size: batchSize,
+            category: category || null,
+            enforce_live: enforce,
+            deep_reasoning: isDeepReasoningMode,
+          });
+
+          if (progFill) progFill.style.width = "100%";
+          if (tickerPct) tickerPct.textContent = "100%";
+          if (tickerText) tickerText.textContent = `✓ Benchmark Complete: ${res.benchmark_summary.total_attacks_tested} Vectors Tested · ${res.benchmark_summary.detection_accuracy_percent}% Detection Rate (${res.benchmark_summary.engine || 'Active Defense'})!`;
+
+          const summary = res.benchmark_summary;
+          if (elTotal) elTotal.textContent = `${summary.total_attacks_tested} / ${summary.total_attacks_tested}`;
+          if (elAcc) elAcc.textContent = `${summary.detection_accuracy_percent}%`;
+          if (elMit) elMit.textContent = `${summary.mitigation_success_rate}%`;
+          if (elGrd) elGrd.textContent = "100%";
+          if (elLat) elLat.textContent = `${summary.mean_containment_latency_ms} ms`;
+
+          benchmarkResultsData = res.attack_results || [];
+          renderBenchmarkTableRows(benchmarkResultsData);
+
+          refreshActiveDefense();
+          if (CG.dashboard?.refresh) CG.dashboard.refresh();
+          CG.toast(`✅ Benchmark Success: ${summary.threats_detected}/${summary.total_attacks_tested} attacks detected!`, 5000);
+        }
+      );
     } catch (err) {
-      clearInterval(interval);
       if (tickerText) tickerText.textContent = `❌ Benchmark Failed: ${err.message}`;
       CG.toast(`Benchmark error: ${err.message}`, 4000);
     } finally {
@@ -766,59 +905,10 @@ Technique T1486 and T1105 identified.`;
       return;
     }
 
-    body.innerHTML = items.map((r, i) => {
-      const isMal = r.verdict === "malicious";
-      const verdictBadge = isMal
-        ? '<span class="badge badge-critical">MALICIOUS</span>'
-        : '<span class="badge badge-benign">BENIGN</span>';
-      return `
-        <tr class="benchmark-row" data-idx="${i}" style="cursor:pointer;" title="Click to view full AI reasoning">
-          <td class="mono text-muted text-xs">${i + 1}</td>
-          <td>
-            <strong>${esc(r.title)}</strong>
-            <span class="text-xs text-cyan" style="display:block;opacity:0.8;">▾ View AI Reasoning</span>
-          </td>
-          <td><span class="text-xs text-muted">${esc(r.category)}</span></td>
-          <td><span class="badge badge-technique">${esc(r.technique_id)}</span></td>
-          <td><span class="badge badge-d3fend" title="${esc(r.d3fend)}">${esc((r.d3fend || "").split(" ")[0])}</span></td>
-          <td>${verdictBadge}</td>
-          <td class="mono text-cyan">${(r.confidence * 100).toFixed(1)}%</td>
-          <td><span class="mono text-amber">${esc(r.action || 'none')}</span></td>
-          <td><code class="mono text-xs token-code">${esc(r.rollback_token || 'N/A')}</code></td>
-          <td class="mono text-xs text-muted">${r.latency_ms} ms</td>
-        </tr>
-        <tr class="benchmark-detail-row" id="bench-detail-${i}" style="display:none;background:rgba(15,23,42,0.85);">
-          <td colspan="10" style="padding:14px 20px;border-left:3px solid var(--cyan);">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <strong style="color:var(--cyan);font-size:0.85rem;">🧠 AI Security Rationale (${esc(r.provider || 'AI Engine')} · ${esc(r.model_version || 'Foundation-Sec-8B')}):</strong>
-              <span class="mono text-xs text-muted">Latency: ${r.latency_ms} ms</span>
-            </div>
-            <p style="font-size:0.84rem;color:var(--text-2);margin:0 0 10px 0;line-height:1.45;">${esc(r.rationale || 'High-confidence automated mitigation enacted.')}</p>
-            <div style="display:flex;gap:16px;font-size:0.75rem;flex-wrap:wrap;" class="mono text-muted">
-              <span>Executed Actuator: <strong class="text-amber">${esc(r.action || 'none')}</strong></span>
-              <span>Rollback Token: <strong class="text-cyan">${esc(r.rollback_token || 'N/A')}</strong></span>
-              <span>ATT&amp;CK Mapping: <strong class="text-technique">${esc(r.technique_id)}</strong></span>
-              <span>D3FEND Countermeasure: <strong class="text-d3fend">${esc(r.d3fend || 'N/A')}</strong></span>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join("");
+    body.innerHTML = items.map((r, i) => createBenchmarkRowHTML(r, i)).join("");
 
-    // Bind row click to toggle detail expansion
     body.querySelectorAll(".benchmark-row").forEach((row) => {
-      row.addEventListener("click", () => {
-        const idx = row.dataset.idx;
-        const detailRow = document.getElementById(`bench-detail-${idx}`);
-        if (detailRow) {
-          const isHidden = detailRow.style.display === "none";
-          detailRow.style.display = isHidden ? "table-row" : "none";
-          const viewHint = row.querySelector(".text-cyan");
-          if (viewHint) {
-            viewHint.textContent = isHidden ? "▴ Hide AI Reasoning" : "▾ View AI Reasoning";
-          }
-        }
-      });
+      attachBenchmarkRowListener(row);
     });
   }
 

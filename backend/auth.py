@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from .config import ANALYST_ID, API_TOKEN
+from .config import ANALYST_ID, API_TOKEN, CG_ENV
 
 logger = logging.getLogger("cyberguard.auth")
 
@@ -151,13 +151,31 @@ _USER_STORE: Dict[str, UserInDB] = {}
 
 
 def _seed_default_users() -> None:
+    from .config import (
+        CG_ADMIN_PASSWORD,
+        CG_ANALYST_PASSWORD,
+        CG_AUDITOR_PASSWORD,
+        CG_ENV,
+    )
+    is_prod = CG_ENV == "production"
+    if is_prod:
+        admin_pw = CG_ADMIN_PASSWORD
+        analyst_pw = CG_ANALYST_PASSWORD
+        auditor_pw = CG_AUDITOR_PASSWORD
+        if not admin_pw:
+            logger.warning("Production mode: CG_ADMIN_PASSWORD not set. Admin seed account disabled.")
+    else:
+        admin_pw = CG_ADMIN_PASSWORD or "CyberGuard@Admin2026!"
+        analyst_pw = CG_ANALYST_PASSWORD or "CyberGuard@Analyst2026!"
+        auditor_pw = CG_AUDITOR_PASSWORD or "CyberGuard@Auditor2026!"
+
     defaults = [
-        ("admin", "CyberGuard@Admin2026!", Role.ADMIN, "System Administrator"),
-        ("analyst", "CyberGuard@Analyst2026!", Role.ANALYST, "Security Analyst"),
-        ("auditor", "CyberGuard@Auditor2026!", Role.AUDITOR, "Compliance Auditor"),
+        ("admin", admin_pw, Role.ADMIN, "System Administrator"),
+        ("analyst", analyst_pw, Role.ANALYST, "Security Analyst"),
+        ("auditor", auditor_pw, Role.AUDITOR, "Compliance Auditor"),
     ]
     for username, plain_pw, role, full_name in defaults:
-        if username not in _USER_STORE:
+        if plain_pw and username not in _USER_STORE:
             pwd_hash, salt = hash_password(plain_pw)
             _USER_STORE[username] = UserInDB(
                 username=username,
@@ -277,11 +295,22 @@ def get_current_user(request: Request) -> User:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    # 3. If running locally on loopback and strict auth not enforced, allow default analyst
-    client_host = request.client.host if request.client else None
-    is_loopback = client_host in (None, "127.0.0.1", "localhost", "::1", "testclient")
+    # 3. If running locally on loopback and strict auth / production mode not enforced, allow default analyst
+    from .security import resolve_client_ip, _is_loopback_client
+    from .config import CG_ENV
 
-    if is_loopback and not ENFORCE_STRICT_AUTH:
+    client_ip = resolve_client_ip(request)
+    is_loopback = _is_loopback_client(client_ip)
+    is_prod = CG_ENV == "production"
+
+    if is_prod or ENFORCE_STRICT_AUTH:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials required in production mode",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if is_loopback:
         return User(
             username=ANALYST_ID or "local-analyst",
             role=Role.ADMIN,  # Local developer workstation defaults to Admin permissions

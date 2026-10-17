@@ -1,5 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
+cd /d "%~dp0"
+set "PYTHONPATH=%~dp0;%PYTHONPATH%"
 
 echo ============================================================
 echo   CyberGuard Autonomous Active Cyber Defense Launcher (Windows)
@@ -18,7 +20,7 @@ if exist "%~dp0.venv\Scripts\python.exe" (
 )
 
 echo [*] Executing preflight integrity checks...
-"%PYTHON_EXE%" verify.py
+"%PYTHON_EXE%" "%~dp0verify.py"
 if %ERRORLEVEL% neq 0 (
     echo [X] Verification failed. Aborting.
     pause
@@ -45,5 +47,5 @@ if !ERRORLEVEL! neq 0 (
 )
 
 echo [*] Starting CyberGuard Web SOC Dashboard on http://127.0.0.1:8000 ...
-"%PYTHON_EXE%" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+"%PYTHON_EXE%" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 pause

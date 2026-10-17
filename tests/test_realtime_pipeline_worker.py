@@ -240,3 +240,60 @@ def test_concurrent_packet_ingestion():
     # Flush all
     flushed = sniffer.flush_expired_flows(now=time.time() + 300.0)
     assert len(flushed) > 0
+
+
+def test_concurrent_pipeline_resolution_under_load():
+    """Verify thread-safe atomic initialization of _get_pipeline under concurrent load."""
+    import concurrent.futures
+    from backend.api.detection import _get_pipeline, eager_load_pipeline
+
+    # Test eager load hook
+    eager_pipe = eager_load_pipeline()
+    assert eager_pipe is not None
+
+    results = []
+    errors = []
+
+    def load_task():
+        try:
+            pipe = _get_pipeline()
+            results.append(pipe)
+        except Exception as exc:
+            errors.append(exc)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(load_task) for _ in range(10)]
+        concurrent.futures.wait(futures)
+
+    assert len(errors) == 0, f"Concurrent pipeline loading had errors: {errors}"
+    assert len(results) == 10
+    # Every thread must receive the exact same singleton instance
+    first_id = id(results[0])
+    for pipe in results[1:]:
+        assert id(pipe) == first_id
+
+
+def test_lifespan_startup_and_graceful_drain():
+    """Verify FastAPI lifespan starts worker wiring and drains buffered flows on shutdown."""
+    import asyncio
+    from backend.detection.live_worker import default_live_worker
+    from backend.main import _lifespan, app
+
+    # Reset worker queue and state
+    while not default_live_worker.queue.empty():
+        default_live_worker.queue.get_nowait()
+
+    async def run_lifespan_cycle():
+        async with _lifespan(app):
+            # Worker is wired and callable
+            assert default_live_worker.pipeline_getter is not None
+            # Buffer dummy flows while running
+            default_live_worker.enqueue_flow(_make_dummy_flow())
+            default_live_worker.enqueue_flow(_make_dummy_flow())
+            assert default_live_worker.queue.qsize() == 2
+
+        # Upon exiting lifespan context, queue must be drained
+        assert default_live_worker.queue.empty()
+
+    asyncio.run(run_lifespan_cycle())
+

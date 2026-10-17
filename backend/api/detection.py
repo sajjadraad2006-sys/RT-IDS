@@ -3,11 +3,12 @@ return alerts + stage stats + feature importances. No LLM involved here.
 Also: alert explanation (LLM layer), CSV export, pipeline health.
 """
 from __future__ import annotations
-import json, csv, io, time, logging, re
+import json, csv, io, time, logging, re, threading
 from collections import Counter
 from typing import Literal
 from fastapi import APIRouter, UploadFile, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
+from sqlalchemy import text
 from ..db.models import AlertRecord, DecisionCase, SessionLocal
 from ..limiter import limiter
 
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/api/detect", tags=["detection"])
 _pipeline = None  # lazily built from saved models
 _pipeline_metadata = None
 _pipeline_root = None
+_pipeline_lock = threading.Lock()
 
 # ── Upload limits ─────────────────────────────────────────────────────────────
 BATCH_SIZE = 5000          # rows per processing batch
@@ -40,61 +42,74 @@ def _get_pipeline():
         ) from exc
     if _pipeline is not None and _pipeline_root == model_root:
         return _pipeline
-    from ..detection.pipeline import DetectionPipeline
-    from ..detection.normalizer import Normalizer
-    from ..detection.statistical import StatisticalFilter
-    from ..detection.classifier import AttackClassifier
-    from ..detection.autoencoder import AutoencoderDetector
-    from ..detection.features import FEATURE_NAMES
-    from ..detection.integrity import (
-        validate_artifact_bundle,
-        validate_loaded_routing_calibration,
-    )
+
+    with _pipeline_lock:
+        if _pipeline is not None and _pipeline_root == model_root:
+            return _pipeline
+        from ..detection.pipeline import DetectionPipeline
+        from ..detection.normalizer import Normalizer
+        from ..detection.statistical import StatisticalFilter
+        from ..detection.classifier import AttackClassifier
+        from ..detection.autoencoder import AutoencoderDetector
+        from ..detection.features import FEATURE_NAMES
+        from ..detection.integrity import (
+            validate_artifact_bundle,
+            validate_loaded_routing_calibration,
+        )
+        try:
+            metadata = validate_artifact_bundle(model_root)
+            norm = Normalizer().load(model_root / "normalizer.pkl")
+            stat = StatisticalFilter().load(model_root / "statistical.pkl")
+            clf = AttackClassifier(
+                confidence_threshold=metadata["classifier"]["abstention_threshold"]
+            ).load(model_root / "classifier.pkl")
+            # The signed-off bundle metadata owns the serving threshold, including
+            # for legacy classifier files that embedded a different default.
+            clf.confidence_threshold = float(
+                metadata["classifier"]["abstention_threshold"]
+            )
+            ae = AutoencoderDetector(len(FEATURE_NAMES)).load(
+                model_root / "autoencoder.pt", len(FEATURE_NAMES))
+            expected_features = len(FEATURE_NAMES)
+            if norm.n_features != expected_features:
+                raise IntegrityError("normalizer feature count does not match running schema")
+            if stat.mean_ is None or len(stat.mean_) != expected_features:
+                raise IntegrityError("statistical artifact feature count does not match schema")
+            if ae.n_features != expected_features:
+                raise IntegrityError("autoencoder feature count does not match running schema")
+            if list(clf.classes_) != list(metadata.get("classes", [])):
+                raise IntegrityError("classifier classes do not match artifact manifest")
+            validate_loaded_routing_calibration(
+                metadata,
+                classifier_threshold=clf.confidence_threshold,
+                statistical_threshold=stat.threshold,
+                autoencoder_threshold=ae.threshold,
+            )
+            _pipeline = DetectionPipeline(
+                norm, stat, clf, ae, artifact_metadata=metadata
+            )
+            _pipeline_metadata = metadata
+            _pipeline_root = model_root
+            log.info(
+                "Detection pipeline loaded after integrity verification (production_approved=%s)",
+                metadata.get("production_approved", False),
+            )
+        except (IntegrityError, OSError, KeyError, ValueError, RuntimeError) as exc:
+            log.error("Detection pipeline refused unverified artifacts: %s", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Detection artifacts are unavailable or failed integrity validation",
+            ) from exc
+        return _pipeline
+
+
+def eager_load_pipeline():
+    """Eagerly load and verify the active detection pipeline during startup."""
     try:
-        metadata = validate_artifact_bundle(model_root)
-        norm = Normalizer().load(model_root / "normalizer.pkl")
-        stat = StatisticalFilter().load(model_root / "statistical.pkl")
-        clf = AttackClassifier(
-            confidence_threshold=metadata["classifier"]["abstention_threshold"]
-        ).load(model_root / "classifier.pkl")
-        # The signed-off bundle metadata owns the serving threshold, including
-        # for legacy classifier files that embedded a different default.
-        clf.confidence_threshold = float(
-            metadata["classifier"]["abstention_threshold"]
-        )
-        ae = AutoencoderDetector(len(FEATURE_NAMES)).load(
-            model_root / "autoencoder.pt", len(FEATURE_NAMES))
-        expected_features = len(FEATURE_NAMES)
-        if norm.n_features != expected_features:
-            raise IntegrityError("normalizer feature count does not match running schema")
-        if stat.mean_ is None or len(stat.mean_) != expected_features:
-            raise IntegrityError("statistical artifact feature count does not match schema")
-        if ae.n_features != expected_features:
-            raise IntegrityError("autoencoder feature count does not match running schema")
-        if list(clf.classes_) != list(metadata.get("classes", [])):
-            raise IntegrityError("classifier classes do not match artifact manifest")
-        validate_loaded_routing_calibration(
-            metadata,
-            classifier_threshold=clf.confidence_threshold,
-            statistical_threshold=stat.threshold,
-            autoencoder_threshold=ae.threshold,
-        )
-        _pipeline = DetectionPipeline(
-            norm, stat, clf, ae, artifact_metadata=metadata
-        )
-        _pipeline_metadata = metadata
-        _pipeline_root = model_root
-        log.info(
-            "Detection pipeline loaded after integrity verification (production_approved=%s)",
-            metadata.get("production_approved", False),
-        )
-    except (IntegrityError, OSError, KeyError, ValueError, RuntimeError) as exc:
-        log.error("Detection pipeline refused unverified artifacts: %s", exc)
-        raise HTTPException(
-            status_code=503,
-            detail="Detection artifacts are unavailable or failed integrity validation",
-        ) from exc
-    return _pipeline
+        return _get_pipeline()
+    except Exception as exc:
+        log.warning("Eager detection pipeline loading deferred: %s", exc)
+        return None
 
 
 @router.post("/upload")
@@ -374,21 +389,77 @@ async def upload(request: Request, file: UploadFile) -> dict:
 
 @router.get("/alerts")
 def list_alerts(
-    limit: int = Query(default=200, ge=1, le=1000),
+    limit: int = Query(default=500, ge=1, le=5000),
     severity: Literal["none", "low", "medium", "high", "critical"] | None = None,
 ) -> list[dict]:
     with SessionLocal() as s:
         q = s.query(AlertRecord).order_by(AlertRecord.created_at.desc())
         if severity:
             q = q.filter_by(severity=severity)
-        return [{"id": r.id, "created_at": r.created_at, "severity": r.severity,
-                 "type": r.type, "confidence": r.confidence,
-                 "anomaly_score": r.anomaly_score, "stage": r.stage,
-                 "route": getattr(r, "route", ""),
-                 "pipeline_version": getattr(r, "pipeline_version", "legacy-v1"),
-                 "mitre_techniques": json.loads(r.mitre_techniques),
-                 "latency_ms": r.latency_ms, "source_file": r.source_file}
-                for r in q.limit(limit).all()]
+        records = q.limit(limit).all()
+        result = []
+        for r in records:
+            mitre_techs = []
+            if r.mitre_techniques:
+                try:
+                    mitre_techs = json.loads(r.mitre_techniques)
+                except Exception:
+                    mitre_techs = []
+            top_feats = []
+            if getattr(r, "top_features", None):
+                try:
+                    top_feats = json.loads(r.top_features)
+                except Exception:
+                    top_feats = []
+            evid = {}
+            if getattr(r, "evidence_json", None):
+                try:
+                    evid = json.loads(r.evidence_json)
+                except Exception:
+                    evid = {}
+
+            result.append({
+                "id": r.id,
+                "created_at": r.created_at,
+                "severity": r.severity,
+                "type": r.type,
+                "confidence": r.confidence,
+                "anomaly_score": r.anomaly_score,
+                "stage": r.stage,
+                "route": getattr(r, "route", ""),
+                "pipeline_version": getattr(r, "pipeline_version", "legacy-v1"),
+                "mitre_techniques": mitre_techs,
+                "top_features": top_feats,
+                "explanation": getattr(r, "explanation", "") or "",
+                "latency_ms": r.latency_ms,
+                "source_file": r.source_file,
+                "evidence": evid,
+            })
+        return result
+
+
+@router.get("/alerts/distribution")
+def get_alerts_distribution() -> dict:
+    """Return actual total alert count and full attack type distribution directly from SQLite."""
+    with SessionLocal() as s:
+        total = s.query(AlertRecord).count()
+        rows = s.execute(
+            text("SELECT type, COUNT(*) as cnt FROM alerts GROUP BY type ORDER BY cnt DESC")
+        ).fetchall()
+        distribution = [{"label": r[0] or "Unknown", "value": int(r[1])} for r in rows]
+        return {
+            "total_alerts": total,
+            "distribution": distribution,
+        }
+
+
+@router.delete("/alerts/clear")
+def clear_all_alerts() -> dict:
+    """Clear all recorded alerts and hypotheses from SQLite to allow fresh testing."""
+    with SessionLocal() as s:
+        deleted = s.query(AlertRecord).delete()
+        s.commit()
+    return {"status": "cleared", "deleted_count": deleted}
 
 
 @router.get("/stats")

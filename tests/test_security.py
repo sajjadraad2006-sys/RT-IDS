@@ -201,3 +201,50 @@ def test_oversized_headers_url_and_json_body_are_rejected():
         content=b"x" * (1024 * 1024 + 1),
         headers={"Content-Type": "application/json"},
     ).status_code == 413
+
+
+def test_reverse_proxy_forwarded_for_resolution():
+    """Verify trusted proxy X-Forwarded-For resolution and spoofing resistance."""
+    # 1. Request via trusted loopback proxy with remote X-Forwarded-For must be treated as remote (403 without token)
+    proxy_client = TestClient(app, client=("127.0.0.1", 50000))
+    res = proxy_client.get("/api/settings", headers={"X-Forwarded-For": "198.51.100.8"})
+    assert res.status_code == 403
+    assert "remote API access requires" in res.json()["detail"]
+
+    # 2. Remote attacker directly connecting and spoofing X-Forwarded-For: 127.0.0.1 must be rejected
+    attacker_client = TestClient(app, client=("203.0.113.55", 41234))
+    spoofed_res = attacker_client.get("/api/settings", headers={"X-Forwarded-For": "127.0.0.1"})
+    assert spoofed_res.status_code == 403
+    assert "remote API access requires" in spoofed_res.json()["detail"]
+
+    # 3. Request via trusted proxy with valid token succeeds
+    from backend.auth import create_access_token, User, Role
+    token = create_access_token(User(username="analyst_test", role=Role.ANALYST))
+    valid_res = proxy_client.get(
+        "/api/settings",
+        headers={"X-Forwarded-For": "198.51.100.8", "Authorization": f"Bearer {token}"},
+    )
+    assert valid_res.status_code == 200
+
+
+def test_production_mode_refuses_loopback_unauthenticated_admin(monkeypatch):
+    """Verify that in production mode, loopback clients are not automatically elevated to Role.ADMIN."""
+    import backend.config as config
+    import backend.security as security
+    import backend.auth as auth
+
+    monkeypatch.setattr(config, "CG_ENV", "production")
+    monkeypatch.setattr(security, "CG_ENV", "production")
+    monkeypatch.setattr(auth, "CG_ENV", "production")
+
+    # In production, unauthenticated request even from loopback must be rejected with 401
+    prod_client = TestClient(app, client=("127.0.0.1", 50001))
+    resp = prod_client.get("/api/settings")
+    assert resp.status_code == 401
+    assert "production mode requires" in resp.json()["detail"]
+
+    # Valid Bearer token succeeds in production
+    token = auth.create_access_token(auth.User(username="prod_admin", role=auth.Role.ADMIN))
+    auth_resp = prod_client.get("/api/settings", headers={"Authorization": f"Bearer {token}"})
+    assert auth_resp.status_code == 200
+
