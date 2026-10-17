@@ -123,7 +123,12 @@ def test_evaluate_unguarded_llm(benchmark_engine):
 # ---------------------------------------------------------------------------
 
 def test_evaluate_hacd_framework_invariants(benchmark_engine):
+    # Warm up semantic RAG cache to isolate steady-state MTTC from cold-start DB load
+    benchmark_engine.semantic_rag.retrieve_pareto_playbook(
+        "Warmup query", telemetry={"src_ip": "1.1.1.1", "dest_port": 80, "severity": "low"}
+    )
     benign = benchmark_engine._generate_benign_workload(15)
+
     adv = benchmark_engine._generate_adversarial_workload(10)
     scenarios = [
         {

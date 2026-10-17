@@ -634,5 +634,21 @@ window.CG = window.CG || {};
   API.liveSnifferAlerts = (limit = 50) =>
     tryFetch(`/api/detect/live/alerts?limit=${encodeURIComponent(limit)}`);
 
+  /* ═══ Suricata Live EVE Streaming & Replay ═══ */
+  API.suricataStreamStatus = () =>
+    tryFetch("/api/events/suricata/stream/status");
+
+  API.suricataStreamStart = (evePath = null, fromEnd = true) => {
+    let q = `?from_end=${fromEnd ? "true" : "false"}`;
+    if (evePath) q += `&eve_path=${encodeURIComponent(evePath)}`;
+    return tryFetch(`/api/events/suricata/stream/start${q}`, { method: "POST" });
+  };
+
+  API.suricataStreamStop = () =>
+    tryFetch("/api/events/suricata/stream/stop", { method: "POST" });
+
+  API.suricataStreamReplay = (flows = 5, alerts = 2) =>
+    tryFetch(`/api/events/suricata/stream/replay?flows_count=${flows}&alerts_count=${alerts}`, { method: "POST" });
+
   CG.api = API;
 })();

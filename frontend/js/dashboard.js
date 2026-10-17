@@ -467,20 +467,48 @@
   let lastSnifferFlushed = 0;
 
   async function pollLiveSniffer() {
-    if (!snifferActive) return;
+    if (!snifferActive && !suricataActive) return;
     try {
-      const st = await CG.api.liveSnifferStatus();
-      if (st && st.active) {
-        const note = document.getElementById("pipeline-note");
-        if (note) {
-          note.textContent = `● Live network capture active (${st.packets_captured} pkts, ${st.flows_aggregated} flows)`;
+      if (snifferActive) {
+        const st = await CG.api.liveSnifferStatus();
+        if (st && st.active) {
+          const note = document.getElementById("pipeline-note");
+          if (note && !suricataActive) {
+            note.textContent = `● Live network capture active (${st.packets_captured} pkts, ${st.flows_aggregated} flows)`;
+          }
+          const delta = Math.max(0, (st.flows_aggregated || 0) - lastSnifferFlushed);
+          if (delta > 0) {
+            flowsTotal += delta;
+            lastSnifferFlushed = st.flows_aggregated;
+            paintKpis();
+          }
+        } else {
+          setSnifferUI(false);
         }
-        const delta = Math.max(0, (st.flows_aggregated || 0) - lastSnifferFlushed);
-        if (delta > 0) {
-          flowsTotal += delta;
-          lastSnifferFlushed = st.flows_aggregated;
-          paintKpis();
-        }
+      }
+
+      if (suricataActive) {
+        try {
+          const suriSt = await CG.api.suricataStreamStatus();
+          if (suriSt && suriSt.tailer && suriSt.tailer.is_running) {
+            const note = document.getElementById("pipeline-note");
+            if (note) {
+              const lines = suriSt.tailer.total_lines_read ?? 0;
+              const flws = suriSt.tailer.total_flows_enqueued ?? 0;
+              note.textContent = `● Suricata EVE live stream active (${lines} lines, ${flws} flows)`;
+              note.style.color = "var(--cyan)";
+            }
+            const deltaSuri = Math.max(0, (suriSt.tailer.total_flows_enqueued || 0) - lastSuricataFlows);
+            if (deltaSuri > 0) {
+              flowsTotal += deltaSuri;
+              lastSuricataFlows = suriSt.tailer.total_flows_enqueued;
+              paintKpis();
+            }
+          } else {
+            setSuricataUI(false);
+          }
+        } catch { /* ignore suricata poll error */ }
+      }
 
         // Live alert ingestion stream
         try {
@@ -531,6 +559,98 @@
       }
     });
   }
+
+  /* ---------- Suricata EVE Stream Controller ---------- */
+  let suricataActive = false;
+  let lastSuricataFlows = 0;
+
+  async function checkSuricataStatus() {
+    try {
+      const res = await CG.api.suricataStreamStatus();
+      if (res && res.tailer && res.tailer.is_running) {
+        setSuricataUI(true, res.tailer);
+      } else {
+        setSuricataUI(false);
+      }
+    } catch {
+      setSuricataUI(false);
+    }
+  }
+
+  function setSuricataUI(active, tailerData = null) {
+    suricataActive = active;
+    const btn = document.getElementById("btn-suricata-stream");
+    const txt = document.getElementById("btn-suricata-stream-text");
+    const note = document.getElementById("pipeline-note");
+    if (!btn || !txt) return;
+
+    if (active) {
+      btn.style.background = "linear-gradient(135deg, #b91c1c, #dc2626)";
+      btn.style.borderColor = "#f87171";
+      txt.textContent = "Stop EVE Stream";
+      if (note) {
+        const lines = tailerData?.total_lines_read ?? 0;
+        const flws = tailerData?.total_flows_enqueued ?? 0;
+        note.textContent = `● Suricata EVE live stream active (${lines} lines, ${flws} flows)`;
+        note.style.color = "var(--cyan)";
+      }
+      if (!snifferPollTimer) {
+        snifferPollTimer = setInterval(pollLiveSniffer, 3000);
+      }
+    } else {
+      btn.style.background = "linear-gradient(135deg, #1d4ed8, #2563eb)";
+      btn.style.borderColor = "#60a5fa";
+      txt.textContent = "Suricata EVE Stream";
+      if (!snifferActive && snifferPollTimer) {
+        clearInterval(snifferPollTimer);
+        snifferPollTimer = null;
+      }
+    }
+  }
+
+  const btnSuricata = document.getElementById("btn-suricata-stream");
+  if (btnSuricata) {
+    btnSuricata.addEventListener("click", async () => {
+      btnSuricata.disabled = true;
+      try {
+        if (!suricataActive) {
+          CG.util.toast("Starting Suricata EVE live streaming tailer…");
+          const res = await CG.api.suricataStreamStart();
+          setSuricataUI(true, res?.tailer_status);
+          CG.util.toast("Suricata EVE live tailer connected to RT-IDS pipeline.");
+        } else {
+          CG.util.toast("Stopping Suricata EVE stream…");
+          await CG.api.suricataStreamStop();
+          setSuricataUI(false);
+          CG.util.toast("Suricata EVE stream stopped.");
+        }
+      } catch (err) {
+        CG.util.toast("Suricata stream error: " + err.message, 4000);
+      } finally {
+        btnSuricata.disabled = false;
+      }
+    });
+  }
+
+  const btnSuricataReplay = document.getElementById("btn-suricata-replay");
+  if (btnSuricataReplay) {
+    btnSuricataReplay.addEventListener("click", async () => {
+      btnSuricataReplay.disabled = true;
+      try {
+        CG.util.toast("Injecting synthetic Suricata EVE flow and alert batch…");
+        const res = await CG.api.suricataStreamReplay(6, 2);
+        CG.util.toast(`Successfully bridged ${res.injected_count || 0} EVE events into RT-IDS pipeline.`);
+        setTimeout(async () => {
+          await CG.dashboard.refresh();
+        }, 800);
+      } catch (err) {
+        CG.util.toast("Suricata replay error: " + err.message, 4000);
+      } finally {
+        btnSuricataReplay.disabled = false;
+      }
+    });
+  }
+
 
   const btnClear = document.getElementById("btn-clear-alerts");
   if (btnClear) {
@@ -583,6 +703,7 @@
     ALERTS = await CG.api.alerts();
     await CG.util.paintOperationalState();
     await checkSnifferStatus();
+    await checkSuricataStatus();
     paintKpis();
     paintPipeline();
     await paintCharts();
