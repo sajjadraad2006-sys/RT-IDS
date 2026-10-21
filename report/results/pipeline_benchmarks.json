@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "experiment": "P3.c_pipeline_benchmarks",
+    "timestamp": "2026-10-17T14:26:16.215689+00:00",
+    "fixture_rows": 2000,
+    "environment": {
+      "os": "Windows",
+      "os_release": "11",
+      "os_version": "10.0.26300",
+      "architecture": "AMD64",
+      "processor": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+      "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "cpu_count": 12
+    },
+    "pipeline_version": "cyberguard-pipeline-legacy-v1",
+    "routing_schema": "cyberguard-routing-legacy-v1",
+    "supported_classes": [
+      "DDoS",
+      "PortScan",
+      "Bot",
+      "Benign"
+    ]
+  },
+  "per_row_latency": {
+    "sample_count": 1000,
+    "mean_ms": 3.38,
+    "std_ms": 0.61,
+    "min_ms": 2.364,
+    "p50_ms": 3.25,
+    "p90_ms": 4.027,
+    "p95_ms": 4.196,
+    "p99_ms": 5.911,
+    "max_ms": 8.104
+  },
+  "batch_scaling": [
+    {
+      "batch_size": 1,
+      "elapsed_seconds": 0.00611,
+      "throughput_flows_per_sec": 163.55,
+      "latency_per_item_ms": 6.1144,
+      "peak_memory_kb": 18.27
+    },
+    {
+      "batch_size": 10,
+      "elapsed_seconds": 0.01254,
+      "throughput_flows_per_sec": 797.56,
+      "latency_per_item_ms": 1.2538,
+      "peak_memory_kb": 50.62
+    },
+    {
+      "batch_size": 50,
+      "elapsed_seconds": 0.02782,
+      "throughput_flows_per_sec": 1797.22,
+      "latency_per_item_ms": 0.5564,
+      "peak_memory_kb": 246.16
+    },
+    {
+      "batch_size": 100,
+      "elapsed_seconds": 0.04795,
+      "throughput_flows_per_sec": 2085.47,
+      "latency_per_item_ms": 0.4795,
+      "peak_memory_kb": 510.64
+    },
+    {
+      "batch_size": 250,
+      "elapsed_seconds": 0.10868,
+      "throughput_flows_per_sec": 2300.31,
+      "latency_per_item_ms": 0.4347,
+      "peak_memory_kb": 1291.01
+    },
+    {
+      "batch_size": 500,
+      "elapsed_seconds": 0.20963,
+      "throughput_flows_per_sec": 2385.18,
+      "latency_per_item_ms": 0.4193,
+      "peak_memory_kb": 2594.46
+    },
+    {
+      "batch_size": 1000,
+      "elapsed_seconds": 0.36328,
+      "throughput_flows_per_sec": 2752.73,
+      "latency_per_item_ms": 0.3633,
+      "peak_memory_kb": 5188.15
+    },
+    {
+      "batch_size": 2000,
+      "elapsed_seconds": 0.64325,
+      "throughput_flows_per_sec": 3109.19,
+      "latency_per_item_ms": 0.3216,
+      "peak_memory_kb": 10414.59
+    }
+  ],
+  "routing_distribution": {
+    "routes": {
+      "known_attack": 364,
+      "unknown_anomaly_review": 1539,
+      "human_review": 97
+    },
+    "verdicts": {
+      "PortScan": 100,
+      "unknown-anomaly": 1539,
+      "DDoS": 200,
+      "Bot": 161
+    }
+  },
+  "confusion_contingency": {
+    "PortScan": {
+      "known_attack": 100
+    },
+    "BENIGN": {
+      "unknown_anomaly_review": 1532,
+      "human_review": 59,
+      "known_attack": 9
+    },
+    "DDoS": {
+      "known_attack": 200
+    },
+    "Bot": {
+      "known_attack": 55,
+      "human_review": 38,
+      "unknown_anomaly_review": 7
+    }
+  }
+}

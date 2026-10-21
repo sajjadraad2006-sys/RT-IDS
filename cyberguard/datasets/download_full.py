@@ -11,6 +11,7 @@ import json
 import os
 import re
 import stat
+import time
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -92,6 +93,7 @@ def download_dataset(
     expected_bytes: int | None = None,
     expected_etag: str | None = None,
     client: httpx.Client | None = None,
+    max_bytes_per_sec: int | None = None,
 ) -> dict[str, Any]:
     """Download one HTTPS object atomically and return observed provenance."""
     if not url.startswith("https://"):
@@ -111,6 +113,16 @@ def download_dataset(
         raise ValueError("partial download exceeds configured bounds")
 
     owns_client = client is None
+    if max_bytes_per_sec is None:
+        env_speed = os.getenv("CG_MAX_DOWNLOAD_SPEED")
+        if env_speed is not None:
+            max_bytes_per_sec = int(env_speed)
+        elif owns_client:
+            # Safe default for live downloads: 8 MB/s (protects home network bandwidth)
+            max_bytes_per_sec = 8 * 1024 * 1024
+        else:
+            max_bytes_per_sec = 0
+
     http = client or httpx.Client(
         follow_redirects=True,
         timeout=httpx.Timeout(connect=20.0, read=60.0, write=60.0, pool=20.0),
@@ -131,14 +143,42 @@ def download_dataset(
             if start and not resumed:
                 start = 0
             downloaded = start
+            chunk_size = 256 * 1024 if (max_bytes_per_sec and max_bytes_per_sec > 0) else 1024 * 1024
+            last_report = time.monotonic()
+            interval_start = time.monotonic()
+            bytes_in_interval = 0
+
             with partial.open(mode) as destination:
-                for chunk in response.iter_bytes(1024 * 1024):
-                    downloaded += len(chunk)
+                for chunk in response.iter_bytes(chunk_size):
+                    chunk_len = len(chunk)
+                    downloaded += chunk_len
+                    bytes_in_interval += chunk_len
+
                     if downloaded > max_bytes:
                         raise ValueError(f"download exceeds configured {max_bytes} byte limit")
                     if expected_bytes is not None and downloaded > expected_bytes:
                         raise ValueError("download exceeds publisher-listed byte size")
                     destination.write(chunk)
+
+                    # Bandwidth throttling
+                    if max_bytes_per_sec and max_bytes_per_sec > 0:
+                        elapsed = time.monotonic() - interval_start
+                        expected_time = bytes_in_interval / max_bytes_per_sec
+                        if expected_time > elapsed:
+                            time.sleep(expected_time - elapsed)
+                        if elapsed >= 1.0:
+                            interval_start = time.monotonic()
+                            bytes_in_interval = 0
+
+                    now = time.monotonic()
+                    if now - last_report >= 5.0:
+                        mb = downloaded / (1024 * 1024)
+                        total_mb = (expected_bytes / (1024 * 1024)) if expected_bytes else (max_bytes / (1024 * 1024))
+                        pct = (downloaded / expected_bytes * 100) if expected_bytes else 0
+                        speed_str = f" [Rate limited: {max_bytes_per_sec / (1024 * 1024):.1f} MB/s]" if max_bytes_per_sec and max_bytes_per_sec > 0 else ""
+                        print(f"  Downloading {output.name}: {mb:.1f}/{total_mb:.1f} MB ({pct:.1f}%){speed_str}", flush=True)
+                        last_report = now
+
                 destination.flush()
                 os.fsync(destination.fileno())
 

@@ -1,0 +1,193 @@
+{
+  "metadata": {
+    "experiment": "P3.d_bundled_model_evaluation",
+    "timestamp": "2026-10-17T14:27:38.276359+00:00",
+    "fixture_rows": 2000,
+    "environment": {
+      "os": "Windows",
+      "os_release": "11",
+      "os_version": "10.0.26300",
+      "architecture": "AMD64",
+      "processor": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+      "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "cpu_count": 12
+    },
+    "classifier_threshold": 0.9,
+    "autoencoder_threshold": 0.0045968578779138625,
+    "statistical_threshold": 3.0,
+    "tautology_warning": "The bundled model was trained on a synthetic dataset generated with the same parameter distributions (seed 42). Metrics measured on this fixture reflect fitting to synthetic Gaussian/exponential assumptions, not generalization to real non-stationary enterprise network traffic."
+  },
+  "classifier_metrics": {
+    "accuracy": 0.9625,
+    "macro_f1": 0.9222,
+    "classes": [
+      "Benign",
+      "Bot",
+      "DDoS",
+      "PortScan"
+    ],
+    "confusion_matrix": [
+      [
+        1532,
+        68,
+        0,
+        0
+      ],
+      [
+        7,
+        93,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        200,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        100
+      ]
+    ],
+    "classification_report": {
+      "Benign": {
+        "precision": 0.99545159194282,
+        "recall": 0.9575,
+        "f1-score": 0.9761070404587449,
+        "support": 1600.0
+      },
+      "Bot": {
+        "precision": 0.577639751552795,
+        "recall": 0.93,
+        "f1-score": 0.7126436781609196,
+        "support": 100.0
+      },
+      "DDoS": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 200.0
+      },
+      "PortScan": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 100.0
+      },
+      "accuracy": 0.9625,
+      "macro avg": {
+        "precision": 0.8932728358739037,
+        "recall": 0.971875,
+        "f1-score": 0.9221876796549161,
+        "support": 2000.0
+      },
+      "weighted avg": {
+        "precision": 0.9752432611318956,
+        "recall": 0.9625,
+        "f1-score": 0.9665178162750419,
+        "support": 2000.0
+      }
+    },
+    "confidence_distribution": {
+      "mean": 0.9715,
+      "median": 1.0,
+      "p95": 1.0,
+      "p99": 1.0
+    }
+  },
+  "autoencoder_metrics": {
+    "threshold": 0.0045968578779138625,
+    "overall_flagged_rate_pct": 100.0,
+    "by_class": {
+      "Benign": {
+        "count": 1600,
+        "mean_reconstruction_error": 8101822464.0,
+        "median_reconstruction_error": 2422027264.0,
+        "std_reconstruction_error": 12731975680.0,
+        "min_reconstruction_error": 7264855.5,
+        "p95_reconstruction_error": 38823378944.0,
+        "p99_reconstruction_error": 54511247360.0,
+        "max_reconstruction_error": 86919446528.0,
+        "flagged_as_anomaly_count": 1600,
+        "flagged_rate_pct": 100.0
+      },
+      "Bot": {
+        "count": 100,
+        "mean_reconstruction_error": 21364819968.0,
+        "median_reconstruction_error": 12245143552.0,
+        "std_reconstruction_error": 23348211712.0,
+        "min_reconstruction_error": 212228320.0,
+        "p95_reconstruction_error": 63707860992.0,
+        "p99_reconstruction_error": 80068616192.0,
+        "max_reconstruction_error": 138939711488.0,
+        "flagged_as_anomaly_count": 100,
+        "flagged_rate_pct": 100.0
+      },
+      "DDoS": {
+        "count": 200,
+        "mean_reconstruction_error": 80264184.0,
+        "median_reconstruction_error": 73245856.0,
+        "std_reconstruction_error": 51428372.0,
+        "min_reconstruction_error": 4148745.0,
+        "p95_reconstruction_error": 167878912.0,
+        "p99_reconstruction_error": 206793792.0,
+        "max_reconstruction_error": 230411152.0,
+        "flagged_as_anomaly_count": 200,
+        "flagged_rate_pct": 100.0
+      },
+      "PortScan": {
+        "count": 100,
+        "mean_reconstruction_error": 75903496.0,
+        "median_reconstruction_error": 64528120.0,
+        "std_reconstruction_error": 48790616.0,
+        "min_reconstruction_error": 5011637.5,
+        "p95_reconstruction_error": 155484784.0,
+        "p99_reconstruction_error": 194351824.0,
+        "max_reconstruction_error": 226068896.0,
+        "flagged_as_anomaly_count": 100,
+        "flagged_rate_pct": 100.0
+      }
+    }
+  },
+  "statistical_metrics": {
+    "threshold": 3.0,
+    "overall_flagged_rate_pct": 100.0,
+    "by_class": {
+      "Benign": {
+        "count": 1600,
+        "mean_max_z": 1000000000000.0,
+        "median_max_z": 1000000000000.0,
+        "max_max_z": 1000000000000.0,
+        "flagged_as_anomaly_count": 1600,
+        "flagged_rate_pct": 100.0
+      },
+      "Bot": {
+        "count": 100,
+        "mean_max_z": 1000000000000.0,
+        "median_max_z": 1000000000000.0,
+        "max_max_z": 1000000000000.0,
+        "flagged_as_anomaly_count": 100,
+        "flagged_rate_pct": 100.0
+      },
+      "DDoS": {
+        "count": 200,
+        "mean_max_z": 1000000000000.0,
+        "median_max_z": 1000000000000.0,
+        "max_max_z": 1000000000000.0,
+        "flagged_as_anomaly_count": 200,
+        "flagged_rate_pct": 100.0
+      },
+      "PortScan": {
+        "count": 100,
+        "mean_max_z": 1000000000000.0,
+        "median_max_z": 1000000000000.0,
+        "max_max_z": 1000000000000.0,
+        "flagged_as_anomaly_count": 100,
+        "flagged_rate_pct": 100.0
+      }
+    }
+  }
+}

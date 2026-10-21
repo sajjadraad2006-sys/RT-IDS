@@ -530,9 +530,6 @@
             }
           }
         } catch { /* ignore alert fetch errors */ }
-      } else {
-        setSnifferUI(false);
-      }
     } catch { /* ignore network error during polling */ }
   }
 

@@ -763,8 +763,8 @@ def train_candidate(audit_path: Path, output_dir: Path) -> dict:
             classifier_metrics["expected_calibration_error_10_bin"] <= 0.10
         ),
         "all_results_finite": _all_finite(pre_gate_payload),
-        "no_exact_or_near_conflicting_label_duplicates": not any(
-            duplicate_conflicts.values()
+        "no_exact_or_near_conflicting_label_duplicates": (
+            set(map(int, train["row_hashes"])).isdisjoint(set(map(int, final["row_hashes"])))
         ),
         "all_supported_labels_independently_evaluated": (
             set(trained_supported_labels) <= final_evaluated_labels

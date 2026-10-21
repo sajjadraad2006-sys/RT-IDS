@@ -1,5 +1,5 @@
 {
-  "timestamp": 1792163299.0804336,
+  "timestamp": 1792564161.3722203,
   "total_flows": 200,
   "fast_ml_metrics": {
     "accuracy": 0.4,
@@ -7,27 +7,27 @@
     "recall": 1.0,
     "f1_score": 0.5714,
     "fpr": 1.0,
-    "mean_latency_ms": 3.8914,
+    "mean_latency_ms": 4.0832,
     "tp": 80,
     "fp": 120,
     "tn": 0,
     "fn": 0
   },
   "ai_advisory_metrics": {
-    "accuracy": 0.91,
-    "precision": 0.9306,
-    "recall": 0.8375,
-    "f1_score": 0.8816,
-    "fpr": 0.0417,
-    "mean_latency_ms": 280.5348,
-    "tp": 67,
-    "fp": 5,
-    "tn": 115,
-    "fn": 13
+    "accuracy": 0.915,
+    "precision": 0.92,
+    "recall": 0.8625,
+    "f1_score": 0.8903,
+    "fpr": 0.05,
+    "mean_latency_ms": 1505.459,
+    "tp": 69,
+    "fp": 6,
+    "tn": 114,
+    "fn": 11
   },
   "novel_attacks": {
     "total": 40,
-    "evaded_classifier": 10,
+    "evaded_classifier": 5,
     "caught_by_autoencoder": 40
   },
   "heavy_benign": {
@@ -43,18 +43,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 336531.5625,
+        "ae_error": 3357662.25,
         "stat_flag": true,
-        "latency_ms": 59.244
+        "latency_ms": 72.728
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9511.759
+        "latency_ms": 4964.02
       }
     },
     {
@@ -64,18 +64,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1900912.25,
+        "ae_error": 299286.9062,
         "stat_flag": true,
-        "latency_ms": 3.588
+        "latency_ms": 5.633
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.332
+        "latency_ms": 2386.62
       }
     },
     {
@@ -85,18 +85,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1130772.25,
+        "ae_error": 3400991.25,
         "stat_flag": true,
-        "latency_ms": 4.089
+        "latency_ms": 4.015
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.186
+        "latency_ms": 2411.936
       }
     },
     {
@@ -106,18 +106,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 461575.2812,
+        "ae_error": 1882410.25,
         "stat_flag": true,
-        "latency_ms": 3.746
+        "latency_ms": 5.281
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.544
+        "latency_ms": 2406.718
       }
     },
     {
@@ -129,16 +129,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 436612.75,
+        "ae_error": 220799.5469,
         "stat_flag": true,
-        "latency_ms": 3.55
+        "latency_ms": 3.329
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 15.638
+        "latency_ms": 2404.525
       }
     },
     {
@@ -150,16 +150,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 4196424.0,
+        "ae_error": 326290.8125,
         "stat_flag": true,
-        "latency_ms": 30.883
+        "latency_ms": 4.296
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 30.985
+        "latency_ms": 2417.45
       }
     },
     {
@@ -171,16 +171,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1273005.5,
+        "ae_error": 2799597.25,
         "stat_flag": true,
-        "latency_ms": 12.472
+        "latency_ms": 3.446
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9.847
+        "latency_ms": 2376.147
       }
     },
     {
@@ -192,16 +192,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1213490.75,
+        "ae_error": 696451.625,
         "stat_flag": true,
-        "latency_ms": 4.723
+        "latency_ms": 3.702
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.544
+        "latency_ms": 2393.834
       }
     },
     {
@@ -213,16 +213,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 155244.9219,
+        "ae_error": 406867.625,
         "stat_flag": true,
-        "latency_ms": 3.967
+        "latency_ms": 4.749
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.118
+        "latency_ms": 2382.754
       }
     },
     {
@@ -234,16 +234,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1757571.125,
+        "ae_error": 904540.75,
         "stat_flag": true,
-        "latency_ms": 3.617
+        "latency_ms": 4.859
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9.549
+        "latency_ms": 2434.332
       }
     },
     {
@@ -255,16 +255,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 265374.625,
+        "ae_error": 908590.4375,
         "stat_flag": true,
-        "latency_ms": 12.956
+        "latency_ms": 4.553
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 10.4
+        "latency_ms": 2422.599
       }
     },
     {
@@ -274,18 +274,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 454952.2812,
+        "ae_error": 1179337.75,
         "stat_flag": true,
-        "latency_ms": 5.393
+        "latency_ms": 3.409
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.861
+        "latency_ms": 2376.233
       }
     },
     {
@@ -297,16 +297,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 896969.4375,
+        "ae_error": 1440426.25,
         "stat_flag": true,
-        "latency_ms": 3.418
+        "latency_ms": 3.508
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.197
+        "latency_ms": 2357.215
       }
     },
     {
@@ -318,16 +318,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 646346.6875,
+        "ae_error": 458830.4688,
         "stat_flag": true,
-        "latency_ms": 3.242
+        "latency_ms": 3.741
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.32
+        "latency_ms": 2409.571
       }
     },
     {
@@ -337,18 +337,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1731182.375,
+        "ae_error": 1211412.5,
         "stat_flag": true,
-        "latency_ms": 3.591
+        "latency_ms": 3.696
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.931
+        "latency_ms": 2379.33
       }
     },
     {
@@ -360,16 +360,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 851290.6875,
+        "ae_error": 677897.5,
         "stat_flag": true,
-        "latency_ms": 4.147
+        "latency_ms": 3.873
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.947
+        "latency_ms": 2414.423
       }
     },
     {
@@ -381,16 +381,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 2948761.0,
+        "ae_error": 3275802.5,
         "stat_flag": true,
-        "latency_ms": 4.631
+        "latency_ms": 3.812
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.042
+        "latency_ms": 2438.478
       }
     },
     {
@@ -402,16 +402,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1128289.125,
+        "ae_error": 439747.875,
         "stat_flag": true,
-        "latency_ms": 3.837
+        "latency_ms": 4.1
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.812
+        "latency_ms": 2401.857
       }
     },
     {
@@ -421,18 +421,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9995,
         "ae_flag": true,
-        "ae_error": 462984.4062,
+        "ae_error": 2788077.5,
         "stat_flag": true,
-        "latency_ms": 3.636
+        "latency_ms": 3.329
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.118
+        "latency_ms": 2349.714
       }
     },
     {
@@ -442,18 +442,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9998,
         "ae_flag": true,
-        "ae_error": 614712.125,
+        "ae_error": 763871.5,
         "stat_flag": true,
-        "latency_ms": 3.204
+        "latency_ms": 3.04
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.561
+        "latency_ms": 2360.132
       }
     },
     {
@@ -465,16 +465,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1895016.375,
+        "ae_error": 1640620.0,
         "stat_flag": true,
-        "latency_ms": 4.041
+        "latency_ms": 4.578
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.543
+        "latency_ms": 2425.401
       }
     },
     {
@@ -484,18 +484,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 564689.9375,
+        "ae_error": 1113195.5,
         "stat_flag": true,
-        "latency_ms": 3.363
+        "latency_ms": 7.323
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.594
+        "latency_ms": 2433.103
       }
     },
     {
@@ -505,18 +505,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9994,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1904672.25,
+        "ae_error": 3550157.5,
         "stat_flag": true,
-        "latency_ms": 3.603
+        "latency_ms": 3.909
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.211
+        "latency_ms": 2430.814
       }
     },
     {
@@ -528,16 +528,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 621568.5,
+        "ae_error": 451085.375,
         "stat_flag": true,
-        "latency_ms": 3.256
+        "latency_ms": 8.606
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.674
+        "latency_ms": 2388.587
       }
     },
     {
@@ -549,16 +549,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 2744895.75,
+        "ae_error": 1392381.625,
         "stat_flag": true,
-        "latency_ms": 3.601
+        "latency_ms": 4.233
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.493
+        "latency_ms": 2409.648
       }
     },
     {
@@ -568,18 +568,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 3051250.0,
+        "ae_error": 283183.8125,
         "stat_flag": true,
-        "latency_ms": 7.159
+        "latency_ms": 3.535
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.277
+        "latency_ms": 2392.369
       }
     },
     {
@@ -589,18 +589,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9993,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1156578.125,
+        "ae_error": 743464.8125,
         "stat_flag": true,
-        "latency_ms": 3.612
+        "latency_ms": 3.965
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.578
+        "latency_ms": 2417.87
       }
     },
     {
@@ -610,18 +610,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 2292656.25,
+        "ae_error": 490073.5,
         "stat_flag": true,
-        "latency_ms": 3.292
+        "latency_ms": 3.223
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.452
+        "latency_ms": 2398.448
       }
     },
     {
@@ -633,16 +633,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1178024.875,
+        "ae_error": 2429098.0,
         "stat_flag": true,
-        "latency_ms": 3.67
+        "latency_ms": 4.291
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.744
+        "latency_ms": 2388.245
       }
     },
     {
@@ -652,18 +652,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1185744.625,
+        "ae_error": 2906805.0,
         "stat_flag": true,
-        "latency_ms": 5.317
+        "latency_ms": 3.971
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.529
+        "latency_ms": 2444.322
       }
     },
     {
@@ -673,18 +673,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 364188.2188,
+        "ae_error": 414670.125,
         "stat_flag": true,
-        "latency_ms": 4.026
+        "latency_ms": 4.056
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.409
+        "latency_ms": 2431.166
       }
     },
     {
@@ -694,18 +694,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 3390160.5,
+        "ae_error": 750783.3125,
         "stat_flag": true,
-        "latency_ms": 3.247
+        "latency_ms": 3.446
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.068
+        "latency_ms": 2372.399
       }
     },
     {
@@ -715,18 +715,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 336948.5312,
+        "ae_error": 434674.1875,
         "stat_flag": true,
-        "latency_ms": 3.268
+        "latency_ms": 5.718
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.056
+        "latency_ms": 2350.205
       }
     },
     {
@@ -738,16 +738,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 441300.7188,
+        "ae_error": 1482976.875,
         "stat_flag": true,
-        "latency_ms": 3.874
+        "latency_ms": 3.371
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.83
+        "latency_ms": 2379.254
       }
     },
     {
@@ -757,18 +757,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1018264.9375,
+        "ae_error": 342756.4688,
         "stat_flag": true,
-        "latency_ms": 3.392
+        "latency_ms": 3.411
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.754
+        "latency_ms": 2379.725
       }
     },
     {
@@ -780,16 +780,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 157129.5312,
+        "ae_error": 1493552.0,
         "stat_flag": true,
-        "latency_ms": 3.966
+        "latency_ms": 4.33
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.572
+        "latency_ms": 2411.873
       }
     },
     {
@@ -799,18 +799,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9884,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1039572.5625,
+        "ae_error": 2058581.375,
         "stat_flag": true,
-        "latency_ms": 3.25
+        "latency_ms": 3.925
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.126
+        "latency_ms": 2417.888
       }
     },
     {
@@ -822,16 +822,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 2337826.5,
+        "ae_error": 4253066.0,
         "stat_flag": true,
-        "latency_ms": 3.914
+        "latency_ms": 3.543
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.394
+        "latency_ms": 2425.798
       }
     },
     {
@@ -841,18 +841,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1328264.875,
+        "ae_error": 227126.7031,
         "stat_flag": true,
-        "latency_ms": 3.681
+        "latency_ms": 3.762
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.282
+        "latency_ms": 2399.127
       }
     },
     {
@@ -862,18 +862,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 2421884.25,
+        "ae_error": 1216589.25,
         "stat_flag": true,
-        "latency_ms": 3.681
+        "latency_ms": 3.635
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.776
+        "latency_ms": 2364.591
       }
     },
     {
@@ -885,16 +885,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 377672.4688,
+        "ae_error": 4196721.0,
         "stat_flag": true,
-        "latency_ms": 3.487
+        "latency_ms": 4.18
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.803
+        "latency_ms": 2416.262
       }
     },
     {
@@ -906,16 +906,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 3373041.0,
+        "ae_error": 2757334.0,
         "stat_flag": true,
-        "latency_ms": 3.092
+        "latency_ms": 4.501
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.352
+        "latency_ms": 2409.762
       }
     },
     {
@@ -927,16 +927,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 636209.125,
+        "ae_error": 602678.5,
         "stat_flag": true,
-        "latency_ms": 3.991
+        "latency_ms": 3.252
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.504
+        "latency_ms": 2367.235
       }
     },
     {
@@ -948,16 +948,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 361206.2812,
+        "ae_error": 292659.9375,
         "stat_flag": true,
-        "latency_ms": 3.239
+        "latency_ms": 15.732
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.197
+        "latency_ms": 2371.756
       }
     },
     {
@@ -967,18 +967,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 0.9993,
         "ae_flag": true,
-        "ae_error": 1683909.0,
+        "ae_error": 2511802.25,
         "stat_flag": true,
-        "latency_ms": 4.389
+        "latency_ms": 3.309
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.835
+        "latency_ms": 2360.041
       }
     },
     {
@@ -988,18 +988,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 525530.25,
+        "ae_error": 612674.9375,
         "stat_flag": true,
-        "latency_ms": 3.423
+        "latency_ms": 3.005
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.048
+        "latency_ms": 2365.227
       }
     },
     {
@@ -1009,18 +1009,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9998,
+        "confidence": 0.9996,
         "ae_flag": true,
-        "ae_error": 717942.6875,
+        "ae_error": 503492.125,
         "stat_flag": true,
-        "latency_ms": 3.607
+        "latency_ms": 3.145
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9.151
+        "latency_ms": 2370.881
       }
     },
     {
@@ -1030,18 +1030,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9971,
         "ae_flag": true,
-        "ae_error": 1147245.25,
+        "ae_error": 149503.1875,
         "stat_flag": true,
-        "latency_ms": 3.281
+        "latency_ms": 3.401
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.235
+        "latency_ms": 2384.905
       }
     },
     {
@@ -1051,18 +1051,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 247624.6406,
+        "ae_error": 484620.6562,
         "stat_flag": true,
-        "latency_ms": 3.641
+        "latency_ms": 3.248
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.546
+        "latency_ms": 2383.963
       }
     },
     {
@@ -1074,16 +1074,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 643249.8125,
+        "ae_error": 182626.8281,
         "stat_flag": true,
-        "latency_ms": 3.903
+        "latency_ms": 3.564
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.181
+        "latency_ms": 2365.149
       }
     },
     {
@@ -1093,18 +1093,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 256365.1562,
+        "ae_error": 1003618.375,
         "stat_flag": true,
-        "latency_ms": 3.339
+        "latency_ms": 3.523
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.255
+        "latency_ms": 2403.299
       }
     },
     {
@@ -1114,18 +1114,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 413818.4688,
+        "ae_error": 245458.5938,
         "stat_flag": true,
-        "latency_ms": 3.479
+        "latency_ms": 3.587
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.453
+        "latency_ms": 2413.846
       }
     },
     {
@@ -1137,16 +1137,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 617981.6875,
+        "ae_error": 1712339.625,
         "stat_flag": true,
-        "latency_ms": 3.316
+        "latency_ms": 4.246
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.641
+        "latency_ms": 2432.554
       }
     },
     {
@@ -1158,16 +1158,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 342247.5625,
+        "ae_error": 258086.9375,
         "stat_flag": true,
-        "latency_ms": 4.12
+        "latency_ms": 4.214
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.711
+        "latency_ms": 2391.576
       }
     },
     {
@@ -1177,18 +1177,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 670071.1875,
+        "ae_error": 2728865.25,
         "stat_flag": true,
-        "latency_ms": 3.836
+        "latency_ms": 3.647
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.702
+        "latency_ms": 2420.813
       }
     },
     {
@@ -1198,18 +1198,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9998,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 2005736.375,
+        "ae_error": 2156649.0,
         "stat_flag": true,
-        "latency_ms": 3.5
+        "latency_ms": 3.243
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.457
+        "latency_ms": 2359.162
       }
     },
     {
@@ -1221,16 +1221,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 793715.4375,
+        "ae_error": 1169183.25,
         "stat_flag": true,
-        "latency_ms": 3.646
+        "latency_ms": 4.095
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.918
+        "latency_ms": 2384.031
       }
     },
     {
@@ -1240,18 +1240,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 2330009.5,
+        "ae_error": 2661306.75,
         "stat_flag": true,
-        "latency_ms": 3.946
+        "latency_ms": 4.411
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.966
+        "latency_ms": 2465.321
       }
     },
     {
@@ -1263,16 +1263,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 2560557.75,
+        "ae_error": 221550.9062,
         "stat_flag": true,
-        "latency_ms": 3.795
+        "latency_ms": 4.581
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.287
+        "latency_ms": 2414.341
       }
     },
     {
@@ -1284,16 +1284,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 901952.8125,
+        "ae_error": 1165441.375,
         "stat_flag": true,
-        "latency_ms": 3.651
+        "latency_ms": 4.1
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.487
+        "latency_ms": 2383.434
       }
     },
     {
@@ -1303,18 +1303,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9995,
         "ae_flag": true,
-        "ae_error": 1213798.125,
+        "ae_error": 841168.6875,
         "stat_flag": true,
-        "latency_ms": 3.168
+        "latency_ms": 4.44
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.161
+        "latency_ms": 2418.641
       }
     },
     {
@@ -1326,16 +1326,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1330899.0,
+        "ae_error": 1180781.75,
         "stat_flag": true,
-        "latency_ms": 3.833
+        "latency_ms": 3.852
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.823
+        "latency_ms": 2411.781
       }
     },
     {
@@ -1345,18 +1345,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 355143.3438,
+        "ae_error": 2585276.25,
         "stat_flag": true,
-        "latency_ms": 4.428
+        "latency_ms": 3.833
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 6.977
+        "latency_ms": 2395.974
       }
     },
     {
@@ -1366,18 +1366,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1028272.6875,
+        "ae_error": 223067.1562,
         "stat_flag": true,
-        "latency_ms": 3.687
+        "latency_ms": 4.217
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.687
+        "latency_ms": 2385.31
       }
     },
     {
@@ -1389,16 +1389,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 2331780.25,
+        "ae_error": 2040441.125,
         "stat_flag": true,
-        "latency_ms": 3.42
+        "latency_ms": 8.885
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.012
+        "latency_ms": 2391.967
       }
     },
     {
@@ -1410,16 +1410,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1287144.25,
+        "ae_error": 2017681.875,
         "stat_flag": true,
-        "latency_ms": 3.107
+        "latency_ms": 3.241
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.718
+        "latency_ms": 2392.708
       }
     },
     {
@@ -1429,18 +1429,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 664779.5625,
+        "ae_error": 1764872.75,
         "stat_flag": true,
-        "latency_ms": 3.1
+        "latency_ms": 3.21
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.166
+        "latency_ms": 2405.824
       }
     },
     {
@@ -1450,18 +1450,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 2200022.5,
+        "ae_error": 956430.4375,
         "stat_flag": true,
-        "latency_ms": 3.067
+        "latency_ms": 3.315
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.488
+        "latency_ms": 2380.949
       }
     },
     {
@@ -1473,16 +1473,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 811186.625,
+        "ae_error": 1173003.875,
         "stat_flag": true,
-        "latency_ms": 3.51
+        "latency_ms": 3.477
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.357
+        "latency_ms": 2383.842
       }
     },
     {
@@ -1494,16 +1494,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1670547.75,
+        "ae_error": 1390796.375,
         "stat_flag": true,
-        "latency_ms": 3.78
+        "latency_ms": 3.189
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.236
+        "latency_ms": 2379.994
       }
     },
     {
@@ -1513,18 +1513,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 940293.9375,
+        "ae_error": 849519.375,
         "stat_flag": true,
-        "latency_ms": 3.566
+        "latency_ms": 3.398
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.8
+        "latency_ms": 2383.148
       }
     },
     {
@@ -1534,18 +1534,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 328821.625,
+        "ae_error": 405807.3125,
         "stat_flag": true,
-        "latency_ms": 3.175
+        "latency_ms": 3.276
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.046
+        "latency_ms": 2372.328
       }
     },
     {
@@ -1555,18 +1555,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1495692.0,
+        "ae_error": 1484663.0,
         "stat_flag": true,
-        "latency_ms": 3.512
+        "latency_ms": 3.456
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.252
+        "latency_ms": 2351.695
       }
     },
     {
@@ -1576,18 +1576,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 543489.4375,
+        "ae_error": 501983.1562,
         "stat_flag": true,
-        "latency_ms": 3.44
+        "latency_ms": 4.356
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.651
+        "latency_ms": 2391.543
       }
     },
     {
@@ -1597,18 +1597,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 150871.1562,
+        "ae_error": 1020471.3125,
         "stat_flag": true,
-        "latency_ms": 3.345
+        "latency_ms": 6.005
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.326
+        "latency_ms": 2386.631
       }
     },
     {
@@ -1620,16 +1620,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 1356808.375,
+        "ae_error": 251497.7031,
         "stat_flag": true,
-        "latency_ms": 4.139
+        "latency_ms": 4.19
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.077
+        "latency_ms": 2372.972
       }
     },
     {
@@ -1641,16 +1641,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 1315083.375,
+        "ae_error": 1812507.375,
         "stat_flag": true,
-        "latency_ms": 4.389
+        "latency_ms": 3.3
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.113
+        "latency_ms": 2428.581
       }
     },
     {
@@ -1660,18 +1660,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 2529671.75,
+        "ae_error": 970448.625,
         "stat_flag": true,
-        "latency_ms": 3.413
+        "latency_ms": 3.446
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.601
+        "latency_ms": 2366.762
       }
     },
     {
@@ -1683,16 +1683,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 426398.3125,
+        "ae_error": 863330.3125,
         "stat_flag": true,
-        "latency_ms": 3.713
+        "latency_ms": 3.636
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.622
+        "latency_ms": 2374.893
       }
     },
     {
@@ -1702,18 +1702,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 0.9997,
         "ae_flag": true,
-        "ae_error": 1450592.625,
+        "ae_error": 197297.5,
         "stat_flag": true,
-        "latency_ms": 3.604
+        "latency_ms": 3.262
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.897
+        "latency_ms": 2385.002
       }
     },
     {
@@ -1723,18 +1723,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9983,
+        "confidence": 0.9985,
         "ae_flag": true,
-        "ae_error": 31359125504.0,
+        "ae_error": 31294566400.0,
         "stat_flag": true,
-        "latency_ms": 3.682
+        "latency_ms": 3.654
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7544.103
+        "latency_ms": 2375.969
       }
     },
     {
@@ -1744,18 +1744,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9983,
+        "confidence": 0.9986,
         "ae_flag": true,
-        "ae_error": 31363371008.0,
+        "ae_error": 31363813376.0,
         "stat_flag": true,
-        "latency_ms": 3.454
+        "latency_ms": 3.375
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9.615
+        "latency_ms": 2365.242
       }
     },
     {
@@ -1767,16 +1767,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31274553344.0,
+        "ae_error": 31363751936.0,
         "stat_flag": true,
-        "latency_ms": 3.392
+        "latency_ms": 3.038
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.65
+        "latency_ms": 2403.338
       }
     },
     {
@@ -1788,16 +1788,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31305244672.0,
+        "ae_error": 31297941504.0,
         "stat_flag": true,
-        "latency_ms": 5.377
+        "latency_ms": 3.416
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 10.931
+        "latency_ms": 2358.426
       }
     },
     {
@@ -1809,16 +1809,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31296258048.0,
+        "ae_error": 31315529728.0,
         "stat_flag": true,
-        "latency_ms": 3.717
+        "latency_ms": 3.52
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.34
+        "latency_ms": 2363.51
       }
     },
     {
@@ -1828,18 +1828,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9986,
+        "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31364816896.0,
+        "ae_error": 31362646016.0,
         "stat_flag": true,
-        "latency_ms": 5.863
+        "latency_ms": 3.306
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9.259
+        "latency_ms": 2374.434
       }
     },
     {
@@ -1849,18 +1849,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9983,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 31345268736.0,
+        "ae_error": 31279722496.0,
         "stat_flag": true,
-        "latency_ms": 3.861
+        "latency_ms": 3.866
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9.419
+        "latency_ms": 2354.024
       }
     },
     {
@@ -1868,20 +1868,20 @@
       "group": "Heavy Benign (Streaming)",
       "ground_truth": "benign",
       "fast_ml": {
-        "route": "human_review",
-        "label": "PortScan",
-        "confidence": 0.5309,
+        "route": "unknown_anomaly_review",
+        "label": "unknown-anomaly",
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 31284842496.0,
+        "ae_error": 31349159936.0,
         "stat_flag": true,
-        "latency_ms": 4.468
+        "latency_ms": 4.216
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 7.871
+        "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
+        "latency_ms": 2380.378
       }
     },
     {
@@ -1889,20 +1889,20 @@
       "group": "Heavy Benign (Streaming)",
       "ground_truth": "benign",
       "fast_ml": {
-        "route": "unknown_anomaly_review",
-        "label": "unknown-anomaly",
-        "confidence": 0.9983,
+        "route": "human_review",
+        "label": "PortScan",
+        "confidence": 0.5309,
         "ae_flag": true,
-        "ae_error": 31307358208.0,
+        "ae_error": 31331295232.0,
         "stat_flag": true,
-        "latency_ms": 4.195
+        "latency_ms": 3.295
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
-        "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.886
+        "rationale": "Ambiguous deterministic evidence requires analyst review....",
+        "latency_ms": 2373.008
       }
     },
     {
@@ -1914,16 +1914,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31279288320.0,
+        "ae_error": 31364714496.0,
         "stat_flag": true,
-        "latency_ms": 4.103
+        "latency_ms": 3.655
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9.183
+        "latency_ms": 2367.543
       }
     },
     {
@@ -1933,18 +1933,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9997,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 7.3176,
+        "ae_error": 10.5649,
         "stat_flag": true,
-        "latency_ms": 5.011
+        "latency_ms": 3.406
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7736.023
+        "latency_ms": 2363.799
       }
     },
     {
@@ -1954,18 +1954,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9998,
         "ae_flag": true,
-        "ae_error": 10.6712,
+        "ae_error": 7.7986,
         "stat_flag": true,
-        "latency_ms": 3.214
+        "latency_ms": 3.305
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.92
+        "latency_ms": 2371.983
       }
     },
     {
@@ -1975,18 +1975,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 12.8821,
+        "ae_error": 14.2028,
         "stat_flag": true,
-        "latency_ms": 4.076
+        "latency_ms": 3.035
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.333
+        "latency_ms": 2397.909
       }
     },
     {
@@ -1998,16 +1998,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 13.0825,
+        "ae_error": 16.499,
         "stat_flag": true,
-        "latency_ms": 3.416
+        "latency_ms": 3.696
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 9.743
+        "latency_ms": 2387.596
       }
     },
     {
@@ -2017,18 +2017,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 10.6031,
+        "ae_error": 7.6753,
         "stat_flag": true,
-        "latency_ms": 5.15
+        "latency_ms": 3.514
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.463
+        "latency_ms": 2386.406
       }
     },
     {
@@ -2040,16 +2040,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 7.6758,
+        "ae_error": 12.0474,
         "stat_flag": true,
-        "latency_ms": 3.469
+        "latency_ms": 3.653
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.181
+        "latency_ms": 2380.836
       }
     },
     {
@@ -2059,18 +2059,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9996,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 6.4253,
+        "ae_error": 14.513,
         "stat_flag": true,
-        "latency_ms": 3.187
+        "latency_ms": 6.025
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.222
+        "latency_ms": 2385.209
       }
     },
     {
@@ -2080,18 +2080,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 1.0,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 11.2719,
+        "ae_error": 9.9704,
         "stat_flag": true,
-        "latency_ms": 4.072
+        "latency_ms": 3.194
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.919
+        "latency_ms": 2364.642
       }
     },
     {
@@ -2101,18 +2101,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9998,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 7.0446,
+        "ae_error": 10.935,
         "stat_flag": true,
-        "latency_ms": 4.666
+        "latency_ms": 3.029
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.649
+        "latency_ms": 2366.238
       }
     },
     {
@@ -2124,16 +2124,16 @@
         "label": "unknown-anomaly",
         "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 9.6592,
+        "ae_error": 8.8799,
         "stat_flag": true,
-        "latency_ms": 3.955
+        "latency_ms": 3.355
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.565
+        "latency_ms": 2353.431
       }
     },
     {
@@ -2141,20 +2141,20 @@
       "group": "Heavy Benign (Micro-Flow)",
       "ground_truth": "benign",
       "fast_ml": {
-        "route": "human_review",
+        "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.6031,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 497.2943,
+        "ae_error": 497.2504,
         "stat_flag": true,
-        "latency_ms": 3.945
+        "latency_ms": 3.613
       },
       "ai_advisory": {
-        "verdict": "needs_human",
-        "action": "escalate",
-        "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 7245.281
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.028
       }
     },
     {
@@ -2164,18 +2164,18 @@
       "fast_ml": {
         "route": "human_review",
         "label": "PortScan",
-        "confidence": 0.5557,
+        "confidence": 0.5226,
         "ae_flag": true,
-        "ae_error": 497.305,
+        "ae_error": 497.2912,
         "stat_flag": true,
-        "latency_ms": 3.415
+        "latency_ms": 2.845
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 6.34
+        "latency_ms": 2358.985
       }
     },
     {
@@ -2185,18 +2185,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9999,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 497.3141,
+        "ae_error": 497.3049,
         "stat_flag": true,
-        "latency_ms": 3.551
+        "latency_ms": 3.886
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.027
+        "latency_ms": 0.039
       }
     },
     {
@@ -2204,34 +2204,13 @@
       "group": "Heavy Benign (Micro-Flow)",
       "ground_truth": "benign",
       "fast_ml": {
-        "route": "human_review",
-        "label": "PortScan",
-        "confidence": 0.6612,
-        "ae_flag": true,
-        "ae_error": 497.3002,
-        "stat_flag": true,
-        "latency_ms": 3.183
-      },
-      "ai_advisory": {
-        "verdict": "needs_human",
-        "action": "escalate",
-        "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 6.887
-      }
-    },
-    {
-      "id": "BENIGN-MICRO-05",
-      "group": "Heavy Benign (Micro-Flow)",
-      "ground_truth": "benign",
-      "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 497.2742,
+        "ae_error": 497.2683,
         "stat_flag": true,
-        "latency_ms": 3.474
+        "latency_ms": 3.724
       },
       "ai_advisory": {
         "verdict": "malicious",
@@ -2239,6 +2218,27 @@
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
         "latency_ms": 0.025
+      }
+    },
+    {
+      "id": "BENIGN-MICRO-05",
+      "group": "Heavy Benign (Micro-Flow)",
+      "ground_truth": "benign",
+      "fast_ml": {
+        "route": "human_review",
+        "label": "PortScan",
+        "confidence": 0.5582,
+        "ae_flag": true,
+        "ae_error": 497.3076,
+        "stat_flag": true,
+        "latency_ms": 2.557
+      },
+      "ai_advisory": {
+        "verdict": "needs_human",
+        "action": "escalate",
+        "requires_human": true,
+        "rationale": "Ambiguous deterministic evidence requires analyst review....",
+        "latency_ms": 2378.308
       }
     },
     {
@@ -2250,16 +2250,16 @@
         "label": "PortScan",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 497.2865,
+        "ae_error": 497.3145,
         "stat_flag": true,
-        "latency_ms": 2.673
+        "latency_ms": 3.292
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.022
+        "latency_ms": 0.02
       }
     },
     {
@@ -2269,18 +2269,18 @@
       "fast_ml": {
         "route": "human_review",
         "label": "PortScan",
-        "confidence": 0.6763,
+        "confidence": 0.5226,
         "ae_flag": true,
-        "ae_error": 497.3027,
+        "ae_error": 497.2912,
         "stat_flag": true,
-        "latency_ms": 2.606
+        "latency_ms": 2.982
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 5.615
+        "latency_ms": 2379.401
       }
     },
     {
@@ -2288,20 +2288,20 @@
       "group": "Heavy Benign (Micro-Flow)",
       "ground_truth": "benign",
       "fast_ml": {
-        "route": "known_attack",
+        "route": "human_review",
         "label": "PortScan",
-        "confidence": 0.9999,
+        "confidence": 0.6677,
         "ae_flag": true,
-        "ae_error": 497.3141,
+        "ae_error": 497.3013,
         "stat_flag": true,
-        "latency_ms": 3.577
+        "latency_ms": 3.126
       },
       "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.036
+        "verdict": "needs_human",
+        "action": "escalate",
+        "requires_human": true,
+        "rationale": "Ambiguous deterministic evidence requires analyst review....",
+        "latency_ms": 2390.28
       }
     },
     {
@@ -2309,20 +2309,20 @@
       "group": "Heavy Benign (Micro-Flow)",
       "ground_truth": "benign",
       "fast_ml": {
-        "route": "human_review",
+        "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.5695,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 497.3195,
+        "ae_error": 497.2855,
         "stat_flag": true,
-        "latency_ms": 3.63
+        "latency_ms": 3.476
       },
       "ai_advisory": {
-        "verdict": "needs_human",
-        "action": "escalate",
-        "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 6.803
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.031
       }
     },
     {
@@ -2334,16 +2334,16 @@
         "label": "PortScan",
         "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 497.3133,
+        "ae_error": 497.3143,
         "stat_flag": true,
-        "latency_ms": 4.395
+        "latency_ms": 3.351
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.027
+        "latency_ms": 0.03
       }
     },
     {
@@ -2355,16 +2355,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31303217152.0,
+        "ae_error": 31272280064.0,
         "stat_flag": true,
-        "latency_ms": 3.525
+        "latency_ms": 3.027
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7911.026
+        "latency_ms": 2359.502
       }
     },
     {
@@ -2372,20 +2372,20 @@
       "group": "Heavy Benign (Developer Push)",
       "ground_truth": "benign",
       "fast_ml": {
-        "route": "human_review",
-        "label": "PortScan",
-        "confidence": 0.5309,
+        "route": "unknown_anomaly_review",
+        "label": "unknown-anomaly",
+        "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31275732992.0,
+        "ae_error": 31279837184.0,
         "stat_flag": true,
-        "latency_ms": 2.632
+        "latency_ms": 3.378
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 5.32
+        "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
+        "latency_ms": 2393.586
       }
     },
     {
@@ -2397,16 +2397,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9985,
         "ae_flag": true,
-        "ae_error": 31298889728.0,
+        "ae_error": 31294603264.0,
         "stat_flag": true,
-        "latency_ms": 3.158
+        "latency_ms": 3.147
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 6.913
+        "latency_ms": 2364.619
       }
     },
     {
@@ -2418,16 +2418,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31268644864.0,
+        "ae_error": 31316305920.0,
         "stat_flag": true,
-        "latency_ms": 3.401
+        "latency_ms": 3.023
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.731
+        "latency_ms": 2361.046
       }
     },
     {
@@ -2437,18 +2437,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9985,
+        "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31279544320.0,
+        "ae_error": 31312023552.0,
         "stat_flag": true,
-        "latency_ms": 3.249
+        "latency_ms": 4.387
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 6.925
+        "latency_ms": 2384.103
       }
     },
     {
@@ -2460,16 +2460,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31266209792.0,
+        "ae_error": 31314489344.0,
         "stat_flag": true,
-        "latency_ms": 3.478
+        "latency_ms": 3.55
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.904
+        "latency_ms": 2376.003
       }
     },
     {
@@ -2481,16 +2481,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31302199296.0,
+        "ae_error": 31281319936.0,
         "stat_flag": true,
-        "latency_ms": 3.183
+        "latency_ms": 3.177
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.182
+        "latency_ms": 2397.683
       }
     },
     {
@@ -2500,18 +2500,18 @@
       "fast_ml": {
         "route": "unknown_anomaly_review",
         "label": "unknown-anomaly",
-        "confidence": 0.9983,
+        "confidence": 0.9985,
         "ae_flag": true,
-        "ae_error": 31319257088.0,
+        "ae_error": 31298471936.0,
         "stat_flag": true,
-        "latency_ms": 3.228
+        "latency_ms": 3.677
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 8.217
+        "latency_ms": 2382.894
       }
     },
     {
@@ -2523,16 +2523,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31298250752.0,
+        "ae_error": 31275083776.0,
         "stat_flag": true,
-        "latency_ms": 3.823
+        "latency_ms": 3.364
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 6.949
+        "latency_ms": 2354.991
       }
     },
     {
@@ -2544,16 +2544,16 @@
         "label": "unknown-anomaly",
         "confidence": 0.9983,
         "ae_flag": true,
-        "ae_error": 31279005696.0,
+        "ae_error": 31309885440.0,
         "stat_flag": true,
-        "latency_ms": 3.599
+        "latency_ms": 2.998
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 7.92
+        "latency_ms": 2366.093
       }
     },
     {
@@ -2563,11 +2563,95 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9998,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 8912.5381,
+        "ae_error": 4803.1704,
         "stat_flag": true,
-        "latency_ms": 3.788
+        "latency_ms": 7.229
+      },
+      "ai_advisory": {
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.03
+      }
+    },
+    {
+      "id": "ATTACK-DDOS-02",
+      "group": "Known Attack (DDoS)",
+      "ground_truth": "malicious",
+      "fast_ml": {
+        "route": "known_attack",
+        "label": "DDoS",
+        "confidence": 0.9993,
+        "ae_flag": true,
+        "ae_error": 9769.9502,
+        "stat_flag": true,
+        "latency_ms": 4.696
+      },
+      "ai_advisory": {
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.022
+      }
+    },
+    {
+      "id": "ATTACK-DDOS-03",
+      "group": "Known Attack (DDoS)",
+      "ground_truth": "malicious",
+      "fast_ml": {
+        "route": "known_attack",
+        "label": "DDoS",
+        "confidence": 0.9994,
+        "ae_flag": true,
+        "ae_error": 6449.0083,
+        "stat_flag": true,
+        "latency_ms": 3.623
+      },
+      "ai_advisory": {
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.032
+      }
+    },
+    {
+      "id": "ATTACK-DDOS-04",
+      "group": "Known Attack (DDoS)",
+      "ground_truth": "malicious",
+      "fast_ml": {
+        "route": "known_attack",
+        "label": "DDoS",
+        "confidence": 0.9994,
+        "ae_flag": true,
+        "ae_error": 9875.4932,
+        "stat_flag": true,
+        "latency_ms": 3.494
+      },
+      "ai_advisory": {
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.05
+      }
+    },
+    {
+      "id": "ATTACK-DDOS-05",
+      "group": "Known Attack (DDoS)",
+      "ground_truth": "malicious",
+      "fast_ml": {
+        "route": "known_attack",
+        "label": "DDoS",
+        "confidence": 0.9991,
+        "ae_flag": true,
+        "ae_error": 1508.2601,
+        "stat_flag": true,
+        "latency_ms": 3.717
       },
       "ai_advisory": {
         "verdict": "malicious",
@@ -2578,38 +2662,38 @@
       }
     },
     {
-      "id": "ATTACK-DDOS-02",
+      "id": "ATTACK-DDOS-06",
       "group": "Known Attack (DDoS)",
       "ground_truth": "malicious",
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9995,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 1740.3698,
+        "ae_error": 6455.771,
         "stat_flag": true,
-        "latency_ms": 2.769
+        "latency_ms": 4.325
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.028
+        "latency_ms": 0.026
       }
     },
     {
-      "id": "ATTACK-DDOS-03",
+      "id": "ATTACK-DDOS-07",
       "group": "Known Attack (DDoS)",
       "ground_truth": "malicious",
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9993,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 9493.7158,
+        "ae_error": 10285.9639,
         "stat_flag": true,
-        "latency_ms": 3.475
+        "latency_ms": 3.704
       },
       "ai_advisory": {
         "verdict": "malicious",
@@ -2620,70 +2704,7 @@
       }
     },
     {
-      "id": "ATTACK-DDOS-04",
-      "group": "Known Attack (DDoS)",
-      "ground_truth": "malicious",
-      "fast_ml": {
-        "route": "known_attack",
-        "label": "DDoS",
-        "confidence": 0.9993,
-        "ae_flag": true,
-        "ae_error": 2829.4519,
-        "stat_flag": true,
-        "latency_ms": 3.357
-      },
-      "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.024
-      }
-    },
-    {
-      "id": "ATTACK-DDOS-05",
-      "group": "Known Attack (DDoS)",
-      "ground_truth": "malicious",
-      "fast_ml": {
-        "route": "known_attack",
-        "label": "DDoS",
-        "confidence": 0.9993,
-        "ae_flag": true,
-        "ae_error": 2878.4277,
-        "stat_flag": true,
-        "latency_ms": 2.421
-      },
-      "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.021
-      }
-    },
-    {
-      "id": "ATTACK-DDOS-06",
-      "group": "Known Attack (DDoS)",
-      "ground_truth": "malicious",
-      "fast_ml": {
-        "route": "known_attack",
-        "label": "DDoS",
-        "confidence": 0.9993,
-        "ae_flag": true,
-        "ae_error": 2313.5552,
-        "stat_flag": true,
-        "latency_ms": 2.5
-      },
-      "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.021
-      }
-    },
-    {
-      "id": "ATTACK-DDOS-07",
+      "id": "ATTACK-DDOS-08",
       "group": "Known Attack (DDoS)",
       "ground_truth": "malicious",
       "fast_ml": {
@@ -2691,37 +2712,16 @@
         "label": "DDoS",
         "confidence": 0.9995,
         "ae_flag": true,
-        "ae_error": 8526.915,
+        "ae_error": 2474.5278,
         "stat_flag": true,
-        "latency_ms": 2.171
+        "latency_ms": 3.677
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.018
-      }
-    },
-    {
-      "id": "ATTACK-DDOS-08",
-      "group": "Known Attack (DDoS)",
-      "ground_truth": "malicious",
-      "fast_ml": {
-        "route": "known_attack",
-        "label": "DDoS",
-        "confidence": 0.9993,
-        "ae_flag": true,
-        "ae_error": 6149.1484,
-        "stat_flag": true,
-        "latency_ms": 2.028
-      },
-      "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.015
+        "latency_ms": 0.068
       }
     },
     {
@@ -2731,18 +2731,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9993,
+        "confidence": 0.9995,
         "ae_flag": true,
-        "ae_error": 1728.9838,
+        "ae_error": 2158.4778,
         "stat_flag": true,
-        "latency_ms": 1.711
+        "latency_ms": 3.634
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.025
       }
     },
     {
@@ -2754,16 +2754,16 @@
         "label": "DDoS",
         "confidence": 0.9993,
         "ae_flag": true,
-        "ae_error": 9203.3291,
+        "ae_error": 5135.1226,
         "stat_flag": true,
-        "latency_ms": 2.193
+        "latency_ms": 3.607
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.018
+        "latency_ms": 0.031
       }
     },
     {
@@ -2773,18 +2773,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9993,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 2283.022,
+        "ae_error": 5437.5342,
         "stat_flag": true,
-        "latency_ms": 2.994
+        "latency_ms": 3.618
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.023
+        "latency_ms": 0.025
       }
     },
     {
@@ -2794,18 +2794,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9993,
+        "confidence": 0.9995,
         "ae_flag": true,
-        "ae_error": 7448.771,
+        "ae_error": 8018.4302,
         "stat_flag": true,
-        "latency_ms": 2.081
+        "latency_ms": 2.758
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.014
+        "latency_ms": 0.02
       }
     },
     {
@@ -2815,18 +2815,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9992,
+        "confidence": 0.9993,
         "ae_flag": true,
-        "ae_error": 9445.8223,
+        "ae_error": 2481.0791,
         "stat_flag": true,
-        "latency_ms": 3.012
+        "latency_ms": 2.597
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.014
+        "latency_ms": 0.022
       }
     },
     {
@@ -2836,18 +2836,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9994,
+        "confidence": 0.9995,
         "ae_flag": true,
-        "ae_error": 1720.2715,
+        "ae_error": 3644.6631,
         "stat_flag": true,
-        "latency_ms": 1.875
+        "latency_ms": 3.915
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.029
       }
     },
     {
@@ -2857,18 +2857,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9998,
+        "confidence": 0.9993,
         "ae_flag": true,
-        "ae_error": 8627.376,
+        "ae_error": 1732.0844,
         "stat_flag": true,
-        "latency_ms": 1.517
+        "latency_ms": 3.264
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.024
       }
     },
     {
@@ -2878,18 +2878,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9994,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 2715.4966,
+        "ae_error": 2599.7766,
         "stat_flag": true,
-        "latency_ms": 1.438
+        "latency_ms": 3.886
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.011
+        "latency_ms": 0.029
       }
     },
     {
@@ -2899,18 +2899,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9999,
+        "confidence": 0.9992,
         "ae_flag": true,
-        "ae_error": 9060.7588,
+        "ae_error": 2429.8438,
         "stat_flag": true,
-        "latency_ms": 1.598
+        "latency_ms": 3.402
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.012
+        "latency_ms": 0.023
       }
     },
     {
@@ -2922,16 +2922,16 @@
         "label": "DDoS",
         "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 3904.5945,
+        "ae_error": 1887.1438,
         "stat_flag": true,
-        "latency_ms": 1.556
+        "latency_ms": 2.676
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.014
+        "latency_ms": 0.022
       }
     },
     {
@@ -2941,18 +2941,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9992,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 5668.604,
+        "ae_error": 9998.0732,
         "stat_flag": true,
-        "latency_ms": 2.13
+        "latency_ms": 3.241
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.029
+        "latency_ms": 0.027
       }
     },
     {
@@ -2962,18 +2962,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "DDoS",
-        "confidence": 0.9995,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 3824.8289,
+        "ae_error": 6353.978,
         "stat_flag": true,
-        "latency_ms": 3.259
+        "latency_ms": 2.755
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.021
+        "latency_ms": 0.025
       }
     },
     {
@@ -2983,18 +2983,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9993,
+        "confidence": 0.9959,
         "ae_flag": true,
-        "ae_error": 0.6272,
+        "ae_error": 0.415,
         "stat_flag": true,
-        "latency_ms": 1.604
+        "latency_ms": 3.079
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.028
       }
     },
     {
@@ -3004,18 +3004,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9974,
+        "confidence": 0.9951,
         "ae_flag": true,
-        "ae_error": 0.7532,
+        "ae_error": 0.9758,
         "stat_flag": true,
-        "latency_ms": 1.479
+        "latency_ms": 4.03
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.014
+        "latency_ms": 0.027
       }
     },
     {
@@ -3025,18 +3025,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9831,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 0.2859,
+        "ae_error": 0.9085,
         "stat_flag": true,
-        "latency_ms": 1.689
+        "latency_ms": 3.562
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.017
+        "latency_ms": 0.028
       }
     },
     {
@@ -3046,11 +3046,11 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9962,
+        "confidence": 0.9974,
         "ae_flag": true,
-        "ae_error": 0.5403,
+        "ae_error": 0.7575,
         "stat_flag": true,
-        "latency_ms": 2.935
+        "latency_ms": 2.948
       },
       "ai_advisory": {
         "verdict": "malicious",
@@ -3067,18 +3067,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9744,
+        "confidence": 0.9977,
         "ae_flag": true,
-        "ae_error": 0.2406,
+        "ae_error": 0.1963,
         "stat_flag": true,
-        "latency_ms": 2.155
+        "latency_ms": 2.988
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.014
+        "latency_ms": 0.024
       }
     },
     {
@@ -3088,18 +3088,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9978,
+        "confidence": 0.9794,
         "ae_flag": true,
-        "ae_error": 0.1889,
+        "ae_error": 0.3027,
         "stat_flag": true,
-        "latency_ms": 1.508
+        "latency_ms": 2.377
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.023
       }
     },
     {
@@ -3109,18 +3109,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9999,
+        "confidence": 0.9962,
         "ae_flag": true,
-        "ae_error": 0.4724,
+        "ae_error": 0.453,
         "stat_flag": true,
-        "latency_ms": 1.837
+        "latency_ms": 3.372
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.015
+        "latency_ms": 0.033
       }
     },
     {
@@ -3130,18 +3130,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9656,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 0.1911,
+        "ae_error": 0.2841,
         "stat_flag": true,
-        "latency_ms": 1.552
+        "latency_ms": 3.806
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.027
       }
     },
     {
@@ -3151,18 +3151,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9999,
+        "confidence": 0.9995,
         "ae_flag": true,
-        "ae_error": 0.3573,
+        "ae_error": 0.2452,
         "stat_flag": true,
-        "latency_ms": 1.47
+        "latency_ms": 2.946
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.012
+        "latency_ms": 0.024
       }
     },
     {
@@ -3172,18 +3172,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9986,
+        "confidence": 0.9974,
         "ae_flag": true,
-        "ae_error": 0.2407,
+        "ae_error": 0.4501,
         "stat_flag": true,
-        "latency_ms": 1.462
+        "latency_ms": 3.577
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.026
       }
     },
     {
@@ -3193,18 +3193,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9974,
+        "confidence": 0.9959,
         "ae_flag": true,
-        "ae_error": 0.6076,
+        "ae_error": 0.3684,
         "stat_flag": true,
-        "latency_ms": 1.433
+        "latency_ms": 3.319
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.012
+        "latency_ms": 0.02
       }
     },
     {
@@ -3214,18 +3214,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9991,
+        "confidence": 0.997,
         "ae_flag": true,
-        "ae_error": 0.8818,
+        "ae_error": 0.1945,
         "stat_flag": true,
-        "latency_ms": 1.452
+        "latency_ms": 2.532
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.017
+        "latency_ms": 0.028
       }
     },
     {
@@ -3235,11 +3235,11 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9998,
+        "confidence": 0.9744,
         "ae_flag": true,
-        "ae_error": 0.3227,
+        "ae_error": 0.2625,
         "stat_flag": true,
-        "latency_ms": 2.354
+        "latency_ms": 3.121
       },
       "ai_advisory": {
         "verdict": "malicious",
@@ -3256,11 +3256,32 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9724,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 0.3015,
+        "ae_error": 0.8892,
         "stat_flag": true,
-        "latency_ms": 3.456
+        "latency_ms": 2.682
+      },
+      "ai_advisory": {
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.018
+      }
+    },
+    {
+      "id": "ATTACK-SCAN-15",
+      "group": "Known Attack (PortScan)",
+      "ground_truth": "malicious",
+      "fast_ml": {
+        "route": "known_attack",
+        "label": "PortScan",
+        "confidence": 0.9965,
+        "ae_flag": true,
+        "ae_error": 0.3444,
+        "stat_flag": true,
+        "latency_ms": 2.832
       },
       "ai_advisory": {
         "verdict": "malicious",
@@ -3271,45 +3292,24 @@
       }
     },
     {
-      "id": "ATTACK-SCAN-15",
-      "group": "Known Attack (PortScan)",
-      "ground_truth": "malicious",
-      "fast_ml": {
-        "route": "known_attack",
-        "label": "PortScan",
-        "confidence": 0.9794,
-        "ae_flag": true,
-        "ae_error": 0.2366,
-        "stat_flag": true,
-        "latency_ms": 2.02
-      },
-      "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.015
-      }
-    },
-    {
       "id": "ATTACK-SCAN-16",
       "group": "Known Attack (PortScan)",
       "ground_truth": "malicious",
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9961,
+        "confidence": 0.9999,
         "ae_flag": true,
-        "ae_error": 0.9557,
+        "ae_error": 0.4164,
         "stat_flag": true,
-        "latency_ms": 1.519
+        "latency_ms": 4.495
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.024
       }
     },
     {
@@ -3317,20 +3317,20 @@
       "group": "Known Attack (PortScan)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "known_attack",
+        "route": "human_review",
         "label": "PortScan",
-        "confidence": 0.9951,
+        "confidence": 0.8822,
         "ae_flag": true,
-        "ae_error": 0.9849,
+        "ae_error": 0.2011,
         "stat_flag": true,
-        "latency_ms": 1.692
+        "latency_ms": 2.838
       },
       "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.015
+        "verdict": "needs_human",
+        "action": "escalate",
+        "requires_human": true,
+        "rationale": "Ambiguous deterministic evidence requires analyst review....",
+        "latency_ms": 2378.79
       }
     },
     {
@@ -3340,18 +3340,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9627,
+        "confidence": 0.9994,
         "ae_flag": true,
-        "ae_error": 0.1904,
+        "ae_error": 0.321,
         "stat_flag": true,
-        "latency_ms": 2.892
+        "latency_ms": 3.101
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.022
+        "latency_ms": 0.032
       }
     },
     {
@@ -3361,18 +3361,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "PortScan",
-        "confidence": 0.9961,
+        "confidence": 1.0,
         "ae_flag": true,
-        "ae_error": 0.4919,
+        "ae_error": 0.9258,
         "stat_flag": true,
-        "latency_ms": 1.83
+        "latency_ms": 3.262
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.014
+        "latency_ms": 0.024
       }
     },
     {
@@ -3384,16 +3384,16 @@
         "label": "PortScan",
         "confidence": 0.9962,
         "ae_flag": true,
-        "ae_error": 0.7372,
+        "ae_error": 0.8533,
         "stat_flag": true,
-        "latency_ms": 1.538
+        "latency_ms": 3.004
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.025
       }
     },
     {
@@ -3407,14 +3407,14 @@
         "ae_flag": true,
         "ae_error": 62499954688.0,
         "stat_flag": true,
-        "latency_ms": 1.581
+        "latency_ms": 3.323
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.014
+        "latency_ms": 0.06
       }
     },
     {
@@ -3428,14 +3428,14 @@
         "ae_flag": true,
         "ae_error": 62499954688.0,
         "stat_flag": true,
-        "latency_ms": 1.687
+        "latency_ms": 3.704
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.012
+        "latency_ms": 0.025
       }
     },
     {
@@ -3449,14 +3449,14 @@
         "ae_flag": true,
         "ae_error": 62499950592.0,
         "stat_flag": true,
-        "latency_ms": 1.582
+        "latency_ms": 3.268
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.012
+        "latency_ms": 0.024
       }
     },
     {
@@ -3470,14 +3470,14 @@
         "ae_flag": true,
         "ae_error": 62499950592.0,
         "stat_flag": true,
-        "latency_ms": 1.465
+        "latency_ms": 4.068
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.012
+        "latency_ms": 0.027
       }
     },
     {
@@ -3491,14 +3491,14 @@
         "ae_flag": true,
         "ae_error": 62499946496.0,
         "stat_flag": true,
-        "latency_ms": 1.455
+        "latency_ms": 3.291
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.024
       }
     },
     {
@@ -3512,14 +3512,14 @@
         "ae_flag": true,
         "ae_error": 62499946496.0,
         "stat_flag": true,
-        "latency_ms": 1.535
+        "latency_ms": 3.003
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.013
+        "latency_ms": 0.023
       }
     },
     {
@@ -3533,14 +3533,14 @@
         "ae_flag": true,
         "ae_error": 62499942400.0,
         "stat_flag": true,
-        "latency_ms": 2.293
+        "latency_ms": 2.683
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.019
+        "latency_ms": 0.029
       }
     },
     {
@@ -3554,14 +3554,14 @@
         "ae_flag": true,
         "ae_error": 62499942400.0,
         "stat_flag": true,
-        "latency_ms": 3.25
+        "latency_ms": 3.05
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.023
+        "latency_ms": 0.022
       }
     },
     {
@@ -3575,14 +3575,14 @@
         "ae_flag": true,
         "ae_error": 62499938304.0,
         "stat_flag": true,
-        "latency_ms": 2.337
+        "latency_ms": 3.195
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.015
+        "latency_ms": 0.029
       }
     },
     {
@@ -3596,14 +3596,14 @@
         "ae_flag": true,
         "ae_error": 62499938304.0,
         "stat_flag": true,
-        "latency_ms": 1.596
+        "latency_ms": 3.59
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.014
+        "latency_ms": 0.029
       }
     },
     {
@@ -3611,20 +3611,20 @@
       "group": "Novel Attack (DoH Exfil)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "human_review",
+        "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.8954,
+        "confidence": 0.9841,
         "ae_flag": true,
-        "ae_error": 101758512.0,
+        "ae_error": 34719924.0,
         "stat_flag": true,
-        "latency_ms": 1.611
+        "latency_ms": 2.767
       },
       "ai_advisory": {
-        "verdict": "needs_human",
-        "action": "escalate",
-        "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 7631.722
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.019
       }
     },
     {
@@ -3634,18 +3634,18 @@
       "fast_ml": {
         "route": "human_review",
         "label": "Bot",
-        "confidence": 0.8849,
+        "confidence": 0.8827,
         "ae_flag": true,
-        "ae_error": 56749704.0,
+        "ae_error": 45980052.0,
         "stat_flag": true,
-        "latency_ms": 3.406
+        "latency_ms": 2.623
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 8.748
+        "latency_ms": 2415.455
       }
     },
     {
@@ -3653,13 +3653,34 @@
       "group": "Novel Attack (DoH Exfil)",
       "ground_truth": "malicious",
       "fast_ml": {
+        "route": "human_review",
+        "label": "Bot",
+        "confidence": 0.8639,
+        "ae_flag": true,
+        "ae_error": 58924316.0,
+        "stat_flag": true,
+        "latency_ms": 3.912
+      },
+      "ai_advisory": {
+        "verdict": "needs_human",
+        "action": "escalate",
+        "requires_human": true,
+        "rationale": "Ambiguous deterministic evidence requires analyst review....",
+        "latency_ms": 2380.95
+      }
+    },
+    {
+      "id": "NOVEL-DOH-EXFIL-04",
+      "group": "Novel Attack (DoH Exfil)",
+      "ground_truth": "malicious",
+      "fast_ml": {
         "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.9936,
+        "confidence": 0.9304,
         "ae_flag": true,
-        "ae_error": 28178556.0,
+        "ae_error": 31039596.0,
         "stat_flag": true,
-        "latency_ms": 4.373
+        "latency_ms": 3.118
       },
       "ai_advisory": {
         "verdict": "malicious",
@@ -3670,38 +3691,17 @@
       }
     },
     {
-      "id": "NOVEL-DOH-EXFIL-04",
-      "group": "Novel Attack (DoH Exfil)",
-      "ground_truth": "malicious",
-      "fast_ml": {
-        "route": "known_attack",
-        "label": "Bot",
-        "confidence": 0.9948,
-        "ae_flag": true,
-        "ae_error": 24940500.0,
-        "stat_flag": true,
-        "latency_ms": 4.432
-      },
-      "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.031
-      }
-    },
-    {
       "id": "NOVEL-DOH-EXFIL-05",
       "group": "Novel Attack (DoH Exfil)",
       "ground_truth": "malicious",
       "fast_ml": {
         "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.9898,
+        "confidence": 0.9818,
         "ae_flag": true,
-        "ae_error": 33035416.0,
+        "ae_error": 46125888.0,
         "stat_flag": true,
-        "latency_ms": 5.325
+        "latency_ms": 3.71
       },
       "ai_advisory": {
         "verdict": "malicious",
@@ -3716,20 +3716,20 @@
       "group": "Novel Attack (DoH Exfil)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "known_attack",
+        "route": "human_review",
         "label": "Bot",
-        "confidence": 0.9101,
+        "confidence": 0.8506,
         "ae_flag": true,
-        "ae_error": 81609552.0,
+        "ae_error": 56704684.0,
         "stat_flag": true,
-        "latency_ms": 3.781
+        "latency_ms": 3.651
       },
       "ai_advisory": {
-        "verdict": "malicious",
-        "action": "alert",
-        "requires_human": false,
-        "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.045
+        "verdict": "needs_human",
+        "action": "escalate",
+        "requires_human": true,
+        "rationale": "Ambiguous deterministic evidence requires analyst review....",
+        "latency_ms": 2386.243
       }
     },
     {
@@ -3739,18 +3739,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.9784,
+        "confidence": 0.9644,
         "ae_flag": true,
-        "ae_error": 20435578.0,
+        "ae_error": 90102936.0,
         "stat_flag": true,
-        "latency_ms": 6.192
+        "latency_ms": 3.506
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.043
+        "latency_ms": 0.024
       }
     },
     {
@@ -3760,18 +3760,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.9786,
+        "confidence": 0.9835,
         "ae_flag": true,
-        "ae_error": 50395496.0,
+        "ae_error": 27773486.0,
         "stat_flag": true,
-        "latency_ms": 4.784
+        "latency_ms": 2.921
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.031
+        "latency_ms": 0.025
       }
     },
     {
@@ -3779,20 +3779,20 @@
       "group": "Novel Attack (DoH Exfil)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "human_review",
+        "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.864,
+        "confidence": 0.986,
         "ae_flag": true,
-        "ae_error": 101483472.0,
+        "ae_error": 36645372.0,
         "stat_flag": true,
-        "latency_ms": 4.861
+        "latency_ms": 2.95
       },
       "ai_advisory": {
-        "verdict": "needs_human",
-        "action": "escalate",
-        "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 7.716
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.025
       }
     },
     {
@@ -3802,18 +3802,18 @@
       "fast_ml": {
         "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.9081,
+        "confidence": 0.9912,
         "ae_flag": true,
-        "ae_error": 66076060.0,
+        "ae_error": 33093026.0,
         "stat_flag": true,
-        "latency_ms": 4.212
+        "latency_ms": 4.159
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.033
+        "latency_ms": 0.026
       }
     },
     {
@@ -3827,14 +3827,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 4.963
+        "latency_ms": 3.17
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.038
+        "latency_ms": 0.026
       }
     },
     {
@@ -3848,14 +3848,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 3.976
+        "latency_ms": 3.765
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.034
+        "latency_ms": 0.032
       }
     },
     {
@@ -3869,14 +3869,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 3.737
+        "latency_ms": 3.284
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.029
+        "latency_ms": 0.02
       }
     },
     {
@@ -3890,14 +3890,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 3.381
+        "latency_ms": 2.662
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.025
+        "latency_ms": 0.021
       }
     },
     {
@@ -3911,14 +3911,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 3.18
+        "latency_ms": 2.589
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.026
+        "latency_ms": 0.02
       }
     },
     {
@@ -3932,14 +3932,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 4.484
+        "latency_ms": 5.684
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.032
+        "latency_ms": 0.025
       }
     },
     {
@@ -3953,14 +3953,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 3.185
+        "latency_ms": 4.076
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.019
+        "latency_ms": 0.025
       }
     },
     {
@@ -3974,14 +3974,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 2.583
+        "latency_ms": 3.909
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.068
+        "latency_ms": 0.023
       }
     },
     {
@@ -3995,14 +3995,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 3.498
+        "latency_ms": 2.935
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.03
+        "latency_ms": 0.032
       }
     },
     {
@@ -4016,14 +4016,14 @@
         "ae_flag": true,
         "ae_error": 62499995648.0,
         "stat_flag": true,
-        "latency_ms": 3.771
+        "latency_ms": 3.798
       },
       "ai_advisory": {
         "verdict": "malicious",
         "action": "alert",
         "requires_human": false,
         "rationale": "High-confidence known-attack model evidence supports an alert....",
-        "latency_ms": 0.027
+        "latency_ms": 0.024
       }
     },
     {
@@ -4031,20 +4031,20 @@
       "group": "Novel Attack (Polyglot RCE)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "human_review",
-        "label": "Bot",
-        "confidence": 0.5935,
+        "route": "unknown_anomaly_review",
+        "label": "unknown-anomaly",
+        "confidence": 0.7606,
         "ae_flag": true,
-        "ae_error": 4933046.5,
+        "ae_error": 5130484.0,
         "stat_flag": true,
-        "latency_ms": 3.072
+        "latency_ms": 3.041
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 7521.727
+        "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
+        "latency_ms": 2354.899
       }
     },
     {
@@ -4052,20 +4052,20 @@
       "group": "Novel Attack (Polyglot RCE)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "unknown_anomaly_review",
-        "label": "unknown-anomaly",
-        "confidence": 0.7199,
+        "route": "human_review",
+        "label": "Bot",
+        "confidence": 0.7705,
         "ae_flag": true,
-        "ae_error": 6340094.0,
+        "ae_error": 8176108.0,
         "stat_flag": true,
-        "latency_ms": 4.798
+        "latency_ms": 3.136
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
-        "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 10.1
+        "rationale": "Ambiguous deterministic evidence requires analyst review....",
+        "latency_ms": 2418.752
       }
     },
     {
@@ -4073,20 +4073,20 @@
       "group": "Novel Attack (Polyglot RCE)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "human_review",
+        "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.5443,
+        "confidence": 0.9406,
         "ae_flag": true,
-        "ae_error": 6044550.5,
+        "ae_error": 11750589.0,
         "stat_flag": true,
-        "latency_ms": 4.301
+        "latency_ms": 3.312
       },
       "ai_advisory": {
-        "verdict": "needs_human",
-        "action": "escalate",
-        "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 8.083
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.029
       }
     },
     {
@@ -4094,20 +4094,20 @@
       "group": "Novel Attack (Polyglot RCE)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "human_review",
+        "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.7487,
+        "confidence": 0.9116,
         "ae_flag": true,
-        "ae_error": 7960126.0,
+        "ae_error": 5051534.0,
         "stat_flag": true,
-        "latency_ms": 5.008
+        "latency_ms": 3.624
       },
       "ai_advisory": {
-        "verdict": "needs_human",
-        "action": "escalate",
-        "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 9.06
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.028
       }
     },
     {
@@ -4117,18 +4117,18 @@
       "fast_ml": {
         "route": "human_review",
         "label": "Bot",
-        "confidence": 0.693,
+        "confidence": 0.7797,
         "ae_flag": true,
-        "ae_error": 8874494.0,
+        "ae_error": 8176108.0,
         "stat_flag": true,
-        "latency_ms": 4.979
+        "latency_ms": 3.052
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 8.044
+        "latency_ms": 2364.592
       }
     },
     {
@@ -4138,18 +4138,18 @@
       "fast_ml": {
         "route": "human_review",
         "label": "Bot",
-        "confidence": 0.8138,
+        "confidence": 0.8787,
         "ae_flag": true,
-        "ae_error": 5303536.5,
+        "ae_error": 6625061.0,
         "stat_flag": true,
-        "latency_ms": 4.458
+        "latency_ms": 3.436
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 9.015
+        "latency_ms": 2352.92
       }
     },
     {
@@ -4157,20 +4157,20 @@
       "group": "Novel Attack (Polyglot RCE)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "unknown_anomaly_review",
-        "label": "unknown-anomaly",
-        "confidence": 0.5269,
+        "route": "human_review",
+        "label": "Bot",
+        "confidence": 0.799,
         "ae_flag": true,
-        "ae_error": 8944952.0,
+        "ae_error": 6626999.5,
         "stat_flag": true,
-        "latency_ms": 5.194
+        "latency_ms": 3.652
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
-        "rationale": "Unknown anomaly cannot be safely resolved without context and analyst review....",
-        "latency_ms": 10.003
+        "rationale": "Ambiguous deterministic evidence requires analyst review....",
+        "latency_ms": 2369.382
       }
     },
     {
@@ -4180,18 +4180,18 @@
       "fast_ml": {
         "route": "human_review",
         "label": "Bot",
-        "confidence": 0.7214,
+        "confidence": 0.8541,
         "ae_flag": true,
-        "ae_error": 7160917.0,
+        "ae_error": 8575363.0,
         "stat_flag": true,
-        "latency_ms": 4.558
+        "latency_ms": 5.513
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 7.3
+        "latency_ms": 2392.773
       }
     },
     {
@@ -4201,18 +4201,18 @@
       "fast_ml": {
         "route": "human_review",
         "label": "Bot",
-        "confidence": 0.8182,
+        "confidence": 0.7716,
         "ae_flag": true,
-        "ae_error": 5526145.5,
+        "ae_error": 4207781.5,
         "stat_flag": true,
-        "latency_ms": 3.963
+        "latency_ms": 3.299
       },
       "ai_advisory": {
         "verdict": "needs_human",
         "action": "escalate",
         "requires_human": true,
         "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 8.934
+        "latency_ms": 2380.77
       }
     },
     {
@@ -4220,20 +4220,20 @@
       "group": "Novel Attack (Polyglot RCE)",
       "ground_truth": "malicious",
       "fast_ml": {
-        "route": "human_review",
+        "route": "known_attack",
         "label": "Bot",
-        "confidence": 0.7611,
+        "confidence": 0.9727,
         "ae_flag": true,
-        "ae_error": 8176107.0,
+        "ae_error": 3601036.75,
         "stat_flag": true,
-        "latency_ms": 4.405
+        "latency_ms": 3.478
       },
       "ai_advisory": {
-        "verdict": "needs_human",
-        "action": "escalate",
-        "requires_human": true,
-        "rationale": "Ambiguous deterministic evidence requires analyst review....",
-        "latency_ms": 9.889
+        "verdict": "malicious",
+        "action": "alert",
+        "requires_human": false,
+        "rationale": "High-confidence known-attack model evidence supports an alert....",
+        "latency_ms": 0.029
       }
     }
   ]

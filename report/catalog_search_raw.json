@@ -1,0 +1,734 @@
+{
+  "pdf": [],
+  "report": [
+    {
+      "id": "data-storytelling",
+      "name": "data-storytelling",
+      "description": "Transform data into compelling narratives using visualization, context, and persuasive structure. Use when presenting analytics to stakeholders, creating data reports, or building executive presentations.",
+      "category": "data-ai"
+    },
+    {
+      "id": "team-collaboration-issue",
+      "name": "team-collaboration-issue",
+      "description": "Resolve GitHub issues through triage, reproduction, implementation, testing, and collaboration. Use when investigating a reported bug or delivering a feature described in an issue.",
+      "category": "workflow"
+    }
+  ],
+  "technical writing": [],
+  "documentation": [
+    {
+      "id": "api-documenter",
+      "name": "api-documenter",
+      "description": "Master API documentation with OpenAPI 3.1, AI-powered tools, and modern developer experience practices. Create interactive docs, generate SDKs, and build comprehensive developer portals. Use PROACTIVELY for API documentation or developer portal creation.",
+      "category": "development"
+    },
+    {
+      "id": "architecture-decision-records",
+      "name": "architecture-decision-records",
+      "description": "Write and maintain Architecture Decision Records (ADRs) following best practices for technical decision documentation. Use when documenting significant technical decisions, reviewing past architectural choices, or establishing decision processes.",
+      "category": "architecture"
+    },
+    {
+      "id": "c4-architecture-c4-architecture",
+      "name": "c4-architecture-c4-architecture",
+      "description": "Generate comprehensive C4 architecture documentation for an existing repository/codebase using a bottom-up analysis approach.",
+      "category": "architecture"
+    },
+    {
+      "id": "c4-code",
+      "name": "c4-code",
+      "description": "Expert C4 Code-level documentation specialist. Analyzes code directories to create comprehensive C4 code-level documentation including function signatures, arguments, dependencies, and code structure. Use when documenting code at the lowest C4 level for individual directories and code modules.",
+      "category": "architecture"
+    },
+    {
+      "id": "c4-component",
+      "name": "c4-component",
+      "description": "Expert C4 Component-level documentation specialist. Synthesizes C4 Code-level documentation into Component-level architecture, defining component boundaries, interfaces, and relationships. Creates component diagrams and documentation. Use when synthesizing code-level documentation into logical components.",
+      "category": "architecture"
+    },
+    {
+      "id": "c4-container",
+      "name": "c4-container",
+      "description": "Expert C4 Container-level documentation specialist. Synthesizes Component-level documentation into Container-level architecture, mapping components to deployment units, documenting container interfaces as APIs, and creating container diagrams. Use when synthesizing components into deployment containers and documenting system deployment architecture.",
+      "category": "architecture"
+    },
+    {
+      "id": "c4-context",
+      "name": "c4-context",
+      "description": "Expert C4 Context-level documentation specialist. Creates high-level system context diagrams, documents personas, user journeys, system features, and external dependencies. Synthesizes container and component documentation with system documentation to create comprehensive context-level architecture. Use when creating the highest-level C4 system context documentation.",
+      "category": "architecture"
+    },
+    {
+      "id": "code-documentation-code-explain",
+      "name": "code-documentation-code-explain",
+      "description": "You are a code education expert specializing in explaining complex code through clear narratives, visual diagrams, and step-by-step breakdowns. Transform difficult concepts into understandable explanations.",
+      "category": "development"
+    },
+    {
+      "id": "code-documentation-doc-generate",
+      "name": "code-documentation-doc-generate",
+      "description": "You are a documentation expert specializing in creating comprehensive, maintainable documentation from code. Generate API docs, architecture diagrams, user guides, and technical references using AI-powered analysis and industry best practices.",
+      "category": "development"
+    },
+    {
+      "id": "comprehensive-review-full-review",
+      "name": "comprehensive-review-full-review",
+      "description": "Coordinate code quality, architecture, security, performance, testing, and documentation reviews. Use when a change or codebase needs a consolidated assessment across these areas.",
+      "category": "development"
+    },
+    {
+      "id": "dbt-transformation-patterns",
+      "name": "dbt-transformation-patterns",
+      "description": "Master dbt (data build tool) for analytics engineering with model organization, testing, documentation, and incremental strategies. Use when building data transformations, creating data models, or implementing analytics engineering best practices.",
+      "category": "data-ai"
+    },
+    {
+      "id": "docs-architect",
+      "name": "docs-architect",
+      "description": "Creates comprehensive technical documentation from existing codebases. Analyzes architecture, design patterns, and implementation details to produce long-form technical manuals and ebooks. Use PROACTIVELY for system documentation, architecture guides, or technical deep-dives.",
+      "category": "development"
+    },
+    {
+      "id": "documentation-generation-doc-generate",
+      "name": "documentation-generation-doc-generate",
+      "description": "You are a documentation expert specializing in creating comprehensive, maintainable documentation from code. Generate API docs, architecture diagrams, user guides, and technical references using AI-powered analysis and industry best practices.",
+      "category": "development"
+    },
+    {
+      "id": "employment-contract-templates",
+      "name": "employment-contract-templates",
+      "description": "Create employment contracts, offer letters, and HR policy documents following legal best practices. Use when drafting employment agreements, creating HR policies, or standardizing employment documentation.",
+      "category": "business"
+    },
+    {
+      "id": "legal-advisor",
+      "name": "legal-advisor",
+      "description": "Draft privacy policies, terms of service, disclaimers, and legal notices. Creates GDPR-compliant texts, cookie policies, and data processing agreements. Use PROACTIVELY for legal documentation, compliance texts, or regulatory requirements.",
+      "category": "business"
+    },
+    {
+      "id": "mermaid-expert",
+      "name": "mermaid-expert",
+      "description": "Create Mermaid diagrams for flowcharts, sequences, ERDs, and architectures. Masters syntax for all diagram types and styling. Use PROACTIVELY for visual documentation, system diagrams, or process flows.",
+      "category": "workflow"
+    },
+    {
+      "id": "on-call-handoff-patterns",
+      "name": "on-call-handoff-patterns",
+      "description": "Master on-call shift handoffs with context transfer, escalation procedures, and documentation. Use when transitioning on-call responsibilities, documenting shift summaries, or improving on-call processes.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "openapi-spec-generation",
+      "name": "openapi-spec-generation",
+      "description": "Generate and maintain OpenAPI 3.1 specifications from code, design-first specs, and validation patterns. Use when creating API documentation, generating SDKs, or ensuring API contract compliance.",
+      "category": "development"
+    },
+    {
+      "id": "protocol-reverse-engineering",
+      "name": "protocol-reverse-engineering",
+      "description": "Master network protocol reverse engineering including packet analysis, protocol dissection, and custom protocol documentation. Use when analyzing network traffic, understanding proprietary protocols, or debugging network communication.",
+      "category": "security"
+    },
+    {
+      "id": "reference-builder",
+      "name": "reference-builder",
+      "description": "Creates exhaustive technical references and API documentation. Generates comprehensive parameter listings, configuration guides, and searchable reference materials. Use PROACTIVELY for API docs, configuration references, or complete technical specifications.",
+      "category": "development"
+    },
+    {
+      "id": "stride-analysis-patterns",
+      "name": "stride-analysis-patterns",
+      "description": "Apply STRIDE methodology to systematically identify threats. Use when analyzing system security, conducting threat modeling sessions, or creating security documentation.",
+      "category": "security"
+    }
+  ],
+  "academic": [],
+  "research": [
+    {
+      "id": "firmware-analyst",
+      "name": "firmware-analyst",
+      "description": "Expert firmware analyst specializing in embedded systems, IoT security, and hardware reverse engineering. Masters firmware extraction, analysis, and vulnerability research for routers, IoT devices, automotive systems, and industrial controllers. Use PROACTIVELY for firmware security audits, IoT penetration testing, or embedded systems research.",
+      "category": "security"
+    },
+    {
+      "id": "malware-analyst",
+      "name": "malware-analyst",
+      "description": "Expert malware analyst specializing in defensive malware research, threat intelligence, and incident response. Masters sandbox analysis, behavioral analysis, and malware family identification. Handles static/dynamic analysis, unpacking, and IOC extraction. Use PROACTIVELY for malware triage, threat hunting, incident response, or security research.",
+      "category": "security"
+    },
+    {
+      "id": "reverse-engineer",
+      "name": "reverse-engineer",
+      "description": "Expert reverse engineer specializing in binary analysis, disassembly, decompilation, and software analysis. Masters IDA Pro, Ghidra, radare2, x64dbg, and modern RE toolchains. Handles executable analysis, library inspection, protocol extraction, and vulnerability research. Use PROACTIVELY for binary analysis, CTF challenges, security research, or understanding undocumented software.",
+      "category": "security"
+    },
+    {
+      "id": "search-specialist",
+      "name": "search-specialist",
+      "description": "Expert web researcher using advanced search techniques and synthesis. Masters search operators, result filtering, and multi-source verification. Handles competitive analysis and fact-checking. Use PROACTIVELY for deep research, information gathering, or trend analysis.",
+      "category": "general"
+    },
+    {
+      "id": "ui-ux-designer",
+      "name": "ui-ux-designer",
+      "description": "Create interface designs, wireframes, and design systems. Masters user research, accessibility standards, and modern design tools. Specializes in design tokens, component libraries, and inclusive design. Use PROACTIVELY for design systems, user flows, or interface optimization.",
+      "category": "development"
+    }
+  ],
+  "literature": [],
+  "citation": [],
+  "diagram": [
+    {
+      "id": "c4-component",
+      "name": "c4-component",
+      "description": "Expert C4 Component-level documentation specialist. Synthesizes C4 Code-level documentation into Component-level architecture, defining component boundaries, interfaces, and relationships. Creates component diagrams and documentation. Use when synthesizing code-level documentation into logical components.",
+      "category": "architecture"
+    },
+    {
+      "id": "c4-container",
+      "name": "c4-container",
+      "description": "Expert C4 Container-level documentation specialist. Synthesizes Component-level documentation into Container-level architecture, mapping components to deployment units, documenting container interfaces as APIs, and creating container diagrams. Use when synthesizing components into deployment containers and documenting system deployment architecture.",
+      "category": "architecture"
+    },
+    {
+      "id": "c4-context",
+      "name": "c4-context",
+      "description": "Expert C4 Context-level documentation specialist. Creates high-level system context diagrams, documents personas, user journeys, system features, and external dependencies. Synthesizes container and component documentation with system documentation to create comprehensive context-level architecture. Use when creating the highest-level C4 system context documentation.",
+      "category": "architecture"
+    },
+    {
+      "id": "code-documentation-code-explain",
+      "name": "code-documentation-code-explain",
+      "description": "You are a code education expert specializing in explaining complex code through clear narratives, visual diagrams, and step-by-step breakdowns. Transform difficult concepts into understandable explanations.",
+      "category": "development"
+    },
+    {
+      "id": "code-documentation-doc-generate",
+      "name": "code-documentation-doc-generate",
+      "description": "You are a documentation expert specializing in creating comprehensive, maintainable documentation from code. Generate API docs, architecture diagrams, user guides, and technical references using AI-powered analysis and industry best practices.",
+      "category": "development"
+    },
+    {
+      "id": "documentation-generation-doc-generate",
+      "name": "documentation-generation-doc-generate",
+      "description": "You are a documentation expert specializing in creating comprehensive, maintainable documentation from code. Generate API docs, architecture diagrams, user guides, and technical references using AI-powered analysis and industry best practices.",
+      "category": "development"
+    },
+    {
+      "id": "mermaid-expert",
+      "name": "mermaid-expert",
+      "description": "Create Mermaid diagrams for flowcharts, sequences, ERDs, and architectures. Masters syntax for all diagram types and styling. Use PROACTIVELY for visual documentation, system diagrams, or process flows.",
+      "category": "workflow"
+    }
+  ],
+  "mermaid": [
+    {
+      "id": "mermaid-expert",
+      "name": "mermaid-expert",
+      "description": "Create Mermaid diagrams for flowcharts, sequences, ERDs, and architectures. Masters syntax for all diagram types and styling. Use PROACTIVELY for visual documentation, system diagrams, or process flows.",
+      "category": "workflow"
+    }
+  ],
+  "chart": [
+    {
+      "id": "helm-chart-scaffolding",
+      "name": "helm-chart-scaffolding",
+      "description": "Design, organize, and manage Helm charts for templating and packaging Kubernetes applications with reusable configurations. Use when creating Helm charts, packaging Kubernetes applications, or implementing templated deployments.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "mermaid-expert",
+      "name": "mermaid-expert",
+      "description": "Create Mermaid diagrams for flowcharts, sequences, ERDs, and architectures. Masters syntax for all diagram types and styling. Use PROACTIVELY for visual documentation, system diagrams, or process flows.",
+      "category": "workflow"
+    },
+    {
+      "id": "team-composition-analysis",
+      "name": "team-composition-analysis",
+      "description": "This skill should be used when the user asks to \"plan team structure\", \"determine hiring needs\", \"design org chart\", \"calculate compensation\", \"plan equity allocation\", or requests organizational design and headcount planning for a startup.",
+      "category": "business"
+    }
+  ],
+  "data visualization": [
+    {
+      "id": "data-storytelling",
+      "name": "data-storytelling",
+      "description": "Transform data into compelling narratives using visualization, context, and persuasive structure. Use when presenting analytics to stakeholders, creating data reports, or building executive presentations.",
+      "category": "data-ai"
+    },
+    {
+      "id": "kpi-dashboard-design",
+      "name": "kpi-dashboard-design",
+      "description": "Design effective KPI dashboards with metrics selection, visualization best practices, and real-time monitoring patterns. Use when building business dashboards, selecting metrics, or designing data visualization layouts.",
+      "category": "business"
+    }
+  ],
+  "html": [],
+  "frontend": [
+    {
+      "id": "application-performance-performance-optimization",
+      "name": "application-performance-performance-optimization",
+      "description": "Optimize end-to-end application performance with profiling, observability, and backend/frontend tuning. Use when coordinating performance optimization across the stack.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "frontend-developer",
+      "name": "frontend-developer",
+      "description": "Build React components, implement responsive layouts, and handle client-side state management. Masters React 19, Next.js 15, and modern frontend architecture. Optimizes performance and ensures accessibility. Use PROACTIVELY when creating UI components or fixing frontend issues.",
+      "category": "development"
+    },
+    {
+      "id": "frontend-mobile-development-component-scaffold",
+      "name": "frontend-mobile-development-component-scaffold",
+      "description": "Scaffold React and React Native components with TypeScript, accessibility, styles, and tests. Use when building reusable UI components or establishing component structure.",
+      "category": "development"
+    },
+    {
+      "id": "frontend-mobile-security-xss-scan",
+      "name": "frontend-mobile-security-xss-scan",
+      "description": "Detect and remediate XSS risks in React, Vue, Angular, and browser JavaScript. Use when inspecting injection sinks, untrusted markup, sanitization, or frontend security checks.",
+      "category": "security"
+    },
+    {
+      "id": "frontend-security-coder",
+      "name": "frontend-security-coder",
+      "description": "Expert in secure frontend coding practices specializing in XSS prevention, output sanitization, and client-side security patterns. Use PROACTIVELY for frontend security implementations or client-side security code reviews.",
+      "category": "security"
+    },
+    {
+      "id": "full-stack-orchestration-full-stack-feature",
+      "name": "full-stack-orchestration-full-stack-feature",
+      "description": "Coordinate database, backend, frontend, testing, and deployment work for a complete feature. Use when implementing changes that span multiple application layers.",
+      "category": "workflow"
+    },
+    {
+      "id": "javascript-typescript-typescript-scaffold",
+      "name": "javascript-typescript-typescript-scaffold",
+      "description": "Scaffold TypeScript applications with project structure, build tools, type checking, and tests. Use when starting a Node.js or frontend project or standardizing its development setup.",
+      "category": "development"
+    }
+  ],
+  "playwright": [
+    {
+      "id": "e2e-testing-patterns",
+      "name": "e2e-testing-patterns",
+      "description": "Master end-to-end testing with Playwright and Cypress to build reliable test suites that catch bugs, improve confidence, and enable fast deployment. Use when implementing E2E tests, debugging flaky tests, or establishing testing standards.",
+      "category": "testing"
+    }
+  ],
+  "puppeteer": [],
+  "latex": [],
+  "markdown": [],
+  "security audit": [
+    {
+      "id": "codebase-cleanup-deps-audit",
+      "name": "codebase-cleanup-deps-audit",
+      "description": "You are a dependency security expert specializing in vulnerability scanning, license compliance, and supply chain security. Analyze project dependencies for known vulnerabilities, licensing issues, outdated packages, and provide actionable remediation strategies.",
+      "category": "development"
+    },
+    {
+      "id": "dependency-management-deps-audit",
+      "name": "dependency-management-deps-audit",
+      "description": "You are a dependency security expert specializing in vulnerability scanning, license compliance, and supply chain security. Analyze project dependencies for known vulnerabilities, licensing issues, outdated packages, and provide actionable remediation strategies.",
+      "category": "development"
+    },
+    {
+      "id": "firmware-analyst",
+      "name": "firmware-analyst",
+      "description": "Expert firmware analyst specializing in embedded systems, IoT security, and hardware reverse engineering. Masters firmware extraction, analysis, and vulnerability research for routers, IoT devices, automotive systems, and industrial controllers. Use PROACTIVELY for firmware security audits, IoT penetration testing, or embedded systems research.",
+      "category": "security"
+    },
+    {
+      "id": "security-auditor",
+      "name": "security-auditor",
+      "description": "Expert security auditor specializing in DevSecOps, comprehensive cybersecurity, and compliance frameworks. Masters vulnerability assessment, threat modeling, secure authentication (OAuth2/OIDC), OWASP standards, cloud security, and security automation. Handles DevSecOps integration, compliance (GDPR/HIPAA/SOC2), and incident response. Use PROACTIVELY for security audits, DevSecOps, or compliance implementation.",
+      "category": "security"
+    },
+    {
+      "id": "security-compliance-compliance-check",
+      "name": "security-compliance-compliance-check",
+      "description": "You are a compliance expert specializing in regulatory requirements for software systems including GDPR, HIPAA, SOC2, PCI-DSS, and other industry standards. Perform compliance audits and provide implementation guidance.",
+      "category": "security"
+    },
+    {
+      "id": "solidity-security",
+      "name": "solidity-security",
+      "description": "Master smart contract security best practices to prevent common vulnerabilities and implement secure Solidity patterns. Use when writing smart contracts, auditing existing contracts, or implementing security measures for blockchain applications.",
+      "category": "security"
+    }
+  ],
+  "threat modeling": [
+    {
+      "id": "security-auditor",
+      "name": "security-auditor",
+      "description": "Expert security auditor specializing in DevSecOps, comprehensive cybersecurity, and compliance frameworks. Masters vulnerability assessment, threat modeling, secure authentication (OAuth2/OIDC), OWASP standards, cloud security, and security automation. Handles DevSecOps integration, compliance (GDPR/HIPAA/SOC2), and incident response. Use PROACTIVELY for security audits, DevSecOps, or compliance implementation.",
+      "category": "security"
+    },
+    {
+      "id": "stride-analysis-patterns",
+      "name": "stride-analysis-patterns",
+      "description": "Apply STRIDE methodology to systematically identify threats. Use when analyzing system security, conducting threat modeling sessions, or creating security documentation.",
+      "category": "security"
+    },
+    {
+      "id": "threat-modeling-expert",
+      "name": "threat-modeling-expert",
+      "description": "Expert in threat modeling methodologies, security architecture review, and risk assessment. Masters STRIDE, PASTA, attack trees, and security requirement extraction. Use for security architecture reviews, threat identification, and secure-by-design planning.",
+      "category": "security"
+    }
+  ],
+  "network": [
+    {
+      "id": "hybrid-cloud-networking",
+      "name": "hybrid-cloud-networking",
+      "description": "Configure secure, high-performance connectivity between on-premises infrastructure and cloud platforms using VPN and dedicated connections. Use when building hybrid cloud architectures, connecting data centers to cloud, or implementing secure cross-premises networking.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "ios-developer",
+      "name": "ios-developer",
+      "description": "Develop native iOS applications with Swift/SwiftUI. Masters iOS 18, SwiftUI, UIKit integration, Core Data, networking, and App Store optimization. Use PROACTIVELY for iOS-specific features, App Store optimization, or native iOS development.",
+      "category": "development"
+    },
+    {
+      "id": "k8s-security-policies",
+      "name": "k8s-security-policies",
+      "description": "Implement Kubernetes security policies including NetworkPolicy, PodSecurityPolicy, and RBAC for production-grade security. Use when securing Kubernetes clusters, implementing network isolation, or enforcing pod security standards.",
+      "category": "security"
+    },
+    {
+      "id": "linkerd-patterns",
+      "name": "linkerd-patterns",
+      "description": "Implement Linkerd service mesh patterns for lightweight, security-focused service mesh deployments. Use when setting up Linkerd, configuring traffic policies, or implementing zero-trust networking with minimal overhead.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "mtls-configuration",
+      "name": "mtls-configuration",
+      "description": "Configure mutual TLS (mTLS) for zero-trust service-to-service communication. Use when implementing zero-trust networking, certificate management, or securing internal service communication.",
+      "category": "security"
+    },
+    {
+      "id": "network-engineer",
+      "name": "network-engineer",
+      "description": "Expert network engineer specializing in modern cloud networking, security architectures, and performance optimization. Masters multi-cloud connectivity, service mesh, zero-trust networking, SSL/TLS, global load balancing, and advanced troubleshooting. Handles CDN optimization, network automation, and compliance. Use PROACTIVELY for network design, connectivity issues, or performance optimization.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "protocol-reverse-engineering",
+      "name": "protocol-reverse-engineering",
+      "description": "Master network protocol reverse engineering including packet analysis, protocol dissection, and custom protocol documentation. Use when analyzing network traffic, understanding proprietary protocols, or debugging network communication.",
+      "category": "security"
+    },
+    {
+      "id": "service-mesh-expert",
+      "name": "service-mesh-expert",
+      "description": "Design service meshes with Istio or Linkerd, including traffic management, security, and observability. Use when configuring service communication, mesh policies, or multi-cluster networking.",
+      "category": "infrastructure"
+    }
+  ],
+  "ids": [],
+  "machine learning": [
+    {
+      "id": "data-scientist",
+      "name": "data-scientist",
+      "description": "Expert data scientist for advanced analytics, machine learning, and statistical modeling. Handles complex data analysis, predictive modeling, and business intelligence. Use PROACTIVELY for data analysis tasks, ML modeling, statistical analysis, and data-driven insights.",
+      "category": "data-ai"
+    },
+    {
+      "id": "godot-gdscript-patterns",
+      "name": "godot-gdscript-patterns",
+      "description": "Master Godot 4 GDScript patterns including signals, scenes, state machines, and optimization. Use when building Godot games, implementing game systems, or learning GDScript best practices.",
+      "category": "development"
+    },
+    {
+      "id": "machine-learning-ops-ml-pipeline",
+      "name": "machine-learning-ops-ml-pipeline",
+      "description": "Design ML pipelines covering data preparation, model training, deployment, monitoring, and continuous improvement. Use when coordinating an end-to-end MLOps workflow.",
+      "category": "data-ai"
+    }
+  ],
+  "evaluation": [
+    {
+      "id": "llm-evaluation",
+      "name": "llm-evaluation",
+      "description": "Implement comprehensive evaluation strategies for LLM applications using automated metrics, human feedback, and benchmarking. Use when testing LLM performance, measuring AI application quality, or establishing evaluation frameworks.",
+      "category": "data-ai"
+    }
+  ],
+  "benchmark": [
+    {
+      "id": "llm-evaluation",
+      "name": "llm-evaluation",
+      "description": "Implement comprehensive evaluation strategies for LLM applications using automated metrics, human feedback, and benchmarking. Use when testing LLM performance, measuring AI application quality, or establishing evaluation frameworks.",
+      "category": "data-ai"
+    }
+  ],
+  "testing": [
+    {
+      "id": "airflow-dag-patterns",
+      "name": "airflow-dag-patterns",
+      "description": "Build production Apache Airflow DAGs with best practices for operators, sensors, testing, and deployment. Use when creating data pipelines, orchestrating workflows, or scheduling batch jobs.",
+      "category": "data-ai"
+    },
+    {
+      "id": "api-testing-observability-api-mock",
+      "name": "api-testing-observability-api-mock",
+      "description": "You are an API mocking expert specializing in realistic mock services for development, testing, and demos. Design mocks that simulate real API behavior and enable parallel development.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "backtesting-frameworks",
+      "name": "backtesting-frameworks",
+      "description": "Build robust backtesting systems for trading strategies with proper handling of look-ahead bias, survivorship bias, and transaction costs. Use when developing trading algorithms, validating strategies, or building backtesting infrastructure.",
+      "category": "business"
+    },
+    {
+      "id": "bats-testing-patterns",
+      "name": "bats-testing-patterns",
+      "description": "Master Bash Automated Testing System (Bats) for comprehensive shell script testing. Use when writing tests for shell scripts, CI/CD pipelines, or requiring test-driven development of shell utilities.",
+      "category": "testing"
+    },
+    {
+      "id": "comprehensive-review-full-review",
+      "name": "comprehensive-review-full-review",
+      "description": "Coordinate code quality, architecture, security, performance, testing, and documentation reviews. Use when a change or codebase needs a consolidated assessment across these areas.",
+      "category": "development"
+    },
+    {
+      "id": "csharp-pro",
+      "name": "csharp-pro",
+      "description": "Write modern C# code with advanced features like records, pattern matching, and async/await. Optimizes .NET applications, implements enterprise patterns, and ensures comprehensive testing. Use PROACTIVELY for C# refactoring, performance optimization, or complex .NET solutions.",
+      "category": "development"
+    },
+    {
+      "id": "data-engineering-data-driven-feature",
+      "name": "data-engineering-data-driven-feature",
+      "description": "Build features guided by data insights, A/B testing, and continuous measurement using specialized agents for analysis, implementation, and experimentation.",
+      "category": "data-ai"
+    },
+    {
+      "id": "dbt-transformation-patterns",
+      "name": "dbt-transformation-patterns",
+      "description": "Master dbt (data build tool) for analytics engineering with model organization, testing, documentation, and incremental strategies. Use when building data transformations, creating data models, or implementing analytics engineering best practices.",
+      "category": "data-ai"
+    },
+    {
+      "id": "dependency-upgrade",
+      "name": "dependency-upgrade",
+      "description": "Manage major dependency version upgrades with compatibility analysis, staged rollout, and comprehensive testing. Use when upgrading framework versions, updating major dependencies, or managing breaking changes in libraries.",
+      "category": "development"
+    },
+    {
+      "id": "django-pro",
+      "name": "django-pro",
+      "description": "Master Django 5.x with async views, DRF, Celery, and Django Channels. Build scalable web applications with proper architecture, testing, and deployment. Use PROACTIVELY for Django development, ORM optimization, or complex Django patterns.",
+      "category": "development"
+    },
+    {
+      "id": "dotnet-backend-patterns",
+      "name": "dotnet-backend-patterns",
+      "description": "Master C#/.NET backend development patterns for building robust APIs, MCP servers, and enterprise applications. Covers async/await, dependency injection, Entity Framework Core, Dapper, configuration, caching, and testing with xUnit. Use when developing .NET backends, reviewing C# code, or designing API architectures.",
+      "category": "development"
+    },
+    {
+      "id": "e2e-testing-patterns",
+      "name": "e2e-testing-patterns",
+      "description": "Master end-to-end testing with Playwright and Cypress to build reliable test suites that catch bugs, improve confidence, and enable fast deployment. Use when implementing E2E tests, debugging flaky tests, or establishing testing standards.",
+      "category": "testing"
+    },
+    {
+      "id": "firmware-analyst",
+      "name": "firmware-analyst",
+      "description": "Expert firmware analyst specializing in embedded systems, IoT security, and hardware reverse engineering. Masters firmware extraction, analysis, and vulnerability research for routers, IoT devices, automotive systems, and industrial controllers. Use PROACTIVELY for firmware security audits, IoT penetration testing, or embedded systems research.",
+      "category": "security"
+    },
+    {
+      "id": "flutter-expert",
+      "name": "flutter-expert",
+      "description": "Master Flutter development with Dart 3, advanced widgets, and multi-platform deployment. Handles state management, animations, testing, and performance optimization for mobile, web, desktop, and embedded platforms. Use PROACTIVELY for Flutter architecture, UI implementation, or cross-platform features.",
+      "category": "development"
+    },
+    {
+      "id": "framework-migration-deps-upgrade",
+      "name": "framework-migration-deps-upgrade",
+      "description": "Plan incremental dependency upgrades with breaking-change analysis, migration guidance, and regression testing. Use when updating packages while controlling compatibility risk.",
+      "category": "development"
+    },
+    {
+      "id": "full-stack-orchestration-full-stack-feature",
+      "name": "full-stack-orchestration-full-stack-feature",
+      "description": "Coordinate database, backend, frontend, testing, and deployment work for a complete feature. Use when implementing changes that span multiple application layers.",
+      "category": "workflow"
+    },
+    {
+      "id": "git-pr-workflows-git-workflow",
+      "name": "git-pr-workflows-git-workflow",
+      "description": "Guide changes through code checks, testing, commits, and pull request preparation. Use when coordinating a complete Git workflow and verifying readiness for collaboration.",
+      "category": "development"
+    },
+    {
+      "id": "github-actions-templates",
+      "name": "github-actions-templates",
+      "description": "Create production-ready GitHub Actions workflows for automated testing, building, and deploying applications. Use when setting up CI/CD with GitHub Actions, automating development workflows, or creating reusable workflow templates.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "gitlab-ci-patterns",
+      "name": "gitlab-ci-patterns",
+      "description": "Build GitLab CI/CD pipelines with multi-stage workflows, caching, and distributed runners for scalable automation. Use when implementing GitLab CI/CD, optimizing pipeline performance, or setting up automated testing and deployment.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "javascript-testing-patterns",
+      "name": "javascript-testing-patterns",
+      "description": "Implement comprehensive testing strategies using Jest, Vitest, and Testing Library for unit tests, integration tests, and end-to-end testing with mocking, fixtures, and test-driven development. Use when writing JavaScript/TypeScript tests, setting up test infrastructure, or implementing TDD/BDD workflows.",
+      "category": "development"
+    },
+    {
+      "id": "llm-evaluation",
+      "name": "llm-evaluation",
+      "description": "Implement comprehensive evaluation strategies for LLM applications using automated metrics, human feedback, and benchmarking. Use when testing LLM performance, measuring AI application quality, or establishing evaluation frameworks.",
+      "category": "data-ai"
+    },
+    {
+      "id": "ml-engineer",
+      "name": "ml-engineer",
+      "description": "Build production ML systems with PyTorch 2.x, TensorFlow, and modern ML frameworks. Implements model serving, feature engineering, A/B testing, and monitoring. Use PROACTIVELY for ML model deployment, inference optimization, or production ML infrastructure.",
+      "category": "data-ai"
+    },
+    {
+      "id": "performance-engineer",
+      "name": "performance-engineer",
+      "description": "Expert performance engineer specializing in modern observability, application optimization, and scalable system performance. Masters OpenTelemetry, distributed tracing, load testing, multi-tier caching, Core Web Vitals, and performance monitoring. Handles end-to-end optimization, real user monitoring, and scalability patterns. Use PROACTIVELY for performance optimization, observability, or scalability challenges.",
+      "category": "infrastructure"
+    },
+    {
+      "id": "performance-testing-review-ai-review",
+      "name": "performance-testing-review-ai-review",
+      "description": "Combine static analysis with model-assisted code review to assess security, performance, correctness, and architecture. Use when designing review automation or reviewing complex changes.",
+      "category": "data-ai"
+    },
+    {
+      "id": "performance-testing-review-multi-agent-review",
+      "name": "performance-testing-review-multi-agent-review",
+      "description": "Coordinate specialized code, security, architecture, and performance reviewers and consolidate their results. Use when a codebase needs parallel review across multiple disciplines.",
+      "category": "testing"
+    },
+    {
+      "id": "python-testing-patterns",
+      "name": "python-testing-patterns",
+      "description": "Implement comprehensive testing strategies with pytest, fixtures, mocking, and test-driven development. Use when writing Python tests, setting up test suites, or implementing testing best practices.",
+      "category": "development"
+    },
+    {
+      "id": "ruby-pro",
+      "name": "ruby-pro",
+      "description": "Write idiomatic Ruby code with metaprogramming, Rails patterns, and performance optimization. Specializes in Ruby on Rails, gem development, and testing frameworks. Use PROACTIVELY for Ruby refactoring, optimization, or complex Ruby features.",
+      "category": "development"
+    },
+    {
+      "id": "sast-configuration",
+      "name": "sast-configuration",
+      "description": "Configure Static Application Security Testing (SAST) tools for automated vulnerability detection in application code. Use when setting up security scanning, implementing DevSecOps practices, or automating code vulnerability detection.",
+      "category": "security"
+    },
+    {
+      "id": "screen-reader-testing",
+      "name": "screen-reader-testing",
+      "description": "Test web applications with screen readers including VoiceOver, NVDA, and JAWS. Use when validating screen reader compatibility, debugging accessibility issues, or ensuring assistive technology support.",
+      "category": "testing"
+    },
+    {
+      "id": "security-scanning-security-sast",
+      "name": "security-scanning-security-sast",
+      "description": "Static Application Security Testing (SAST) for code vulnerability analysis across multiple languages and frameworks",
+      "category": "security"
+    },
+    {
+      "id": "systems-programming-rust-project",
+      "name": "systems-programming-rust-project",
+      "description": "Scaffold Rust projects with Cargo, module organization, testing, and development tooling. Use when starting Rust applications or libraries and establishing their project structure.",
+      "category": "development"
+    },
+    {
+      "id": "tdd-orchestrator",
+      "name": "tdd-orchestrator",
+      "description": "Master TDD orchestrator specializing in red-green-refactor discipline, multi-agent workflow coordination, and comprehensive test-driven development practices. Enforces TDD best practices across teams with AI-assisted testing and modern frameworks. Use PROACTIVELY for TDD implementation and governance.",
+      "category": "testing"
+    },
+    {
+      "id": "tdd-workflows-tdd-cycle",
+      "name": "tdd-workflows-tdd-cycle",
+      "description": "Coordinate the test-driven development cycle from requirements and failing tests through implementation, refactoring, and validation. Use when building a feature with a structured TDD workflow.",
+      "category": "testing"
+    },
+    {
+      "id": "tdd-workflows-tdd-green",
+      "name": "tdd-workflows-tdd-green",
+      "description": "Implement the minimal code needed to make failing tests pass in the TDD green phase.",
+      "category": "testing"
+    },
+    {
+      "id": "tdd-workflows-tdd-red",
+      "name": "tdd-workflows-tdd-red",
+      "description": "Generate failing tests for the TDD red phase to define expected behavior and edge cases.",
+      "category": "testing"
+    },
+    {
+      "id": "tdd-workflows-tdd-refactor",
+      "name": "tdd-workflows-tdd-refactor",
+      "description": "Refactor code while preserving passing tests and behavior. Use during the TDD refactor phase to remove duplication, improve design, and verify each structural change.",
+      "category": "testing"
+    },
+    {
+      "id": "team-collaboration-issue",
+      "name": "team-collaboration-issue",
+      "description": "Resolve GitHub issues through triage, reproduction, implementation, testing, and collaboration. Use when investigating a reported bug or delivering a feature described in an issue.",
+      "category": "workflow"
+    },
+    {
+      "id": "temporal-python-pro",
+      "name": "temporal-python-pro",
+      "description": "Master Temporal workflow orchestration with Python SDK. Implements durable workflows, saga patterns, and distributed transactions. Covers async/await, testing strategies, and production deployment. Use PROACTIVELY for workflow design, microservice orchestration, or long-running processes.",
+      "category": "development"
+    },
+    {
+      "id": "temporal-python-testing",
+      "name": "temporal-python-testing",
+      "description": "Test Temporal workflows with pytest, time-skipping, and mocking strategies. Covers unit testing, integration testing, replay testing, and local development setup. Use when implementing Temporal workflow tests or debugging test failures.",
+      "category": "development"
+    },
+    {
+      "id": "test-automator",
+      "name": "test-automator",
+      "description": "Master AI-powered test automation with modern frameworks, self-healing tests, and comprehensive quality engineering. Build scalable testing strategies with advanced CI/CD integration. Use PROACTIVELY for testing automation or quality assurance.",
+      "category": "testing"
+    },
+    {
+      "id": "ui-visual-validator",
+      "name": "ui-visual-validator",
+      "description": "Rigorous visual validation expert specializing in UI testing, design system compliance, and accessibility verification. Masters screenshot analysis, visual regression testing, and component validation. Use PROACTIVELY to verify UI modifications have achieved their intended goals through comprehensive visual analysis.",
+      "category": "development"
+    },
+    {
+      "id": "unit-testing-test-generate",
+      "name": "unit-testing-test-generate",
+      "description": "Generate comprehensive, maintainable unit tests across languages with strong coverage and edge case focus.",
+      "category": "testing"
+    },
+    {
+      "id": "wcag-audit-patterns",
+      "name": "wcag-audit-patterns",
+      "description": "Conduct WCAG 2.2 accessibility audits with automated testing, manual verification, and remediation guidance. Use when auditing websites for accessibility, fixing WCAG violations, or implementing accessible design patterns.",
+      "category": "testing"
+    },
+    {
+      "id": "web3-testing",
+      "name": "web3-testing",
+      "description": "Test smart contracts comprehensively using Hardhat and Foundry with unit tests, integration tests, and mainnet forking. Use when testing Solidity contracts, setting up blockchain test suites, or validating DeFi protocols.",
+      "category": "testing"
+    }
+  ]
+}
