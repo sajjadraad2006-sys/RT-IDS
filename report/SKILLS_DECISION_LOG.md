@@ -55,3 +55,12 @@ The following 6 skills were installed from `rmyndharis/antigravity-skills`:
 
 All 6 skills were inspected for safety: none perform unauthorized network calls, credentials access, or destructive commands.
 Tooling for functions not provided by skills (HTML-to-PDF export, IEEE citation resolution, and numerical claim verification) was developed test-first directly in `report/`.
+
+---
+
+## 3. Independent Audit Fix-Pass Decisions
+
+During the independent auditor fix-pass, the following evaluation of catalog skills and tools was conducted:
+1. **Citation & DOI Validation**: Evaluated whether to install an external catalog skill vs. writing a dedicated, transparent stdlib verification script. Decision: Built `report/scripts/verify_references.py` using standard library `urllib.request` querying authoritative REST APIs (Crossref `api.crossref.org` and DataCite `api.datacite.org`). No untrusted third-party packages or catalog skills were introduced, ensuring absolute reproducibility and zero supply-chain risk.
+2. **Quality Gates & Broken Link Audit**: Built direct verification scripts (`report/scratch/measure_quality_gates.py`, `report/tests/test_citations.py`) validating HTML DOM integrity, internal anchor resolution, and KaTeX rendering.
+3. **Skill Footprint Constraint**: Maintained strict discipline by installing 0 new skills during the fix-pass, keeping the total installed skills at 6.

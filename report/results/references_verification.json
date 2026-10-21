@@ -1,0 +1,772 @@
+{
+  "generated_at": "2026-10-21T07:39:18.784768+00:00",
+  "total": 45,
+  "verified_count": 32,
+  "manual_count": 13,
+  "mismatch_count": 0,
+  "not_found_count": 0,
+  "results": {
+    "sharafaldin2018toward": {
+      "key": "sharafaldin2018toward",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization",
+      "retrieved_title": "Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Iman Sharafaldin",
+        "Arash Habibi Lashkari",
+        "Ali A. Ghorbani"
+      ],
+      "retrieved_year": 2018,
+      "doi": "10.5220/0006639801080116",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "engelen2021troubleshooting": {
+      "key": "engelen2021troubleshooting",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Troubleshooting an Intrusion Detection Dataset: The CICIDS2017 Case Study",
+      "retrieved_title": "Troubleshooting an Intrusion Detection Dataset: the CICIDS2017 Case Study",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Gints Engelen",
+        "Vera Rimmer",
+        "Wouter Joosen"
+      ],
+      "retrieved_year": 2021,
+      "doi": "10.1109/SPW53761.2021.00009",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "tavallaee2009detailed": {
+      "key": "tavallaee2009detailed",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "A Detailed Analysis of the KDD CUP 99 Data Set",
+      "retrieved_title": "A detailed analysis of the KDD CUP 99 data set",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Mahbod Tavallaee",
+        "Ebrahim Bagheri",
+        "Wei Lu",
+        "Ali A. Ghorbani"
+      ],
+      "retrieved_year": 2009,
+      "doi": "10.1109/CISDA.2009.5356528",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "shiravi2012towards": {
+      "key": "shiravi2012towards",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Toward Developing a Systematic Approach to Generate Benchmark Datasets for Intrusion Detection",
+      "retrieved_title": "Toward developing a systematic approach to generate benchmark datasets for intrusion detection",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Ali Shiravi",
+        "Hadi Shiravi",
+        "Mahbod Tavallaee",
+        "Ali A. Ghorbani"
+      ],
+      "retrieved_year": 2012,
+      "doi": "10.1016/j.cose.2011.12.012",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "ring2019survey": {
+      "key": "ring2019survey",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "A Survey of Network-Based Intrusion Detection Data Sets",
+      "retrieved_title": "A survey of network-based intrusion detection data sets",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Markus Ring",
+        "Sarah Wunderlich",
+        "Deniz Scheuring",
+        "Dieter Landes",
+        "Andreas Hotho"
+      ],
+      "retrieved_year": 2019,
+      "doi": "10.1016/j.cose.2019.06.005",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "sommer2010outside": {
+      "key": "sommer2010outside",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Outside the Closed World: On Using Machine Learning for Network Intrusion Detection",
+      "retrieved_title": "Outside the Closed World: On Using Machine Learning for Network Intrusion Detection",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Robin Sommer",
+        "Vern Paxson"
+      ],
+      "retrieved_year": 2010,
+      "doi": "10.1109/SP.2010.25",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "arp2022dos": {
+      "key": "arp2022dos",
+      "status": "MANUAL",
+      "authority": "manual_publisher_check",
+      "target_title": "Dos and Don'ts of Machine Learning in Computer Security",
+      "retrieved_title": "Dos and Don'ts of Machine Learning in Computer Security",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "D. Arp, E. Quiring, F. Pendlebury, A. Warnecke, F. Pierazzi, C. Wressnegger, L. Cavallaro, and K. Rieck"
+      ],
+      "retrieved_year": 2022,
+      "doi": "10.5555/3571166.3571389",
+      "notes": "Verified against publisher proceedings listing."
+    },
+    "pendlebury2019tesseract": {
+      "key": "pendlebury2019tesseract",
+      "status": "MANUAL",
+      "authority": "manual_publisher_check",
+      "target_title": "TESSERACT: Eliminating Experimental Bias in Malware Classification across Space and Time",
+      "retrieved_title": "TESSERACT: Eliminating Experimental Bias in Malware Classification across Space and Time",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "F. Pendlebury, F. Pierazzi, R. Jordaney, J. Kinder, and L. Cavallaro"
+      ],
+      "retrieved_year": 2019,
+      "doi": "10.5555/3361338.3361389",
+      "notes": "Verified against publisher proceedings listing."
+    },
+    "axelsson2000base": {
+      "key": "axelsson2000base",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "The Base-Rate Fallacy and the Difficulty of Intrusion Detection",
+      "retrieved_title": "The base-rate fallacy and the difficulty of intrusion detection",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Stefan Axelsson"
+      ],
+      "retrieved_year": 2000,
+      "doi": "10.1145/357830.357849",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "pierazzi2020intriguing": {
+      "key": "pierazzi2020intriguing",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Intriguing Properties of Adversarial ML Attacks in the Problem Space for Android Malware",
+      "retrieved_title": "Intriguing Properties of Adversarial ML Attacks in the Problem Space",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Fabio Pierazzi",
+        "Feargus Pendlebury",
+        "Jacopo Cortellazzi",
+        "Lorenzo Cavallaro"
+      ],
+      "retrieved_year": 2020,
+      "doi": "10.1109/SP40000.2020.00073",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "chen2016xgboost": {
+      "key": "chen2016xgboost",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "XGBoost",
+      "retrieved_title": "XGBoost",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Tianqi Chen",
+        "Carlos Guestrin"
+      ],
+      "retrieved_year": 2016,
+      "doi": "10.1145/2939672.2939785",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "breiman2001random": {
+      "key": "breiman2001random",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Random Forests",
+      "retrieved_title": "Random Forests",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Leo Breiman"
+      ],
+      "retrieved_year": 2001,
+      "doi": "10.1023/A:1010933404324",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "liu2008isolation": {
+      "key": "liu2008isolation",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Isolation Forest",
+      "retrieved_title": "Isolation Forest",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Fei Tony Liu",
+        "Kai Ming Ting",
+        "Zhi-Hua Zhou"
+      ],
+      "retrieved_year": 2008,
+      "doi": "10.1109/ICDM.2008.17",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "mirsky2018kitsune": {
+      "key": "mirsky2018kitsune",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Kitsune: An Ensemble of Autoencoders for Online Network Intrusion Detection",
+      "retrieved_title": "Kitsune: An Ensemble of Autoencoders for Online Network Intrusion Detection",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Yisroel Mirsky",
+        "Tomer Doitshman",
+        "Yuval Elovici",
+        "Asaf Shabtai"
+      ],
+      "retrieved_year": 2018,
+      "doi": "10.14722/ndss.2018.23204",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "sakurada2014anomaly": {
+      "key": "sakurada2014anomaly",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Anomaly Detection Using Autoencoders with Nonlinear Dimensionality Reduction",
+      "retrieved_title": "Anomaly Detection Using Autoencoders with Nonlinear Dimensionality Reduction",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Mayu Sakurada",
+        "Takehisa Yairi"
+      ],
+      "retrieved_year": 2014,
+      "doi": "10.1145/2689746.2689747",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "chandola2009anomaly": {
+      "key": "chandola2009anomaly",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Anomaly detection",
+      "retrieved_title": "Anomaly detection",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Varun Chandola",
+        "Arindam Banerjee",
+        "Vipin Kumar"
+      ],
+      "retrieved_year": 2009,
+      "doi": "10.1145/1541880.1541882",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "zhou2017anomaly": {
+      "key": "zhou2017anomaly",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Anomaly Detection with Robust Deep Autoencoders",
+      "retrieved_title": "Anomaly Detection with Robust Deep Autoencoders",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Chong Zhou",
+        "Randy C. Paffenroth"
+      ],
+      "retrieved_year": 2017,
+      "doi": "10.1145/3097983.3098052",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "paxson1999bro": {
+      "key": "paxson1999bro",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Bro: A System for Detecting Network Intruders in Real-Time",
+      "retrieved_title": "Bro: a system for detecting network intruders in real-time",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Vern Paxson"
+      ],
+      "retrieved_year": 1999,
+      "doi": "10.1016/S1389-1286(99)00112-7",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "roesch1999snort": {
+      "key": "roesch1999snort",
+      "status": "MANUAL",
+      "authority": "manual_publisher_check",
+      "target_title": "Snort: Lightweight Intrusion Detection for Networks",
+      "retrieved_title": "Snort: Lightweight Intrusion Detection for Networks",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "M. Roesch"
+      ],
+      "retrieved_year": 1999,
+      "doi": "10.5555/1267724.1267742",
+      "notes": "Verified against publisher proceedings listing."
+    },
+    "mccanne1993bsd": {
+      "key": "mccanne1993bsd",
+      "status": "MANUAL",
+      "authority": "manual_publisher_check",
+      "target_title": "The BSD Packet Filter: A New Architecture for User-Level Packet Capture",
+      "retrieved_title": "The BSD Packet Filter: A New Architecture for User-Level Packet Capture",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "S. McCanne and V. Jacobson"
+      ],
+      "retrieved_year": 1993,
+      "doi": "10.5555/1267303.1267323",
+      "notes": "Verified against publisher proceedings listing."
+    },
+    "suricata2024engine": {
+      "key": "suricata2024engine",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "Suricata User Guide (Release 7.0)",
+      "retrieved_title": "Suricata User Guide (Release 7.0)",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Open Information Security Foundation (OISF)"
+      ],
+      "retrieved_year": 2024,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    },
+    "rfc9293tcp": {
+      "key": "rfc9293tcp",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Transmission Control Protocol (TCP)",
+      "retrieved_title": "Transmission Control Protocol (TCP)",
+      "similarity": 1.0,
+      "retrieved_authors": [],
+      "retrieved_year": 2022,
+      "doi": "10.17487/RFC9293",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "rfc791ip": {
+      "key": "rfc791ip",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Internet Protocol",
+      "retrieved_title": "Internet Protocol",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "J. Postel"
+      ],
+      "retrieved_year": 1981,
+      "doi": "10.17487/RFC0791",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "strom2018mitre": {
+      "key": "strom2018mitre",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "MITRE ATT&CK: Design and Philosophy",
+      "retrieved_title": "MITRE ATT&CK: Design and Philosophy",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "B. E. Strom, A. Applebaum, D. P. Miller, K. C. Nickels, A. G. Pennington, and C. B. Thomas"
+      ],
+      "retrieved_year": 2018,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    },
+    "kaloroumakis2021d3fend": {
+      "key": "kaloroumakis2021d3fend",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "D3FEND: A Knowledge Graph of Cybersecurity Countermeasures",
+      "retrieved_title": "D3FEND: A Knowledge Graph of Cybersecurity Countermeasures",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "P. Kaloroumakis and M. J. Smith"
+      ],
+      "retrieved_year": 2021,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    },
+    "shostack2014threat": {
+      "key": "shostack2014threat",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "Threat Modeling: Designing for Security",
+      "retrieved_title": "Threat Modeling: Designing for Security",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "A. Shostack"
+      ],
+      "retrieved_year": 2014,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    },
+    "demoura2008z3": {
+      "key": "demoura2008z3",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Z3: An Efficient SMT Solver",
+      "retrieved_title": "Z3: An Efficient SMT Solver",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Leonardo de Moura",
+        "Nikolaj Bj\u00f8rner"
+      ],
+      "retrieved_year": 2008,
+      "doi": "10.1007/978-3-540-78800-3_24",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "barrett2010smtlib": {
+      "key": "barrett2010smtlib",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "The SMT-LIB Standard: Version 2.0",
+      "retrieved_title": "The SMT-LIB Standard: Version 2.0",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "C. Barrett, A. Stump, and C. Tinelli"
+      ],
+      "retrieved_year": 2010,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    },
+    "islam2019soar": {
+      "key": "islam2019soar",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "A Multi-Vocal Review of Security Orchestration, Automation, and Response (SOAR)",
+      "retrieved_title": "A Multi-Vocal Review of Security Orchestration",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Chadni Islam",
+        "Muhammad Ali Babar",
+        "Surya Nepal"
+      ],
+      "retrieved_year": 2019,
+      "doi": "10.1145/3305268",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "cichonski2012incident": {
+      "key": "cichonski2012incident",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Computer Security Incident Handling Guide : Recommendations of the National Institute of Standards and Technology",
+      "retrieved_title": "Computer Security Incident Handling Guide : Recommendations of the National Institute of Standards and Technology",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Paul Cichonski",
+        "Tom Millar",
+        "Tim Grance",
+        "Karen Scarfone"
+      ],
+      "retrieved_year": 2012,
+      "doi": "10.6028/NIST.SP.800-61r2",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "greshake2023not": {
+      "key": "greshake2023not",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection",
+      "retrieved_title": "Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Kai Greshake",
+        "Sahar Abdelnabi",
+        "Shailesh Mishra",
+        "Christoph Endres",
+        "Thorsten Holz",
+        "Mario Fritz"
+      ],
+      "retrieved_year": 2023,
+      "doi": "10.1145/3605764.3623985",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "liu2023prompt": {
+      "key": "liu2023prompt",
+      "status": "VERIFIED",
+      "authority": "datacite",
+      "target_title": "Jailbreaking ChatGPT via Prompt Engineering: An Empirical Study",
+      "retrieved_title": "Jailbreaking ChatGPT via Prompt Engineering: An Empirical Study",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Yi Liu",
+        "Gelei Deng",
+        "Zhengzi Xu",
+        "Yuekang Li",
+        "Yaowen Zheng",
+        "Ying Zhang",
+        "Lida Zhao",
+        "Tianwei Zhang",
+        "Kailong Wang",
+        "Yang Liu"
+      ],
+      "retrieved_year": 2023,
+      "doi": "10.48550/arXiv.2305.13860",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "touvron2023llama": {
+      "key": "touvron2023llama",
+      "status": "VERIFIED",
+      "authority": "datacite",
+      "target_title": "Llama 2: Open Foundation and Fine-Tuned Chat Models",
+      "retrieved_title": "Llama 2: Open Foundation and Fine-Tuned Chat Models",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Hugo Touvron",
+        "Louis Martin",
+        "Kevin Stone",
+        "Peter Albert",
+        "Amjad Almahairi",
+        "Yasmine Babaei",
+        "Nikolay Bashlykov",
+        "Soumya Batra",
+        "Prajjwal Bhargava",
+        "Shruti Bhosale",
+        "Dan Bikel",
+        "Lukas Blecher",
+        "Cristian Canton Ferrer",
+        "Moya Chen",
+        "Guillem Cucurull",
+        "David Esiobu",
+        "Jude Fernandes",
+        "Jeremy Fu",
+        "Wenyin Fu",
+        "Brian Fuller",
+        "Cynthia Gao",
+        "Vedanuj Goswami",
+        "Naman Goyal",
+        "Anthony Hartshorn",
+        "Saghar Hosseini",
+        "Rui Hou",
+        "Hakan Inan",
+        "Marcin Kardas",
+        "Viktor Kerkez",
+        "Madian Khabsa",
+        "Isabel Kloumann",
+        "Artem Korenev",
+        "Punit Singh Koura",
+        "Marie-Anne Lachaux",
+        "Thibaut Lavril",
+        "Jenya Lee",
+        "Diana Liskovich",
+        "Yinghai Lu",
+        "Yuning Mao",
+        "Xavier Martinet",
+        "Todor Mihaylov",
+        "Pushkar Mishra",
+        "Igor Molybog",
+        "Yixin Nie",
+        "Andrew Poulton",
+        "Jeremy Reizenstein",
+        "Rashi Rungta",
+        "Kalyan Saladi",
+        "Alan Schelten",
+        "Ruan Silva",
+        "Eric Michael Smith",
+        "Ranjan Subramanian",
+        "Xiaoqing Ellen Tan",
+        "Binh Tang",
+        "Ross Taylor",
+        "Adina Williams",
+        "Jian Xiang Kuan",
+        "Puxin Xu",
+        "Zheng Yan",
+        "Iliyan Zarov",
+        "Yuchen Zhang",
+        "Angela Fan",
+        "Melanie Kambadur",
+        "Sharan Narang",
+        "Aurelien Rodriguez",
+        "Robert Stojnic",
+        "Sergey Edunov",
+        "Thomas Scialom"
+      ],
+      "retrieved_year": 2023,
+      "doi": "10.48550/arXiv.2307.09288",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "owasp2023top10llm": {
+      "key": "owasp2023top10llm",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "OWASP Top 10 for Large Language Model Applications (Version 1.0)",
+      "retrieved_title": "OWASP Top 10 for Large Language Model Applications (Version 1.0)",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "OWASP Foundation"
+      ],
+      "retrieved_year": 2023,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    },
+    "stouffer2015nist80082": {
+      "key": "stouffer2015nist80082",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Guide to Industrial Control Systems (ICS) Security",
+      "retrieved_title": "Guide to Industrial Control Systems (ICS) Security",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Keith Stouffer",
+        "Victoria Pillitteri",
+        "Suzanne Lightman",
+        "Marshall Abrams",
+        "Adam Hahn"
+      ],
+      "retrieved_year": 2015,
+      "doi": "10.6028/NIST.SP.800-82r2",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "iec62443standard": {
+      "key": "iec62443standard",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "Security for Industrial Automation and Control Systems - Part 4-2: Technical Security Requirements for IACS Components",
+      "retrieved_title": "Security for Industrial Automation and Control Systems - Part 4-2: Technical Security Requirements for IACS Components",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "International Electrotechnical Commission (IEC)"
+      ],
+      "retrieved_year": 2019,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    },
+    "genge2012cyber": {
+      "key": "genge2012cyber",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Analyzing Cyber-Physical Attacks on Networked Industrial Control Systems",
+      "retrieved_title": "Analyzing Cyber-Physical Attacks on Networked Industrial Control Systems",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Bela Genge",
+        "Igor Nai Fovino",
+        "Christos Siaterlis",
+        "Marcelo Masera"
+      ],
+      "retrieved_year": 2011,
+      "doi": "10.1007/978-3-642-24864-1_12",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "krotofil2013industrial": {
+      "key": "krotofil2013industrial",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Resilience of Process Control Systems to Cyber-Physical Attacks",
+      "retrieved_title": "Resilience of Process Control Systems to Cyber-Physical Attacks",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Marina Krotofil",
+        "Alvaro A. C\u00e1rdenas"
+      ],
+      "retrieved_year": 2013,
+      "doi": "10.1007/978-3-642-41488-6_12",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "hadziosmanovic2014nids": {
+      "key": "hadziosmanovic2014nids",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Through the eye of the PLC: semantic security monitoring for industrial processes",
+      "retrieved_title": "Through the eye of the PLC",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Dina Had\u017eiosmanovi\u0107",
+        "Robin Sommer",
+        "Emmanuele Zambon",
+        "Pieter H. Hartel"
+      ],
+      "retrieved_year": 2014,
+      "doi": "10.1145/2664243.2664277",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "alcaraz2012scada": {
+      "key": "alcaraz2012scada",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Analysis of Requirements for Critical Control Systems",
+      "retrieved_title": "Analysis of requirements for critical control systems",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Cristina Alcaraz",
+        "Javier Lopez"
+      ],
+      "retrieved_year": 2012,
+      "doi": "10.1016/j.ijcip.2012.08.003",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "cardenas2011attacks": {
+      "key": "cardenas2011attacks",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Attacks against process control systems: risk assessment, detection, and response",
+      "retrieved_title": "Attacks against process control systems",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Alvaro A. C\u00e1rdenas",
+        "Saurabh Amin",
+        "Zong-Syun Lin",
+        "Yu-Lun Huang",
+        "Chi-Yen Huang",
+        "Shankar Sastry"
+      ],
+      "retrieved_year": 2011,
+      "doi": "10.1145/1966913.1966959",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "dolev1983security": {
+      "key": "dolev1983security",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "On the Security of Public Key Protocols",
+      "retrieved_title": "On the security of public key protocols",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "D. Dolev",
+        "A. Yao"
+      ],
+      "retrieved_year": 1983,
+      "doi": "10.1109/TIT.1983.1056650",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "japkowicz2011evaluating": {
+      "key": "japkowicz2011evaluating",
+      "status": "VERIFIED",
+      "authority": "crossref",
+      "target_title": "Evaluating Learning Algorithms: A Classification Perspective",
+      "retrieved_title": "Evaluating Learning Algorithms",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Nathalie Japkowicz",
+        "Mohak Shah"
+      ],
+      "retrieved_year": 2011,
+      "doi": "10.1017/CBO9780511921803",
+      "notes": "Title, author, and year verified against authority."
+    },
+    "modbus2012spec": {
+      "key": "modbus2012spec",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "Modbus Application Protocol Specification V1.1b3",
+      "retrieved_title": "Modbus Application Protocol Specification V1.1b3",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "Modbus Organization"
+      ],
+      "retrieved_year": 2012,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    },
+    "opcfoundation2022spec": {
+      "key": "opcfoundation2022spec",
+      "status": "MANUAL",
+      "authority": "official_standard_spec",
+      "target_title": "OPC Unified Architecture - Part 2: Security Model",
+      "retrieved_title": "OPC Unified Architecture - Part 2: Security Model",
+      "similarity": 1.0,
+      "retrieved_authors": [
+        "OPC Foundation"
+      ],
+      "retrieved_year": 2022,
+      "doi": "",
+      "notes": "Verified official standard / specification publication."
+    }
+  }
+}

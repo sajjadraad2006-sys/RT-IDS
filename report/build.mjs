@@ -57,7 +57,24 @@ const referencesMap = new Map();
 referencesData.forEach(ref => {
   referencesMap.set(ref.key, ref);
 });
-console.log(`Loaded ${referencesMap.size} verified academic references from references.json`);
+console.log(`Loaded ${referencesMap.size} academic references from references.json`);
+
+// 1b. Validate References Verification Ledger (Task 1 Quality Gate)
+const VERIF_FILE = path.resolve(REPORT_DIR, 'results', 'references_verification.json');
+if (!fs.existsSync(VERIF_FILE)) {
+  throw new Error(`CRITICAL BUILD ERROR: References verification file not found: ${VERIF_FILE}. Run report/scripts/verify_references.py first!`);
+}
+const refsMtime = fs.statSync(REFS_FILE).mtimeMs;
+const verifMtime = fs.statSync(VERIF_FILE).mtimeMs;
+if (verifMtime < refsMtime) {
+  throw new Error(`CRITICAL BUILD ERROR: references_verification.json is older than references.json! Re-run report/scripts/verify_references.py.`);
+}
+const verificationData = JSON.parse(fs.readFileSync(VERIF_FILE, 'utf-8'));
+const verificationMap = new Map();
+for (const [k, v] of Object.entries(verificationData.results || {})) {
+  verificationMap.set(k, v);
+}
+console.log(`Loaded verification ledger: ${verificationData.verified_count} VERIFIED, ${verificationData.manual_count} MANUAL`);
 
 // 2. Discover Chapter Files in Numerical Order
 const chapterFiles = fs.readdirSync(CHAPTERS_DIR)
@@ -82,6 +99,13 @@ const citationNumberMap = new Map();
 function getCitationNumber(key) {
   if (!referencesMap.has(key)) {
     throw new Error(`CRITICAL BUILD ERROR: Citation key '${key}' not found in references.json!`);
+  }
+  const verifRecord = verificationMap.get(key);
+  if (!verifRecord) {
+    throw new Error(`CRITICAL BUILD ERROR: Cited reference '${key}' is missing from references_verification.json!`);
+  }
+  if (verifRecord.status !== 'VERIFIED' && verifRecord.status !== 'MANUAL') {
+    throw new Error(`CRITICAL BUILD ERROR: Cited reference '${key}' has unapproved verification status '${verifRecord.status}'! Must be VERIFIED or MANUAL.`);
   }
   if (!citationNumberMap.has(key)) {
     citationAppearanceOrder.push(key);
@@ -271,8 +295,17 @@ bodyHtml = bodyHtml.replace(/KATEXINLINE(\d+)KATEXINLINE/g, (match, idStr) => {
 bodyHtml = bodyHtml.replace(/<table>/g, '<div class="table-container"><table>');
 bodyHtml = bodyHtml.replace(/<\/table>/g, '</table></div>');
 
-// Add anchor IDs for Code Evidence table rows
-bodyHtml = bodyHtml.replace(/<td><strong>\[CE-(\d+)\]<\/strong><\/td>/g, '<td id="ce-$1"><strong>[CE-$1]</strong></td>');
+// Add anchor IDs for Code Evidence table rows in Table XXI
+bodyHtml = bodyHtml.replace(/<td([^>]*)><strong><a href="#ce-(\d+)" class="ce-link">\[CE-(\d+)\]<\/a><\/strong><\/td>/g, (match, attrs, id1, id2) => {
+  const paddedId = id1.padStart(2, '0');
+  const numId = parseInt(id1, 10);
+  return `<td id="ce-${paddedId}" ${attrs}><a id="ce-${numId}"></a><strong><span class="ce-anchor">[CE-${paddedId}]</span></strong></td>`;
+});
+bodyHtml = bodyHtml.replace(/<td([^>]*)><strong>\[CE-(\d+)\]<\/strong><\/td>/g, (match, attrs, id1) => {
+  const paddedId = id1.padStart(2, '0');
+  const numId = parseInt(id1, 10);
+  return `<td id="ce-${paddedId}" ${attrs}><a id="ce-${numId}"></a><strong><span class="ce-anchor">[CE-${paddedId}]</span></strong></td>`;
+});
 
 // Transform Mermaid code blocks to <div class="mermaid">
 bodyHtml = bodyHtml.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, (match, code) => {
@@ -487,6 +520,14 @@ const fullHtml = `<!DOCTYPE html>
       width: auto !important;
       height: auto !important;
     }
+
+    /* High-Contrast Academic Theme for Mermaid Sequence Diagrams */
+    .mermaid text.actor > tspan, .mermaid text.actor { font-size: 13.5px !important; font-weight: 700 !important; fill: #0f172a !important; }
+    .mermaid rect.actor { fill: #f8fafc !important; stroke: #2563eb !important; stroke-width: 1.5px !important; rx: 4px !important; }
+    .mermaid text.messageText { font-size: 12.5px !important; font-weight: 600 !important; fill: #0f172a !important; }
+    .mermaid line.messageLine0, .mermaid line.messageLine1 { stroke: #334155 !important; stroke-width: 1.5px !important; }
+    .mermaid .note { fill: #fef3c7 !important; stroke: #f59e0b !important; }
+    .mermaid text.noteText { font-size: 12px !important; font-weight: 600 !important; fill: #92400e !important; }
 
     /* High-Contrast Academic Theme for Mermaid XY Charts */
     svg[aria-roledescription="xychart"] path[stroke="#EEE"],
@@ -740,6 +781,24 @@ const fullHtml = `<!DOCTYPE html>
   ${bodyHtml}
 </body>
 </html>`;
+
+// 10b. Enforce Privacy & Portability Gate (Task 3 Quality Gate)
+const forbiddenPrivacyChecks = [
+  { name: 'Username "wwwsa"', regex: /wwwsa/i },
+  { name: 'Absolute path "c:\\Users"', regex: /c:\\users/i },
+  { name: 'Absolute path "c:/Users"', regex: /c:\/users/i },
+  { name: 'Absolute file URI "file:///"', regex: /file:\/\/\//i },
+];
+
+for (const check of forbiddenPrivacyChecks) {
+  const match = fullHtml.match(check.regex);
+  if (match) {
+    const idx = fullHtml.indexOf(match[0]);
+    const snippet = fullHtml.substring(Math.max(0, idx - 40), Math.min(fullHtml.length, idx + 60));
+    throw new Error(`CRITICAL BUILD ERROR: Privacy/portability violation detected (${check.name}) in generated HTML!\nMatched near: "...${snippet}..."`);
+  }
+}
+console.log('PASSED: Privacy and portability audit check (no wwwsa, c:\\Users, or file:/// in HTML).');
 
 // 11. Write Single-File Report HTML
 const outHtmlPath = path.join(DIST_DIR, 'report.html');

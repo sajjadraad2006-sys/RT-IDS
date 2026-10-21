@@ -80,7 +80,7 @@ async function test() {
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1100, height: 900 });
-  await page.goto('file:///' + 'C:/Users/wwwsa/OneDrive/Desktop/sec/report/scratch/test_fig4.html', { waitUntil: 'networkidle0' });
+  await page.goto('file:///' + 'report/scratch/test_fig4.html', { waitUntil: 'networkidle0' });
   await page.waitForFunction(() => window.__READY === true);
   await new Promise(r => setTimeout(r, 1000));
   const el = await page.$('.mermaid');

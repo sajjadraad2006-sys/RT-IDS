@@ -2,12 +2,12 @@
 ## 7.1 Attack Surface and Perimeter Trust Boundaries
 An intrusion detection and autonomous containment system occupies an intrinsically paradoxical security position: it must ingest untrusted, potentially hostile data from the network edge while simultaneously possessing high-privilege administrative capabilities (raw packet capture, kernel firewall modification, process termination) on the host operating system. A vulnerability within the IDS directly converts the defender into an arbitrary execution proxy for an adversary {{cite:sommer2010outside,shostack2014threat}}.
 We systematically decompose the CyberGuard attack surface into six primary exposure vectors:
-1. **Network Packet Sniffing Interface:** Ingestion of raw IPv4/TCP/UDP packets via `LiveFlowSniffer` ([`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L521-L541) [CE-04]). Exposure includes packet malformation, header fuzzing, IP fragment reassembly exhaustion, and algorithmic complexity attacks against the internal 5-tuple hash map.
+1. **Network Packet Sniffing Interface:** Ingestion of raw IPv4/TCP/UDP packets via `LiveFlowSniffer` ([`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L521-L541) [CE-04]). Exposure includes packet malformation, header fuzzing, IP fragment reassembly exhaustion, and algorithmic complexity attacks against the internal 5-tuple hash map.
 2. **REST API Ingestion Boundary:** Exposure of HTTP/JSON endpoints via FastAPI (`/api/detection`, `/api/live`, `/api/actuators`, `/api/safety`, `/api/auth`). Attack vectors include unauthenticated access, JWT token forgery, cross-site request forgery (CSRF), denial-of-service via oversized request payloads, and reverse proxy IP spoofing.
-3. **Suricata EVE-JSON Ingestion Stream:** Asynchronous ingestion of line-delimited JSON logs from `/var/log/suricata/eve.json` ([`backend/suricata/tailer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/suricata/tailer.py#L32-L135) [CE-06]). Exposure involves JSON parser denial-of-service, log injection, and train/serve feature approximation skew.
-4. **Machine Learning Model Deserialization Boundary:** Loading serialized weights, scalers, and detectors from disk via `pickle.load()` and `joblib.load()` ([`backend/detection/pipeline.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/pipeline.py#L102-L140) [CE-05]). Exposure involves arbitrary code execution via Python object reconstruction gadgets.
-5. **Host Containment Actuator Subsystem:** Execution of OS-level mitigation commands via PowerShell (`New-NetFirewallRule`) and Linux `iptables` ([`backend/actuators/firewall.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/firewall.py#L60-L84) [CE-09]). Exposure involves command injection, unauthorized self-denial-of-service, and persistent host isolation.
-6. **Advisory LLM Gateway:** Outbound HTTP dispatch of security incident context to external or local large language models ([`backend/llm/`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/llm/)). Exposure involves indirect prompt injection {{cite:greshake2023not}}, system prompt extraction {{cite:liu2023prompt}}, and Server-Side Request Forgery (SSRF).
+3. **Suricata EVE-JSON Ingestion Stream:** Asynchronous ingestion of line-delimited JSON logs from `/var/log/suricata/eve.json` ([`backend/suricata/tailer.py`](backend/suricata/tailer.py#L32-L135) [CE-06]). Exposure involves JSON parser denial-of-service, log injection, and train/serve feature approximation skew.
+4. **Machine Learning Model Deserialization Boundary:** Loading serialized weights, scalers, and detectors from disk via `pickle.load()` and `joblib.load()` ([`backend/detection/pipeline.py`](backend/detection/pipeline.py#L102-L140) [CE-05]). Exposure involves arbitrary code execution via Python object reconstruction gadgets.
+5. **Host Containment Actuator Subsystem:** Execution of OS-level mitigation commands via PowerShell (`New-NetFirewallRule`) and Linux `iptables` ([`backend/actuators/firewall.py`](backend/actuators/firewall.py#L60-L84) [CE-09]). Exposure involves command injection, unauthorized self-denial-of-service, and persistent host isolation.
+6. **Advisory LLM Gateway:** Outbound HTTP dispatch of security incident context to external or local large language models ([`backend/llm/`](backend/llm/)). Exposure involves indirect prompt injection {{cite:greshake2023not}}, system prompt extraction {{cite:liu2023prompt}}, and Server-Side Request Forgery (SSRF).
 ---
 ## 7.2 Model Deserialization Risks and Cryptographic Manifest Hardening
 In standard machine learning operations (MLOps), practitioners routinely serialize model weights using Python’s native `pickle` or `joblib` libraries. In a security-critical environment, however, untrusted pickle deserialization represents a fatal vulnerability {{cite:arp2022dos}}.
@@ -23,32 +23,126 @@ class ExploitPayload:
 ```
 If an attacker with local file write access, compromised backup storage, or supply-chain access substitutes `classifier.pkl` or `normalizer.pkl`, standard deserialization executes arbitrary operating system commands within the security context of the CyberGuard process—which runs with administrative or root privileges to permit raw packet sniffing.
 ### 7.2.2 CyberGuard Pre-Deserialization Cryptographic Verification
-To eliminate this vulnerability vector, CyberGuard implements pre-deserialization manifest verification in `validate_artifact_bundle()` within [`backend/detection/integrity.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/integrity.py#L402-L439) [CE-11]. The verification protocol enforces a strict fail-closed boundary:
-```mermaid
-flowchart TD
-    Start["Pipeline Initialization Request"] --> LoadManifest["Read artifacts.json (Reject Symlinks)"]
-    LoadManifest --> CheckSchema{"Schema Version == cyberguard-artifacts-v1?"}
-    CheckSchema -- No --> RejectSchema["Raise IntegrityError (Invalid Schema)"]
-    CheckSchema -- Yes --> CheckHash{"Feature Schema Hash Matches Running Code?"}
-    CheckHash -- No --> RejectFeature["Raise IntegrityError (Schema Drift)"]
-    CheckHash -- Yes --> LoopFiles["Iterate ARTIFACT_FILENAMES (pkl / pt)"]
-    LoopFiles --> CheckFile{"File Exists & Is Regular (No Symlinks)?"}
-    CheckFile -- No --> RejectFile["Raise IntegrityError (Missing/Symlink File)"]
-    CheckFile -- Yes --> CalcSHA["Compute Streaming SHA-256 Digest"]
-    CalcSHA --> VerifyDigest{"SHA-256 == Declared Manifest Hash?"}
-    VerifyDigest -- No --> RejectDigest["Raise IntegrityError (Checksum Mismatch)"]
-    VerifyDigest -- Yes --> NextFile{More Artifacts?}
-    NextFile -- Yes --> LoopFiles
-    NextFile -- No --> Deserialization["Admit to pickle.load() / joblib.load()"]
-    classDef success fill:#ecfdf5,stroke:#10b981,stroke-width:2px;
-    classDef reject fill:#fef2f2,stroke:#ef4444,stroke-width:2px;
-    class Deserialization success;
-    class RejectSchema,RejectFeature,RejectFile,RejectDigest reject;
-```
+To eliminate this vulnerability vector, CyberGuard implements pre-deserialization manifest verification in `validate_artifact_bundle()` within [`backend/detection/integrity.py`](backend/detection/integrity.py#L402-L439) [CE-11]. The verification protocol enforces a strict fail-closed boundary:
+<div id="fig22-container" class="figure-container" style="width: 100%; max-width: 760px; margin: 16px auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+<svg viewBox="0 0 760 360" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+  <defs>
+    <linearGradient id="headerGrad22" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <marker id="arr22Blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 Z" fill="#2563eb" />
+    </marker>
+    <marker id="arr22Red" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 Z" fill="#dc2626" />
+    </marker>
+    <marker id="arr22Green" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 Z" fill="#16a34a" />
+    </marker>
+  </defs>
 
-<div style="text-align: center; margin-top: 8px; margin-bottom: 24px;">
-<b>Fig. 22.</b> Cryptographic pre-deserialization verification protocol enforcing SHA-256 digest validation and symlink rejection before admitting pickle execution.
+  <!-- Banner Header -->
+  <rect x="0" y="0" width="760" height="34" rx="8" fill="url(#headerGrad22)" />
+  <rect x="0" y="24" width="760" height="10" fill="url(#headerGrad22)" />
+  <text x="380" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff" letter-spacing="0.5">
+    PRE-DESERIALIZATION CRYPTOGRAPHIC VERIFICATION PROTOCOL (FAIL-CLOSED BOUNDARY)
+  </text>
+
+  <!-- Lane 1: Manifest & Schema Gate -->
+  <rect x="15" y="46" width="355" height="300" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" />
+  <text x="30" y="66" font-size="11" font-weight="700" fill="#1e293b" letter-spacing="0.3">PHASE 1: MANIFEST &amp; SCHEMA INTEGRITY</text>
+
+  <!-- Step 1.1: Init Request -->
+  <g transform="translate(30, 80)">
+    <rect width="325" height="42" rx="4" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
+    <text x="162" y="18" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0f172a">1. Pipeline Initialization Request</text>
+    <text x="162" y="32" text-anchor="middle" font-size="8.5" fill="#475569">Detection pipeline startup or model hot-reload</text>
+  </g>
+
+  <!-- Down Arrow 1 -->
+  <path d="M192, 122 L192, 138" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr22Blue)" />
+
+  <!-- Step 1.2: Read artifacts.json -->
+  <g transform="translate(30, 140)">
+    <rect width="325" height="46" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" />
+    <text x="162" y="18" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1e3a8a">2. Read Manifest (artifacts.json)</text>
+    <text x="162" y="32" text-anchor="middle" font-size="8.5" font-weight="600" fill="#dc2626">Reject Symlinks: is_file() &amp;&amp; !is_symlink()</text>
+    <text x="162" y="42" text-anchor="middle" font-size="7.5" font-family="monospace" fill="#2563eb">[CE-11:405] Mitigates TOCTOU Race Condition</text>
+  </g>
+
+  <!-- Down Arrow 2 -->
+  <path d="M192, 186 L192, 202" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr22Blue)" />
+
+  <!-- Step 1.3: Decision Schema & Hash -->
+  <g transform="translate(30, 204)">
+    <polygon points="162,0 325,32 162,64 0,32" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5" />
+    <text x="162" y="24" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1e3a8a">Schema == 'v1' &amp;&amp;</text>
+    <text x="162" y="38" text-anchor="middle" font-size="9" font-weight="600" fill="#1e40af">Feature Hash == Code?</text>
+    <text x="162" y="50" text-anchor="middle" font-size="7.5" fill="#475569">[CE-11:412] Schema Invariant</text>
+  </g>
+
+  <!-- No Branch: Reject Schema -->
+  <path d="M192, 268 L192, 286" fill="none" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr22Red)" />
+  <text x="180" y="280" text-anchor="end" font-size="8.5" font-weight="700" fill="#dc2626">NO</text>
+  <g transform="translate(30, 288)">
+    <rect width="325" height="44" rx="4" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2" />
+    <text x="162" y="18" text-anchor="middle" font-size="9.5" font-weight="700" fill="#b91c1c">FAIL-CLOSED: Raise IntegrityError</text>
+    <text x="162" y="32" text-anchor="middle" font-size="8" fill="#991b1b">Schema drift or untrusted format detected</text>
+  </g>
+
+  <!-- Yes Branch to Lane 2 -->
+  <path d="M355, 236 L393, 236 L393, 101 L418, 101" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arr22Green)" />
+  <text x="368" y="228" font-size="9" font-weight="700" fill="#16a34a">YES</text>
+
+  <!-- Lane 2: Artifact Streaming Digest & Execution Admission -->
+  <rect x="390" y="46" width="355" height="300" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1" />
+  <text x="405" y="66" font-size="11" font-weight="700" fill="#14532d" letter-spacing="0.3">PHASE 2: STREAMING DIGEST &amp; ADMISSION</text>
+
+  <!-- Step 2.1: Iterate Files -->
+  <g transform="translate(405, 80)">
+    <rect width="325" height="42" rx="4" fill="#ffffff" stroke="#16a34a" stroke-width="1.2" />
+    <text x="162" y="18" text-anchor="middle" font-size="10.5" font-weight="700" fill="#14532d">3. Iterate ARTIFACT_FILENAMES</text>
+    <text x="162" y="32" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#15803d">normalizer.pkl, classifier.pkl, autoencoder.pt</text>
+  </g>
+
+  <!-- Down Arrow 3 -->
+  <path d="M567, 122 L567, 138" fill="none" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arr22Green)" />
+
+  <!-- Step 2.2: Stream SHA-256 -->
+  <g transform="translate(405, 140)">
+    <rect width="325" height="46" rx="4" fill="#ffffff" stroke="#16a34a" stroke-width="1.2" />
+    <text x="162" y="18" text-anchor="middle" font-size="10.5" font-weight="700" fill="#14532d">4. Compute Streaming SHA-256</text>
+    <text x="162" y="32" text-anchor="middle" font-size="8.5" fill="#475569">1 MB buffer chunks (constant memory) [CE-11:426]</text>
+    <text x="162" y="42" text-anchor="middle" font-size="7.5" fill="#166534">Rejects symlinks &amp;&amp; validates tau in (0, 1]</text>
+  </g>
+
+  <!-- Down Arrow 4 -->
+  <path d="M567, 186 L567, 202" fill="none" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arr22Green)" />
+
+  <!-- Step 2.3: Checksum Diamond -->
+  <g transform="translate(405, 204)">
+    <polygon points="162,0 325,32 162,64 0,32" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5" />
+    <text x="162" y="24" text-anchor="middle" font-size="9.5" font-weight="700" fill="#065f46">SHA-256 == Declared Digest?</text>
+    <text x="162" y="38" text-anchor="middle" font-size="8.5" fill="#047857">Constant-time string comparison</text>
+    <text x="162" y="50" text-anchor="middle" font-size="7.5" fill="#475569">[CE-11:430] All artifacts valid</text>
+  </g>
+
+  <!-- Left/Down No: Reject Digest -->
+  <path d="M405, 236 L393, 236 L393, 305 L357, 305" fill="none" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr22Red)" />
+  <text x="390" y="250" text-anchor="middle" font-size="8" font-weight="700" fill="#dc2626">MISMATCH</text>
+
+  <!-- Down Yes: Admit Deserialization -->
+  <path d="M567, 268 L567, 286" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arr22Green)" />
+  <text x="578" y="280" font-size="8.5" font-weight="700" fill="#16a34a">VERIFIED</text>
+  <g transform="translate(405, 288)">
+    <rect width="325" height="44" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5" />
+    <text x="162" y="18" text-anchor="middle" font-size="10" font-weight="700" fill="#14532d">ADMIT TO DESERIALIZATION</text>
+    <text x="162" y="32" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#15803d">pickle.load() / joblib.load() permitted</text>
+  </g>
+</svg>
 </div>
+<div class="figure-caption"><strong>Fig. 22.</strong> Cryptographic pre-deserialization verification protocol enforcing SHA-256 digest validation and symlink rejection before admitting pickle execution.</div>
 
 The verification protocol executes the following atomic validation steps [CE-11]:
 
@@ -68,7 +162,7 @@ Consequently, an adversary who obtains write permissions to `data/models/trained
 
 ## 7.3 API Security, Authentication, and Role-Based Access Control
 
-CyberGuard exposes a REST API built on FastAPI. Ingestion, monitoring, and containment endpoints are protected by an authentication and authorization subsystem implemented in [`backend/auth.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/auth.py#L1-L340) [CE-13] and [`backend/api/auth.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/api/auth.py#L1-L102) [CE-14].
+CyberGuard exposes a REST API built on FastAPI. Ingestion, monitoring, and containment endpoints are protected by an authentication and authorization subsystem implemented in [`backend/auth.py`](backend/auth.py#L1-L340) [CE-13] and [`backend/api/auth.py`](backend/api/auth.py#L1-L102) [CE-14].
 
 ### 7.3.1 Cryptographic Password Hashing and Token Architecture
 
@@ -81,7 +175,7 @@ CyberGuard exposes a REST API built on FastAPI. Ingestion, monitoring, and conta
 
 ### 7.3.2 Critical Audit Finding: Unauthenticated Loopback Elevation
 
-During our deep code audit, we discovered a significant authorization bypass vulnerability in [`backend/auth.py:313-318`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/auth.py#L313-L318) [CE-13]:
+During our deep code audit, we discovered a significant authorization bypass vulnerability in [`backend/auth.py:313-318`](backend/auth.py#L313-L318) [CE-13]:
 
 ```python
 # File: backend/auth.py:306-318
@@ -107,7 +201,7 @@ This default posture introduces severe risk:
 
 ### 7.3.3 Reverse Proxy Trust Boundary and Header Spoofing
 
-The client IP address is resolved via `resolve_client_ip()` in [`backend/security.py:88-112`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/security.py#L88-L112) [CE-15]. The resolver inspects the `X-Forwarded-For` header **only if** the immediate peer socket address (`request.client.host`) matches a trusted CIDR block defined in `CG_TRUSTED_PROXIES` [CE-15:101]. If trusted, it parses `X-Forwarded-For` from right to left to locate the true client origin. If untrusted, `X-Forwarded-For` is ignored and the raw peer IP is returned. This defense correctly neutralizes standard IP spoofing attacks against rate limiters {{cite:cichonski2012incident}}.
+The client IP address is resolved via `resolve_client_ip()` in [`backend/security.py:88-112`](backend/security.py#L88-L112) [CE-15]. The resolver inspects the `X-Forwarded-For` header **only if** the immediate peer socket address (`request.client.host`) matches a trusted CIDR block defined in `CG_TRUSTED_PROXIES` [CE-15:101]. If trusted, it parses `X-Forwarded-For` from right to left to locate the true client origin. If untrusted, `X-Forwarded-For` is ignored and the raw peer IP is returned. This defense correctly neutralizes standard IP spoofing attacks against rate limiters {{cite:cichonski2012incident}}.
 
 ---
 
@@ -117,7 +211,7 @@ The containment subsystem executes active defensive measures against the host op
 
 ### 7.4.1 The Two-Person Rule for Live Containment
 
-In high-security and industrial environments, unilateral containment decisions (such as disconnecting an entire subnet or terminating a production process) can cause millions of dollars in downtime. CyberGuard enforces the **Two-Person Rule** within `ActuatorRouter` ([`backend/actuators/router.py:73-110`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/router.py#L73-L110) [CE-09]).
+In high-security and industrial environments, unilateral containment decisions (such as disconnecting an entire subnet or terminating a production process) can cause millions of dollars in downtime. CyberGuard enforces the **Two-Person Rule** within `ActuatorRouter` ([`backend/actuators/router.py:73-110`](backend/actuators/router.py#L73-L110) [CE-09]).
 
 When live containment enforcement is requested (`mode="enforcement"`), the router mandates dual authorization:
 - `params["initiator_id"]`: The identifier of the security analyst proposing the containment action.
@@ -155,7 +249,7 @@ sequenceDiagram
 
 ### 7.4.2 Cryptographic Rollback Receipts and Atomic State Reversion
 
-Every admitted containment action generates an atomic rollback receipt (`RollbackReceipt` in [`backend/safety/formal_verifier.py:58-75`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/safety/formal_verifier.py#L58-L75) [CE-10]). The receipt contains:
+Every admitted containment action generates an atomic rollback receipt (`RollbackReceipt` in [`backend/safety/formal_verifier.py:58-75`](backend/safety/formal_verifier.py#L58-L75) [CE-10]). The receipt contains:
 - `action_id`: Unique UUID4 identifier.
 - `action`: Canonical action name (`block_ip`, `isolate_port`, `kill_process`).
 - `target`: Targeted IP address, port, or process name.
@@ -167,7 +261,7 @@ When an administrator or automated supervisor invokes `rollback_action(receipt)`
 
 ### 7.4.3 Command Injection Analysis in OS Actuators
 
-Host firewall rules are constructed in `FirewallActuator` ([`backend/actuators/firewall.py:61-79`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/firewall.py#L61-L79) [CE-09]). On Windows platforms, the command is assembled as:
+Host firewall rules are constructed in `FirewallActuator` ([`backend/actuators/firewall.py:61-79`](backend/actuators/firewall.py#L61-L79) [CE-09]). On Windows platforms, the command is assembled as:
 
 ```python
 # File: backend/actuators/firewall.py:61-68
@@ -182,7 +276,7 @@ cmd_args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps_sc
 
 Although the command is invoked via `subprocess.run(cmd_args, shell=False)`, the PowerShell interpreter evaluates the `-Command` string internally. Consequently, if an untrusted string containing quotes, semicolons, or PowerShell command substitutions (e.g., `192.168.1.1"; Stop-Service ... #`) bypasses input sanitation, PowerShell evaluates the injected subexpression. 
 
-In CyberGuard, this risk is mitigated by `SafetyGuardrails.validate_target()` ([`backend/actuators/guardrails.py:65-90`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/guardrails.py#L65-L90) [CE-16]), which enforces strict regex whitelisting (`^[a-fA-F0-9:./]+$`), rejecting shell metacharacters before dispatch. However, strict defense-in-depth requires eliminating string concatenation entirely in favor of PowerShell parameterized script blocks or direct Win32 API calls via `ctypes` {{cite:shostack2014threat}}.
+In CyberGuard, this risk is mitigated by `SafetyGuardrails.validate_target()` ([`backend/actuators/guardrails.py:65-90`](backend/actuators/guardrails.py#L65-L90) [CE-16]), which enforces strict regex whitelisting (`^[a-fA-F0-9:./]+$`), rejecting shell metacharacters before dispatch. However, strict defense-in-depth requires eliminating string concatenation entirely in favor of PowerShell parameterized script blocks or direct Win32 API calls via `ctypes` {{cite:shostack2014threat}}.
 
 ---
 

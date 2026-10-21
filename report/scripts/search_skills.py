@@ -1,7 +1,7 @@
 import json
 import os
 
-cat_path = r'C:\Users\wwwsa\AppData\Local\npm-cache\_npx\7de736acb2e6b880\node_modules\@rmyndharis\antigravity-skills\catalog.json'
+cat_path = r'.'
 with open(cat_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 skills = data.get('skills', [])

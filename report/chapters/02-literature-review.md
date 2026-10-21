@@ -159,8 +159,8 @@ To provide provable safety guarantees, recent research explores applying **Forma
 In cyber-physical systems (CPS), industrial control systems (ICS), and mechatronics automation cells, network intrusion detection faces fundamentally different constraints than standard enterprise IT environments {{cite:stouffer2015nist80082,iec62443standard}}.
 
 Industrial communication relies on specialized operational technology (OT) protocols:
-- **Modbus TCP:** A simple, unauthenticated request/response protocol operating over port 502, susceptible to command injection, unauthorized coil manipulation, and rogue register modification {{cite:urrea2020design}}.
-- **OPC Unified Architecture (OPC UA):** A modern, service-oriented protocol providing optional cryptographic signing and encryption, widely deployed in multi-axis robotic workcells {{cite:lewandowski2020opcua}}.
+- **Modbus TCP:** A simple, unauthenticated request/response protocol operating over port 502, susceptible to command injection, unauthorized coil manipulation, and rogue register modification {{cite:modbus2012spec,stouffer2015nist80082}}.
+- **OPC Unified Architecture (OPC UA):** A modern, service-oriented protocol providing optional cryptographic signing and encryption, widely deployed in multi-axis robotic workcells {{cite:opcfoundation2022spec,iec62443standard}}.
 - **PROFINET & EtherNet/IP:** Industrial Ethernet protocols delivering hard real-time determinism with sub-millisecond jitter constraints.
 
 In industrial robotics and mechatronics, safety is paramount. The international standard **IEC 62443** {{cite:iec62443standard}} mandates defense-in-depth zone segmentation and conduit security. Crucially, as highlighted by Hadžiosmanović et al. {{cite:hadziosmanovic2014nids}} and Cárdenas et al. {{cite:cardenas2011attacks}}, an automated IDS deployed in a robotic cell cannot simply sever communications indiscriminately; abrupt network disconnection of an active 6-DOF industrial robot can cause severe mechanical damage, dropped payloads, or fatal injuries to human operators, directly violating ISO 10218 robotic safety regulations.
@@ -173,7 +173,7 @@ Table II contrasts the primary intrusion detection paradigms analyzed in the con
 
 | Dimension | Rule-Based (Signature) | Pure ML Anomaly (Unsupervised) | Supervised Classification | Hybrid Neuro-Symbolic (e.g. CyberGuard) |
 |:---|:---|:---|:---|:---|
-| **Representative Systems** | Snort {{cite:roesch1999snort}}, Suricata {{cite:suricata2024engine}} | Kitsune {{cite:mirsky2018kitsune}}, Isolation Forest {{cite:liu2008isolation}} | XGBoost {{cite:chen2016xgboost}}, Random Forest {{cite:breiman2001random}} | CyberGuard RT-IDS, Automated SOAR {{cite:alshaer2020automated}} |
+| **Representative Systems** | Snort {{cite:roesch1999snort}}, Suricata {{cite:suricata2024engine}} | Kitsune {{cite:mirsky2018kitsune}}, Isolation Forest {{cite:liu2008isolation}} | XGBoost {{cite:chen2016xgboost}}, Random Forest {{cite:breiman2001random}} | CyberGuard RT-IDS, Automated SOAR {{cite:islam2019soar}} |
 | **Primary Telemetry** | Raw packet payloads & regex | 5-tuple flow statistical vectors | Pre-labeled flow vectors | Raw packets, flow vectors & streaming EVE logs |
 | **Zero-Day Detection** | Nil (blind to unknown exploits) | High (sensitive to behavioral shifts) | Low (restricted to trained classes) | High (tri-signal evidence fusion & human review) |
 | **False Positive Rate** | Minimal (< 0.1%) | Moderate to High (5% - 20%) | Low on known data; high on OOD | Variable (sensitive to RAG / anomaly calibration) |

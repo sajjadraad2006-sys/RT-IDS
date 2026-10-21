@@ -4,7 +4,7 @@
 
 ## Appendix A: Master Code Evidence Ledger
 
-This appendix indexes every primary code reference (`[CE-01]` through `[CE-45]`) cited as verifiable evidence throughout this report. Every claim regarding system architecture, vulnerability mechanics, and feature extraction maps directly to an audited source file and line range in the workspace.
+This appendix indexes every primary code reference (`[CE-01]` through `[CE-54]`) cited as verifiable evidence throughout this report. Every claim regarding system architecture, vulnerability mechanics, and feature extraction maps directly to an audited source file and line range in the workspace.
 
 <div style="text-align: center; margin-bottom: 8px;">
 <b>TABLE XXI.</b> MASTER CODE EVIDENCE INDEX
@@ -12,51 +12,60 @@ This appendix indexes every primary code reference (`[CE-01]` through `[CE-45]`)
 
 | Evidence ID | Target Source File | Line Range | Architectural Fact / Empirical Evidence Proven |
 |:---:|:---|:---|:---|
-| **[CE-01]** | [`data/models/trained/artifacts.json`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/data/models/trained/artifacts.json#L1-L38) | Lines 1–38 | Model metadata declares `production_approved=false`, `evaluation_only=true`, `independent_test_split=false`, 4 classes, and calibrated threshold $\tau_{\text{AE}} = 0.004597$. |
-| **[CE-02]** | [`cyberguard/datasets/generate_sample.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/cyberguard/datasets/generate_sample.py#L34-L65) | Lines 34–65 | Synthetic dataset generation using hardcoded random distributions with `np.random.seed(42)` generating 2,000 synthetic flows. |
-| **[CE-03]** | [`backend/detection/features.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/features.py#L1-L85) | Lines 1–85 | Canonical 32-feature statistical flow schema, feature ordering, and SHA-256 schema hash derivation. |
-| **[CE-04]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L210-L245) | Lines 210–245 | Flow record data structure, sliding window aggregation, and dictionary conversion for inference pipeline. |
-| **[CE-05]** | [`backend/detection/live_worker.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_worker.py#L45-L95) | Lines 45–95 | Real-time queue worker consuming flows from `LiveFlowSniffer` with bounded queue size ($Q_{\max}=10,000$). |
-| **[CE-06]** | [`backend/detection/pipeline.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/pipeline.py#L120-L165) | Lines 120–165 | Pipeline v2 inference routing: XGBoost classification, autoencoder reconstruction error, and heuristic router. |
-| **[CE-07]** | [`backend/detection/pipeline.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/pipeline.py#L30-L55) | Lines 30–55 | Thread-safe double-checked singleton lock pattern initializing model bundle. |
-| **[CE-08]** | [`backend/detection/classifier.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/classifier.py#L1-L45) | Lines 1–45 | Multi-class XGBoost model wrapper and probability calibration logic. |
-| **[CE-09]** | [`backend/detection/statistical.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/statistical.py#L1-L60) | Lines 1–60 | Statistical anomaly baseline using Z-score deviations across normalized feature distributions. |
-| **[CE-10]** | [`backend/detection/autoencoder.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/autoencoder.py#L1-L75) | Lines 1–75 | PyTorch deep autoencoder architecture (32 -> 16 -> 8 -> 16 -> 32) and MSE loss calculation. |
-| **[CE-11]** | [`backend/detection/router.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/router.py#L40-L110) | Lines 40–110 | Multi-signal routing decision matrix classifying flows into BENIGN, ATTACK, SUSPICIOUS, or REVIEW. |
-| **[CE-12]** | [`backend/suricata/tailer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/suricata/tailer.py#L168-L235) | Lines 168–235 | Feature fabrication heuristic: hardcoded TCP window sizes (64240/29200), zero variance, and microsecond conversion error. |
-| **[CE-13]** | [`backend/detection/input_contract.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/input_contract.py#L1-L50) | Lines 1–50 | Strict input schema validation: rejection of non-numeric, NaN, infinite, and out-of-order feature payloads. |
-| **[CE-14]** | [`backend/decision/engine.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/decision/engine.py#L1-L80) | Lines 1–80 | Autonomous containment decision engine evaluating threat severity against policy thresholds. |
-| **[CE-15]** | [`backend/actuators/process_actuator.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/process_actuator.py#L1-L65) | Lines 1–65 | Process containment actuator: target verification, process suspension via `SIGSTOP`/`taskkill`, and rollback receipts. |
-| **[CE-16]** | [`backend/actuators/guardrails.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/guardrails.py#L1-L50) | Lines 1–50 | Deterministic safety guardrails preventing quarantine of loopback, gateway, and DNS infrastructure. |
-| **[CE-17]** | [`backend/actuators/base.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/base.py#L1-L35) | Lines 1–35 | Abstract base actuator defining `execute()` and atomic `rollback()` interface. |
-| **[CE-18]** | [`backend/safety/formal_verifier.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/safety/formal_verifier.py#L1-L55) | Lines 1–55 | Formal verification module: SymPy propositional `satisfiable()` check over 4 boolean symbols and inert SMT-LIB2 string. |
-| **[CE-19]** | [`backend/api/auth.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/api/auth.py#L1-L85) | Lines 1–85 | FastAPI authentication: RBAC token extraction, role hierarchy, and unauthenticated loopback elevation bug. |
-| **[CE-20]** | [`backend/api/security.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/api/security.py#L1-L45) | Lines 1–45 | Client IP resolution trusting reverse proxy headers (`X-Forwarded-For`) and rate limiting. |
-| **[CE-21]** | [`backend/main.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/main.py#L55-L70) | Lines 55–70 | App OpenAPI description explicitly declaring live ingestion and automated response as "not implemented". |
-| **[CE-22]** | [`backend/config.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/config.py#L25-L35) | Lines 25–35 | Application configuration: `CG_AUTOSTART_LIVE_WORKER` default set to `"false"`. |
-| **[CE-23]** | [`backend/detection/integrity.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/integrity.py#L402-L439) | Lines 402–439 | Deserialization integrity: SHA-256 pre-verification of pickle files before `joblib.load()` or `pickle.load()`. |
-| **[CE-24]** | [`backend/mitre/mapper.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/mitre/mapper.py#L1-L65) | Lines 1–65 | Mapping of anomalous flow feature patterns to MITRE ATT&CK technique IDs (T1046, T1498, T1071). |
-| **[CE-25]** | [`backend/mitre/d3fend.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/mitre/d3fend.py#L1-L50) | Lines 1–50 | Mapping MITRE ATT&CK offensive techniques to defensive counter-measures in NSA D3FEND framework. |
-| **[CE-26]** | [`backend/llm/rag.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/llm/rag.py#L1-L75) | Lines 1–75 | Retrieval-Augmented Generation context assembly combining flow features, MITRE techniques, and playbook text. |
-| **[CE-27]** | [`backend/llm/advisory.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/llm/advisory.py#L1-L60) | Lines 1–60 | Advisory LLM interface generating incident narrative summaries with structured hallucination guardrails. |
-| **[CE-28]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L461-L512) | Lines 461–512 | TCP state tracking: handshake completion flag, FIN/RST teardown handling, and sequence number tracking. |
-| **[CE-29]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L432-L460) | Lines 432–460 | UDP flow assembly: bi-directional session grouping with 5.0-second inactivity timeout. |
-| **[CE-30]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L278-L315) | Lines 278–315 | Raw packet processing loop, IP header parsing, and protocol demultiplexing. |
-| **[CE-31]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L400-L425) | Lines 400–425 | Active flow table management and periodic eviction of timed-out flow objects. |
-| **[CE-32]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L521-L541) | Lines 521–541 | Socket creation logic: Linux `IPPROTO_TCP` raw socket and Windows `127.0.0.1` binding override. |
-| **[CE-33]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L538-L541) | Lines 538–541 | Unprivileged socket failure handler falling back to `synthetic_harness` while returning `True`. |
-| **[CE-34]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L331-L334) | Lines 331–334 | IPv4 header version check: `if version != 4: return None`, silently dropping all IPv6 frames. |
-| **[CE-35]** | [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L234-L235) | Lines 234–235 | Feature dictionary assembly hardcoding `active_mean: 0.0` and `idle_mean: 0.0`. |
-| **[CE-36]** | [`backend/db/models.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/db/models.py#L12-L32) | Lines 12–32 | SQLite WAL mode configuration, foreign key enforcement, relaxed sync pragmas, and chmod 0o600 permissions. |
-| **[CE-37]** | [`backend/db/models.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/db/models.py#L34-L58) | Lines 34–58 | Machine-local Fernet credential encryption with `O_NOFOLLOW` symlink protection and `0o600` access mode. |
-| **[CE-38]** | [`backend/decision/audit.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/decision/audit.py#L15-L42) | Lines 15–42 | Append-only audit ledger with SHA-256 cryptographic hash-chain state transition over canonicalized JSON. |
-| **[CE-39]** | [`backend/decision/audit.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/decision/audit.py#L44-L62) | Lines 44–62 | Sequential hash-chain verification algorithm detecting historical record modification and deletion. |
-| **[CE-40]** | [`backend/db/init_db.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/db/init_db.py#L8-L48) | Lines 8–48 | Forward-only non-destructive database migrations applying schema alterations via SQLAlchemy reflection. |
-| **[CE-41]** | [`backend/actuators/process_actuator.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/process_actuator.py#L155-L210) | Lines 155–210 | Dual-authorization validation against database records and cryptographic rollback receipt issuance. |
-| **[CE-42]** | [`backend/safety/formal_verifier.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/safety/formal_verifier.py#L45-L52) | Lines 45–52 | Propositional logic encoding and inert SMT-LIB2 dialect string formatting (`QF_UF`). |
-| **[CE-43]** | [`backend/detection/router.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/router.py#L112-L168) | Lines 112–168 | Non-mutating candidate shadow model promotion gate evaluating routing parity. |
-| **[CE-44]** | [`backend/suricata/attack_extractor.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/suricata/attack_extractor.py#L25-L80) | Lines 25–80 | Extraction of attack signatures and flow metadata from Suricata EVE JSON alert payloads. |
-| **[CE-45]** | [`backend/mitre/mapper.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/mitre/mapper.py#L45-L110) | Lines 45–110 | Heuristic mapping rules converting statistical flow anomaly vectors into MITRE ATT&CK technique IDs. |
+| **[CE-01]** | [`data/models/trained/artifacts.json`](data/models/trained/artifacts.json#L1-L38) | Lines 1–38 | Model metadata declares `production_approved=false`, `evaluation_only=true`, `independent_test_split=false`, 4 classes, and calibrated threshold $\tau_{\text{AE}} = 0.004597$. |
+| **[CE-02]** | [`cyberguard/datasets/generate_sample.py`](cyberguard/datasets/generate_sample.py#L34-L65) | Lines 34–65 | Synthetic dataset generation using hardcoded random distributions with `np.random.seed(42)` generating 2,000 synthetic flows. |
+| **[CE-03]** | [`backend/detection/features.py`](backend/detection/features.py#L1-L85) | Lines 1–85 | Canonical 32-feature statistical flow schema, feature ordering, and SHA-256 schema hash derivation. |
+| **[CE-04]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L210-L245) | Lines 210–245 | Flow record data structure, sliding window aggregation, and dictionary conversion for inference pipeline. |
+| **[CE-05]** | [`backend/detection/live_worker.py`](backend/detection/live_worker.py#L45-L95) | Lines 45–95 | Real-time queue worker consuming flows from `LiveFlowSniffer` with bounded queue size ($Q_{\max}=10,000$). |
+| **[CE-06]** | [`backend/detection/pipeline.py`](backend/detection/pipeline.py#L120-L165) | Lines 120–165 | Pipeline v2 inference routing: XGBoost classification, autoencoder reconstruction error, and heuristic router. |
+| **[CE-07]** | [`backend/detection/pipeline.py`](backend/detection/pipeline.py#L30-L55) | Lines 30–55 | Thread-safe double-checked singleton lock pattern initializing model bundle. |
+| **[CE-08]** | [`backend/detection/classifier.py`](backend/detection/classifier.py#L1-L45) | Lines 1–45 | Multi-class XGBoost model wrapper and probability calibration logic. |
+| **[CE-09]** | [`backend/detection/statistical.py`](backend/detection/statistical.py#L1-L60) | Lines 1–60 | Statistical anomaly baseline using Z-score deviations across normalized feature distributions. |
+| **[CE-10]** | [`backend/detection/autoencoder.py`](backend/detection/autoencoder.py#L1-L75) | Lines 1–75 | PyTorch deep autoencoder architecture (32 -> 16 -> 8 -> 16 -> 32) and MSE loss calculation. |
+| **[CE-11]** | [`backend/detection/router.py`](backend/detection/router.py#L40-L110) | Lines 40–110 | Multi-signal routing decision matrix classifying flows into BENIGN, ATTACK, SUSPICIOUS, or REVIEW. |
+| **[CE-12]** | [`backend/suricata/tailer.py`](backend/suricata/tailer.py#L168-L235) | Lines 168–235 | Feature fabrication heuristic: hardcoded TCP window sizes (64240/29200), zero variance, and microsecond conversion error. |
+| **[CE-13]** | [`backend/detection/input_contract.py`](backend/detection/input_contract.py#L1-L50) | Lines 1–50 | Strict input schema validation: rejection of non-numeric, NaN, infinite, and out-of-order feature payloads. |
+| **[CE-14]** | [`backend/decision/engine.py`](backend/decision/engine.py#L1-L80) | Lines 1–80 | Autonomous containment decision engine evaluating threat severity against policy thresholds. |
+| **[CE-15]** | [`backend/actuators/process_actuator.py`](backend/actuators/process_actuator.py#L1-L65) | Lines 1–65 | Process containment actuator: target verification, process suspension via `SIGSTOP`/`taskkill`, and rollback receipts. |
+| **[CE-16]** | [`backend/actuators/guardrails.py`](backend/actuators/guardrails.py#L1-L50) | Lines 1–50 | Deterministic safety guardrails preventing quarantine of loopback, gateway, and DNS infrastructure. |
+| **[CE-17]** | [`backend/actuators/base.py`](backend/actuators/base.py#L1-L35) | Lines 1–35 | Abstract base actuator defining `execute()` and atomic `rollback()` interface. |
+| **[CE-18]** | [`backend/safety/formal_verifier.py`](backend/safety/formal_verifier.py#L1-L55) | Lines 1–55 | Formal verification module: SymPy propositional `satisfiable()` check over 4 boolean symbols and inert SMT-LIB2 string. |
+| **[CE-19]** | [`backend/api/auth.py`](backend/api/auth.py#L1-L85) | Lines 1–85 | FastAPI authentication: RBAC token extraction, role hierarchy, and unauthenticated loopback elevation bug. |
+| **[CE-20]** | [`backend/api/security.py`](backend/api/security.py#L1-L45) | Lines 1–45 | Client IP resolution trusting reverse proxy headers (`X-Forwarded-For`) and rate limiting. |
+| **[CE-21]** | [`backend/main.py`](backend/main.py#L55-L70) | Lines 55–70 | App OpenAPI description explicitly declaring live ingestion and automated response as "not implemented". |
+| **[CE-22]** | [`backend/config.py`](backend/config.py#L25-L35) | Lines 25–35 | Application configuration: `CG_AUTOSTART_LIVE_WORKER` default set to `"false"`. |
+| **[CE-23]** | [`backend/detection/integrity.py`](backend/detection/integrity.py#L402-L439) | Lines 402–439 | Deserialization integrity: SHA-256 pre-verification of pickle files before `joblib.load()` or `pickle.load()`. |
+| **[CE-24]** | [`backend/mitre/mapper.py`](backend/mitre/mapper.py#L1-L65) | Lines 1–65 | Mapping of anomalous flow feature patterns to MITRE ATT&CK technique IDs (T1046, T1498, T1071). |
+| **[CE-25]** | [`backend/mitre/d3fend.py`](backend/mitre/d3fend.py#L1-L50) | Lines 1–50 | Mapping MITRE ATT&CK offensive techniques to defensive counter-measures in NSA D3FEND framework. |
+| **[CE-26]** | [`backend/llm/rag.py`](backend/llm/rag.py#L1-L75) | Lines 1–75 | Retrieval-Augmented Generation context assembly combining flow features, MITRE techniques, and playbook text. |
+| **[CE-27]** | [`backend/llm/advisory.py`](backend/llm/advisory.py#L1-L60) | Lines 1–60 | Advisory LLM interface generating incident narrative summaries with structured hallucination guardrails. |
+| **[CE-28]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L461-L512) | Lines 461–512 | TCP state tracking: handshake completion flag, FIN/RST teardown handling, and sequence number tracking. |
+| **[CE-29]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L432-L460) | Lines 432–460 | UDP flow assembly: bi-directional session grouping with 5.0-second inactivity timeout. |
+| **[CE-30]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L278-L315) | Lines 278–315 | Raw packet processing loop, IP header parsing, and protocol demultiplexing. |
+| **[CE-31]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L400-L425) | Lines 400–425 | Active flow table management and periodic eviction of timed-out flow objects. |
+| **[CE-32]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L521-L541) | Lines 521–541 | Socket creation logic: Linux `IPPROTO_TCP` raw socket and Windows `127.0.0.1` binding override. |
+| **[CE-33]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L538-L541) | Lines 538–541 | Unprivileged socket failure handler falling back to `synthetic_harness` while returning `True`. |
+| **[CE-34]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L331-L334) | Lines 331–334 | IPv4 header version check: `if version != 4: return None`, silently dropping all IPv6 frames. |
+| **[CE-35]** | [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L234-L235) | Lines 234–235 | Feature dictionary assembly hardcoding `active_mean: 0.0` and `idle_mean: 0.0`. |
+| **[CE-36]** | [`backend/db/models.py`](backend/db/models.py#L12-L32) | Lines 12–32 | SQLite WAL mode configuration, foreign key enforcement, relaxed sync pragmas, and chmod 0o600 permissions. |
+| **[CE-37]** | [`backend/db/models.py`](backend/db/models.py#L34-L58) | Lines 34–58 | Machine-local Fernet credential encryption with `O_NOFOLLOW` symlink protection and `0o600` access mode. |
+| **[CE-38]** | [`backend/decision/audit.py`](backend/decision/audit.py#L15-L42) | Lines 15–42 | Append-only audit ledger with SHA-256 cryptographic hash-chain state transition over canonicalized JSON. |
+| **[CE-39]** | [`backend/decision/audit.py`](backend/decision/audit.py#L44-L62) | Lines 44–62 | Sequential hash-chain verification algorithm detecting historical record modification and deletion. |
+| **[CE-40]** | [`backend/db/init_db.py`](backend/db/init_db.py#L8-L48) | Lines 8–48 | Forward-only non-destructive database migrations applying schema alterations via SQLAlchemy reflection. |
+| **[CE-41]** | [`backend/actuators/process_actuator.py`](backend/actuators/process_actuator.py#L155-L210) | Lines 155–210 | Dual-authorization validation against database records and cryptographic rollback receipt issuance. |
+| **[CE-42]** | [`backend/safety/formal_verifier.py`](backend/safety/formal_verifier.py#L45-L52) | Lines 45–52 | Propositional logic encoding and inert SMT-LIB2 dialect string formatting (`QF_UF`). |
+| **[CE-43]** | [`backend/detection/router.py`](backend/detection/router.py#L112-L168) | Lines 112–168 | Non-mutating candidate shadow model promotion gate evaluating routing parity. |
+| **[CE-44]** | [`backend/suricata/attack_extractor.py`](backend/suricata/attack_extractor.py#L25-L80) | Lines 25–80 | Extraction of attack signatures and flow metadata from Suricata EVE JSON alert payloads. |
+| **[CE-45]** | [`backend/mitre/mapper.py`](backend/mitre/mapper.py#L45-L110) | Lines 45–110 | Heuristic mapping rules converting statistical flow anomaly vectors into MITRE ATT&CK technique IDs. |
+| **[CE-46]** | [`backend/actuators/guardrails.py`](backend/actuators/guardrails.py#L30-L75) | Lines 30–75 | Deterministic process protection guardrails preventing quarantine of critical system tasks (`lsass.exe`, `init`, `systemd`). |
+| **[CE-47]** | [`backend/actuators/guardrails.py`](backend/actuators/guardrails.py#L80-L125) | Lines 80–125 | Sanitization of actuation commands preventing shell injection operators (`;`, `|`, `>`) in target host/process strings. |
+| **[CE-48]** | [`backend/actuators/base.py`](backend/actuators/base.py#L20-L55) | Lines 20–55 | Atomic containment and deterministic rollback specification returning cryptographic undo tokens. |
+| **[CE-49]** | [`backend/decision/engine.py`](backend/decision/engine.py#L45-L95) | Lines 45–95 | Threat severity proportionality interlocks preventing destructive containment dispatch on unverified minor anomalies. |
+| **[CE-50]** | [`backend/safety/formal_verifier.py`](backend/safety/formal_verifier.py#L185-L204) | Lines 185–204 | Formal verification propositional boolean evaluation engine utilizing SymPy boolean AST satisfiability checking. |
+| **[CE-51]** | [`backend/safety/formal_verifier.py`](backend/safety/formal_verifier.py#L246-L270) | Lines 246–270 | Formatted SMT-LIB2 theory dialect string template generation for persistent audit proof certificates. |
+| **[CE-52]** | [`backend/auth.py`](backend/auth.py#L61-L85) | Lines 61–85 | User authentication and cryptographic credential storage using PBKDF2-HMAC-SHA256 with 100,000 hash iterations. |
+| **[CE-53]** | [`backend/actuators/router.py`](backend/actuators/router.py#L73-L110) | Lines 73–110 | Two-Person Rule authorization barrier requiring distinct initiator and human operator approver IDs before actuation. |
+| **[CE-54]** | [`backend/decision/audit.py`](backend/decision/audit.py#L15-L62) | Lines 15–62 | Immutable cryptographic audit ledger maintaining forward hash-chain integrity via SHA-256 state transitions. |
 
 ---
 
@@ -155,7 +164,7 @@ Table XXIII details the empirical test distribution across all 41 test modules c
 
 ## Appendix C: Canonical 32-Feature Statistical Flow Dictionary
 
-Table XXIV provides an exhaustive technical specification of all 32 statistical flow features extracted by `FlowRecord` ([`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L210-L245) [CE-04]) and evaluated by `CyberGuardPipelineV2` ([`backend/detection/features.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/features.py#L18-L55) [CE-03]).
+Table XXIV provides an exhaustive technical specification of all 32 statistical flow features extracted by `FlowRecord` ([`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L210-L245) [CE-04]) and evaluated by `CyberGuardPipelineV2` ([`backend/detection/features.py`](backend/detection/features.py#L18-L55) [CE-03]).
 
 <div style="text-align: center; margin-bottom: 8px;">
 <b>TABLE XXIV.</b> EXHAUSTIVE 32-FEATURE STATISTICAL FLOW DICTIONARY WITH NORMALIZATION BOUNDS
@@ -214,7 +223,7 @@ To ensure absolute scientific and engineering reproducibility, this appendix pro
 
 Clone or navigate to the workspace root:
 ```bash
-cd c:\Users\wwwsa\OneDrive\Desktop\sec
+cd .
 ```
 
 Create and activate a clean virtual environment:
@@ -476,6 +485,71 @@ Listing E.1 presents the valid SMT-LIB2 benchmark script that can be verified by
 ```
 
 Executing `z3 safety.smt2` confirms that the invariant system is satisfiable (`sat`) and yields consistent counterexample models when an unsafe assertion is introduced, verifying the formal correctness of the underlying propositional design.
+
+---
+
+<div class="page-break"></div>
+
+## Appendix F: Reference Verification Results
+Per the independent thesis audit protocol, every bibliographic reference cited within this work has been audited against authoritative registries. DOIs were validated via live REST API queries against Crossref (`api.crossref.org`) and DataCite (`api.datacite.org`) requiring normalized title Levenshtein similarity $\ge 0.85$, first-author surname matching, and year validation. Non-DOI entries, conference proceedings without Crossref deposits (e.g., USENIX Security 10.5555 pseudo-DOIs), official international standards (IEC, ISO), and industry specifications (Modbus Organization, OPC Foundation, MITRE, OWASP, SMT-LIB) were verified against official publisher registries and cataloged as `MANUAL`.
+**Verification Audit Summary:**
+- Total Audited Citations: **45**
+- Live API Verified (`VERIFIED`): **32**
+- Authoritative Standards & Manual Checks (`MANUAL`): **13**
+- Mismatched Metadata (`MISMATCH`): **0**
+- Untraceable / Fabricated (`NOT_FOUND`): **0** (4 unverified entries purged)
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XXVI.</b> COMPLETE BIBLIOGRAPHIC REFERENCE VERIFICATION AUDIT LEDGER
+</div>
+
+| Citation Key | Status | Authority / Registry | Verified Title |
+|:---|:---:|:---|:---|
+| `sharafaldin2018toward` | **VERIFIED** | Crossref DOI (`10.5220/0006639801080116`) | Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization |
+| `engelen2021troubleshooting` | **VERIFIED** | Crossref DOI (`10.1109/SPW53761.2021.00009`) | Troubleshooting an Intrusion Detection Dataset: the CICIDS2017 Case Study |
+| `tavallaee2009detailed` | **VERIFIED** | Crossref DOI (`10.1109/CISDA.2009.5356528`) | A detailed analysis of the KDD CUP 99 data set |
+| `shiravi2012towards` | **VERIFIED** | Crossref DOI (`10.1016/j.cose.2011.12.012`) | Toward developing a systematic approach to generate benchmark datasets for intrusion detection |
+| `ring2019survey` | **VERIFIED** | Crossref DOI (`10.1016/j.cose.2019.06.005`) | A survey of network-based intrusion detection data sets |
+| `sommer2010outside` | **VERIFIED** | Crossref DOI (`10.1109/SP.2010.25`) | Outside the Closed World: On Using Machine Learning for Network Intrusion Detection |
+| `arp2022dos` | *MANUAL* | USENIX / ACM DL Official Catalog | Dos and Don'ts of Machine Learning in Computer Security |
+| `pendlebury2019tesseract` | *MANUAL* | USENIX / ACM DL Official Catalog | TESSERACT: Eliminating Experimental Bias in Malware Classification across Space and Time |
+| `axelsson2000base` | **VERIFIED** | Crossref DOI (`10.1145/357830.357849`) | The base-rate fallacy and the difficulty of intrusion detection |
+| `pierazzi2020intriguing` | **VERIFIED** | Crossref DOI (`10.1109/SP40000.2020.00073`) | Intriguing Properties of Adversarial ML Attacks in the Problem Space |
+| `chen2016xgboost` | **VERIFIED** | Crossref DOI (`10.1145/2939672.2939785`) | XGBoost |
+| `breiman2001random` | **VERIFIED** | Crossref DOI (`10.1023/A:1010933404324`) | Random Forests |
+| `liu2008isolation` | **VERIFIED** | Crossref DOI (`10.1109/ICDM.2008.17`) | Isolation Forest |
+| `mirsky2018kitsune` | **VERIFIED** | Crossref DOI (`10.14722/ndss.2018.23204`) | Kitsune: An Ensemble of Autoencoders for Online Network Intrusion Detection |
+| `sakurada2014anomaly` | **VERIFIED** | Crossref DOI (`10.1145/2689746.2689747`) | Anomaly Detection Using Autoencoders with Nonlinear Dimensionality Reduction |
+| `chandola2009anomaly` | **VERIFIED** | Crossref DOI (`10.1145/1541880.1541882`) | Anomaly detection |
+| `zhou2017anomaly` | **VERIFIED** | Crossref DOI (`10.1145/3097983.3098052`) | Anomaly Detection with Robust Deep Autoencoders |
+| `paxson1999bro` | **VERIFIED** | Crossref DOI (`10.1016/S1389-1286(99)00112-7`) | Bro: a system for detecting network intruders in real-time |
+| `roesch1999snort` | *MANUAL* | USENIX / ACM DL Official Catalog | Snort: Lightweight Intrusion Detection for Networks |
+| `mccanne1993bsd` | *MANUAL* | USENIX / ACM DL Official Catalog | The BSD Packet Filter: A New Architecture for User-Level Packet Capture |
+| `suricata2024engine` | *MANUAL* | Official Standards Body / Tech Spec | Suricata User Guide (Release 7.0) |
+| `rfc9293tcp` | **VERIFIED** | Crossref DOI (`10.17487/RFC9293`) | Transmission Control Protocol (TCP) |
+| `rfc791ip` | **VERIFIED** | Crossref DOI (`10.17487/RFC0791`) | Internet Protocol |
+| `strom2018mitre` | *MANUAL* | Official Standards Body / Tech Spec | MITRE ATT&CK: Design and Philosophy |
+| `kaloroumakis2021d3fend` | *MANUAL* | Official Standards Body / Tech Spec | D3FEND: A Knowledge Graph of Cybersecurity Countermeasures |
+| `shostack2014threat` | *MANUAL* | Official Standards Body / Tech Spec | Threat Modeling: Designing for Security |
+| `demoura2008z3` | **VERIFIED** | Crossref DOI (`10.1007/978-3-540-78800-3_24`) | Z3: An Efficient SMT Solver |
+| `barrett2010smtlib` | *MANUAL* | Official Standards Body / Tech Spec | The SMT-LIB Standard: Version 2.0 |
+| `islam2019soar` | **VERIFIED** | Crossref DOI (`10.1145/3305268`) | A Multi-Vocal Review of Security Orchestration |
+| `cichonski2012incident` | **VERIFIED** | Crossref DOI (`10.6028/NIST.SP.800-61r2`) | Computer Security Incident Handling Guide : Recommendations of the National Institute of Standards and Technology |
+| `greshake2023not` | **VERIFIED** | Crossref DOI (`10.1145/3605764.3623985`) | Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection |
+| `liu2023prompt` | **VERIFIED** | DataCite DOI (`10.48550/arXiv.2305.13860`) | Jailbreaking ChatGPT via Prompt Engineering: An Empirical Study |
+| `touvron2023llama` | **VERIFIED** | DataCite DOI (`10.48550/arXiv.2307.09288`) | Llama 2: Open Foundation and Fine-Tuned Chat Models |
+| `owasp2023top10llm` | *MANUAL* | Official Standards Body / Tech Spec | OWASP Top 10 for Large Language Model Applications (Version 1.0) |
+| `stouffer2015nist80082` | **VERIFIED** | Crossref DOI (`10.6028/NIST.SP.800-82r2`) | Guide to Industrial Control Systems (ICS) Security |
+| `iec62443standard` | *MANUAL* | Official Standards Body / Tech Spec | Security for Industrial Automation and Control Systems - Part 4-2: Technical Security Requirements for IACS Components |
+| `genge2012cyber` | **VERIFIED** | Crossref DOI (`10.1007/978-3-642-24864-1_12`) | Analyzing Cyber-Physical Attacks on Networked Industrial Control Systems |
+| `krotofil2013industrial` | **VERIFIED** | Crossref DOI (`10.1007/978-3-642-41488-6_12`) | Resilience of Process Control Systems to Cyber-Physical Attacks |
+| `hadziosmanovic2014nids` | **VERIFIED** | Crossref DOI (`10.1145/2664243.2664277`) | Through the eye of the PLC |
+| `alcaraz2012scada` | **VERIFIED** | Crossref DOI (`10.1016/j.ijcip.2012.08.003`) | Analysis of requirements for critical control systems |
+| `cardenas2011attacks` | **VERIFIED** | Crossref DOI (`10.1145/1966913.1966959`) | Attacks against process control systems |
+| `dolev1983security` | **VERIFIED** | Crossref DOI (`10.1109/TIT.1983.1056650`) | On the security of public key protocols |
+| `japkowicz2011evaluating` | **VERIFIED** | Crossref DOI (`10.1017/CBO9780511921803`) | Evaluating Learning Algorithms |
+| `modbus2012spec` | *MANUAL* | Official Standards Body / Tech Spec | Modbus Application Protocol Specification V1.1b3 |
+| `opcfoundation2022spec` | *MANUAL* | Official Standards Body / Tech Spec | OPC Unified Architecture - Part 2: Security Model |
 
 ---
 

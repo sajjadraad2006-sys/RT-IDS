@@ -40,20 +40,31 @@ To establish the maximum upper-bound packet ingestion capacity of the Python use
 
 | Ingestion Metric | Measured Value | Standard Error / Notes |
 |:---|:---|:---|
-| **Evaluated Ingestion Volume** | 50,000 raw IPv4 packets | Deterministic sequential synthetic frames |
-| **Total Ingestion Elapsed Time** | 0.06958 seconds (69.58 ms) | Monotonic CPU clock delta |
-| **Sustained Packet Throughput** | **718,569.41 pkts/sec** | ~718.57 Kpps single-thread user space |
+| **Evaluated Ingestion Volume** | 50,000 in-memory raw IPv4 packets | Deterministic sequential synthetic frames in RAM |
+| **Total Ingestion Elapsed Time** | 0.06958 seconds (69.58 ms) | Monotonic CPU clock delta (single Python thread) |
+| **In-Memory Parsing Upper Bound** | **718,569.41 pkts/sec** | ~718.57 Kpps user-space parse/flow-table path |
 | **Mean Per-Packet Parsing Latency** | **1.392 $\mu\text{s}$ / packet** | Header decode + flow dictionary lookup |
 | **Active Hash Map Lookup Overhead** | $< 0.42\ \mu\text{s}$ | 5-tuple tuple hashing in CPython dict |
-| **Calculated Wire Speed Capacity** | 367.9 Mbps (at 64-byte minimum frames) | Line-rate saturation up to Fast Ethernet |
+| **Benchmark Scope Limitation** | In-memory decode only | Excludes `recvfrom` syscall, worker queue & ML inference |
 
-The sniffer achieves a sustained parsing throughput of 718,569 packets per second, corresponding to an average latency of 1.392 microseconds per frame. While this single-thread throughput is sufficient for Gigabit links carrying typical MTU-sized packets (1500 bytes), user-space raw sockets in Python face inherent OS context switching bottlenecks under adversarial minimum-sized (64-byte) packet floods exceeding 1 Mpps.
+<div style="text-align: center; margin-top: 12px; margin-bottom: 8px;">
+<b>TABLE VIII-B.</b> HONEST WIRE RATE COMPARISON: 1 GBPS ETHERNET VS. USER-SPACE PARSER CAPACITY
+</div>
+
+| Packet Frame Size (Payload + L2/L3/L4) | Wire Bytes (Frame + 20B Preamble/IFG) | 1 Gbps Line Rate (pkts/sec) | Measured Parser Rate (pkts/sec) | Line Rate Capacity Ratio | Operational Assessment |
+|:---:|:---:|:---:|:---:|:---:|:---|
+| **64 Bytes (Minimum Frame)** | 84 bytes on wire | **1,488,095 pkts/s** (1.488 Mpps) | 718,569 pkts/s | **48.29%** | **Fails Line Rate:** >51% packet loss during SYN/ACK floods |
+| **512 Bytes (Medium Frame)** | 532 bytes on wire | **234,962 pkts/s** (235.0 Kpps) | 718,569 pkts/s | **305.82%** ($3.06\times$) | **Sufficient:** Safely absorbs medium interactive telemetry |
+| **1500 Bytes (Standard MTU)** | 1,538 bytes on wire | **81,274 pkts/s** (81.27 Kpps) | 718,569 pkts/s | **884.13%** ($8.84\times$) | **Sufficient:** Saturated line rate for bulk payload transfers |
+
+> [!IMPORTANT]
+> **Upper Bound vs. End-to-End Throughput:** The measured 718,569 packets/second represents an **isolated in-memory parsing and flow-table update micro-benchmark** operating on pre-allocated synthetic frames in a single Python thread. It explicitly **does not include** the per-packet kernel `recvfrom` syscall, socket buffer queueing, multi-threaded queue synchronization (`LiveWorker`), sliding-window 32-feature extraction, or machine learning model inference. Therefore, 718,569 pkts/s is an architectural theoretical upper bound, not an end-to-end system ingestion rate. Under adversarial minimum-sized (64-byte) frame floods on a 1 Gbps link ($1.488$ Mpps), user-space CPython drops approximately half of the packets before feature extraction can even execute.
 
 ---
 
 ## 6.2 End-to-End Pipeline Latency and Batch Scaling
 
-We benchmarked `CyberGuardPipelineV2` ([`backend/detection/pipeline.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/pipeline.py#L88-L230) [CE-05]) using `report/experiments/exp_p3c_pipeline.py`. The benchmark isolates single-item sequential inference latency, batch throughput scaling, and heap memory allocation on the 2,000-flow evaluation fixture.
+We benchmarked `CyberGuardPipelineV2` ([`backend/detection/pipeline.py`](backend/detection/pipeline.py#L88-L230) [CE-05]) using `report/experiments/exp_p3c_pipeline.py`. The benchmark isolates single-item sequential inference latency, batch throughput scaling, and heap memory allocation on the 2,000-flow evaluation fixture.
 
 ### 6.2.1 Single-Item Latency Percentiles
 In real-time intrusion response, the mean latency is often deceptive; tail latencies ($P_{95}, P_{99}$) govern the maximum packet buffer depth required to avoid packet drops. We measured 1,000 independent sequential single-flow inferences. Table IX and Fig. 16 present the measured latency distribution.
@@ -219,7 +230,7 @@ The serialized XGBoost classifier was evaluated with its calibrated threshold $\
 While DDoS and PortScan achieve perfect 100% precision and recall on this synthetic fixture, the Bot class exhibits severe precision degradation ($P = 57.76\%$). Specifically, 68 benign flows were falsely classified as Bot traffic, while 7 bot flows were misclassified as Benign. As established by Axelsson's base-rate fallacy {{cite:axelsson2000base}}, an operational false positive rate of $4.25\%$ on benign background traffic ($68 / 1,600$) generates over 42,000 false alarms per million transactions, completely overwhelming human incident responders.
 
 ### 6.3.2 Autoencoder Reconstruction Divergence and Calibration Skew
-In the model metadata manifest ([`artifacts.json`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/data/models/trained/artifacts.json#L12) [CE-01]), the autoencoder anomaly threshold is declared as:
+In the model metadata manifest ([`artifacts.json`](data/models/trained/artifacts.json#L12) [CE-01]), the autoencoder anomaly threshold is declared as:
 
 $$\tau_{\text{AE}} = 0.0045968578779138625$$
 
@@ -253,7 +264,7 @@ The empirical minimum reconstruction error across all 2,000 flows was $4,148,745
 Forensic analysis revealed the root cause: the autoencoder was trained on feature vectors normalized with zero-mean, unit-variance standardization, but the serialized evaluation pipeline passes unnormalized raw feature vectors directly to `autoencoder.forward()` prior to scaling, causing immediate numerical saturation in the linear projection layers.
 
 ### 6.3.3 Risk-Based Router Contingency Matrix
-Because both the autoencoder and the statistical detector flag 100% of flows as anomalous, `RiskBasedRouter` ([`backend/detection/router.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/router.py#L42-L130) [CE-08]) exhibits severe decision skew. Table XIII details the routing contingency matrix for the 2,000 evaluation flows.
+Because both the autoencoder and the statistical detector flag 100% of flows as anomalous, `RiskBasedRouter` ([`backend/detection/router.py`](backend/detection/router.py#L42-L130) [CE-08]) exhibits severe decision skew. Table XIII details the routing contingency matrix for the 2,000 evaluation flows.
 
 <div style="text-align: center; margin-bottom: 8px;">
 <b>TABLE XIII.</b> RISK-BASED ROUTER CONTINGENCY MATRIX ON EVALUATION FIXTURE
@@ -276,7 +287,7 @@ Out of 1,600 ground-truth benign flows, **exactly zero flows** are classified as
 We executed `report/experiments/exp_p3e_robustness.py` to evaluate the system's boundary behavior under out-of-distribution (OOD) attack labels, malformed input contracts, formal safety invariant violations, and adversarial rate perturbations.
 
 ### 6.4.1 Formal Safety Verification Invariant Enforcement
-The formal verifier (`FormalSafetyVerifier` in [`backend/safety/formal_verifier.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/safety/formal_verifier.py#L125-L245) [CE-10]) was tested against eleven containment actions designed to induce self-denial-of-service, command injection, or critical operating system disruption. Table XIV documents the verification outcomes.
+The formal verifier (`FormalSafetyVerifier` in [`backend/safety/formal_verifier.py`](backend/safety/formal_verifier.py#L125-L245) [CE-10]) was tested against eleven containment actions designed to induce self-denial-of-service, command injection, or critical operating system disruption. Table XIV documents the verification outcomes.
 
 <div style="text-align: center; margin-bottom: 8px;">
 <b>TABLE XIV.</b> FORMAL SAFETY VERIFIER CONTAINMENT INTERCEPTION OUTCOMES

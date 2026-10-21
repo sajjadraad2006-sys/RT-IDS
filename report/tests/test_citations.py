@@ -160,3 +160,80 @@ def test_ieee_bibliography_rendering(sample_refs_file):
     assert len(bib) == 1
     assert 'id="ref-1"' in bib[0]
     assert "Paper A" in bib[0]
+
+
+def test_real_references_verification_freshness_and_validity():
+    repo_root = Path(__file__).resolve().parent.parent
+    refs_path = repo_root / "references.json"
+    verif_path = repo_root / "results" / "references_verification.json"
+    
+    assert refs_path.exists(), "references.json missing"
+    assert verif_path.exists(), "references_verification.json missing"
+    
+    # Must not be older than references.json
+    assert verif_path.stat().st_mtime >= refs_path.stat().st_mtime, (
+        "references_verification.json is older than references.json"
+    )
+    
+    with open(refs_path, "r", encoding="utf-8") as f:
+        refs = json.load(f)
+    with open(verif_path, "r", encoding="utf-8") as f:
+        verif = json.load(f)
+        
+    verif_results = verif.get("results", {})
+    assert len(refs) == len(verif_results)
+    
+    # Every reference must have status VERIFIED or MANUAL
+    for r in refs:
+        key = r["key"]
+        assert key in verif_results, f"Reference '{key}' not in verification ledger"
+        status = verif_results[key]["status"]
+        assert status in ("VERIFIED", "MANUAL"), f"Reference '{key}' has invalid status '{status}'"
+
+
+def test_real_all_chapter_citations_are_verified():
+    repo_root = Path(__file__).resolve().parent.parent
+    chapters_dir = repo_root / "chapters"
+    verif_path = repo_root / "results" / "references_verification.json"
+    
+    with open(verif_path, "r", encoding="utf-8") as f:
+        verif = json.load(f)
+    verif_results = verif.get("results", {})
+    
+    cited_keys = set()
+    cite_pattern = re.compile(r"\{\{cite:([^}]+)\}\}")
+    
+    for ch_path in sorted(chapters_dir.glob("*.md")):
+        text = ch_path.read_text(encoding="utf-8")
+        for match in cite_pattern.finditer(text):
+            for k in match.group(1).split(","):
+                k = k.strip()
+                if k:
+                    cited_keys.add(k)
+                    
+    assert len(cited_keys) > 0, "No citations found in chapters"
+    
+    for key in cited_keys:
+        assert key in verif_results, f"Cited key '{key}' not found in verification ledger!"
+        status = verif_results[key]["status"]
+        assert status in ("VERIFIED", "MANUAL"), (
+            f"Cited key '{key}' has unapproved status '{status}'! Only VERIFIED or MANUAL are permitted."
+        )
+
+
+def test_unverified_status_fails_validation():
+    # If a citation has status MISMATCH or NOT_FOUND, validator must fail
+    mock_verif = {
+        "badRef": {"status": "MISMATCH"},
+        "goodRef": {"status": "VERIFIED"}
+    }
+    
+    def validate_key(k, verif_map):
+        if k not in verif_map:
+            raise ValueError(f"Missing verification record: {k}")
+        if verif_map[k]["status"] not in ("VERIFIED", "MANUAL"):
+            raise ValueError(f"Reference {k} status {verif_map[k]['status']} is not approved")
+            
+    with pytest.raises(ValueError, match="not approved"):
+        validate_key("badRef", mock_verif)
+

@@ -1,6 +1,6 @@
 # CyberGuard: Doctoral & Master's-Grade Technical Audit Report
 
-This repository contains the complete master's-thesis-grade technical audit, empirical benchmark battery, architectural analysis, and print-ready dissertation artifacts evaluating the **CyberGuard** Real-Time Intrusion Detection and Autonomous Containment System (`c:\Users\wwwsa\OneDrive\Desktop\sec`).
+This repository contains the complete master's-thesis-grade technical audit, empirical benchmark battery, architectural analysis, and print-ready dissertation artifacts evaluating the **CyberGuard** Real-Time Intrusion Detection and Autonomous Containment System (`.`).
 
 ---
 
@@ -8,16 +8,16 @@ This repository contains the complete master's-thesis-grade technical audit, emp
 
 | Artifact Path | Format | Description / Scope | Verification Status |
 |:---|:---:|:---|:---:|
-| [`report/dist/report.pdf`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/dist/report.pdf) | PDF (A4) | Master's Thesis Technical Report (**90 A4 Pages**, 4.16 MB), paginated with running headers/footers, clickable IEEE citations, 31 tables, 26 Mermaid architecture diagrams, and fully rendered KaTeX equations. | **Verified (90 Pages)** |
-| [`report/dist/report.html`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/dist/report.html) | HTML5 | Standalone, interactive single-file thesis (1.76 MB) with embedded KaTeX fonts, CSS Paged Media styling, and deep internal navigation. | **Verified (1.76 MB)** |
-| [`report/CLAIMS_LEDGER.md`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/CLAIMS_LEDGER.md) | Markdown | Master Claims Ledger tracking 55 factual claims mapped directly to workspace source files (`file:line`), empirical runs, or verified literature keys. | **55/55 Audited** |
-| [`report/SKILLS_DECISION_LOG.md`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/SKILLS_DECISION_LOG.md) | Markdown | Formal protocol log of 26 catalog queries and 6 strategically installed agent skills from the Antigravity catalog. | **Complete** |
-| [`report/PROGRESS.md`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/PROGRESS.md) | Markdown | Phased milestone log tracking completion across Recon (P0) through Finalization (P9). | **All Phases Complete** |
-| [`report/references.json`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/references.json) | JSON | 47 peer-reviewed and official standards references verified via digital object identifiers (DOIs) or standards registries. | **47 Verified** |
-| [`report/results/`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/results/) | Directory | Complete raw empirical benchmark logs (JSON) capturing all measurements, timings, decile distributions, and model scores. | **Archived** |
-| [`report/experiments/`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/experiments/) | Directory | Reproducible Python empirical benchmark scripts for sniffer, pipeline, model evaluation, and robustness testing. | **All Runnable** |
-| [`report/build.mjs`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/build.mjs) | Node.js | Automated compiler pipeline performing IEEE citation numbering, range compression, KaTeX math stashing, and Edge Chromium PDF generation. | **Passing** |
-| [`report/tests/test_citations.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/report/tests/test_citations.py) | Pytest | TDD test suite validating the citation resolution engine and link integrity. | **5/5 Passed** |
+| [`report/dist/report.pdf`](report/dist/report.pdf) | PDF (A4) | Master's Thesis Technical Report (**94 A4 Pages**, 4.72 MB), paginated with running headers/footers, clickable IEEE citations, 33 tables, 24 Mermaid architecture diagrams, 14 SVGs, and fully rendered KaTeX equations. | **Verified (94 Pages)** |
+| [`report/dist/report.html`](report/dist/report.html) | HTML5 | Standalone, interactive single-file thesis (1.87 MB) with embedded KaTeX fonts, CSS Paged Media styling, deep internal navigation, and zero privacy leaks. | **Verified (1.87 MB)** |
+| [`report/CLAIMS_LEDGER.md`](report/CLAIMS_LEDGER.md) | Markdown | Master Claims Ledger tracking 56 factual claims mapped directly to workspace source files (`file:line`), empirical runs, or verified literature keys. | **56/56 Audited** |
+| [`report/SKILLS_DECISION_LOG.md`](report/SKILLS_DECISION_LOG.md) | Markdown | Formal protocol log of 26 catalog queries and 6 strategically installed agent skills from the Antigravity catalog, plus fix-pass audit protocol. | **Complete** |
+| [`report/PROGRESS.md`](report/PROGRESS.md) | Markdown | Phased milestone log tracking completion across Recon (P0) through Finalization (P9) and Independent Auditor Fix-Pass. | **All Phases Complete** |
+| [`report/references.json`](report/references.json) | JSON | 45 peer-reviewed and official standards references audited against Crossref and DataCite live APIs (32 VERIFIED, 13 MANUAL). | **45 Audited** |
+| [`report/results/`](report/results/) | Directory | Complete raw empirical benchmark logs (JSON) capturing all measurements, timings, decile distributions, and model scores. | **Archived** |
+| [`report/experiments/`](report/experiments/) | Directory | Reproducible Python empirical benchmark scripts for sniffer, pipeline, model evaluation, and robustness testing. | **All Runnable** |
+| [`report/build.mjs`](report/build.mjs) | Node.js | Automated compiler pipeline performing IEEE citation numbering, range compression, KaTeX math stashing, fail-closed verification checks, privacy checks, and Edge Chromium PDF generation. | **Passing** |
+| [`report/tests/`](report/tests/) | Pytest | TDD test suites validating citation engine, verification status, and authority checking. | **14/14 Passed** |
 
 ---
 
@@ -47,8 +47,7 @@ All metrics trace directly to structured JSON execution logs saved under `report
    - Failures / Skips: **0 / 0**
    - Execution duration: **53.84 seconds**
 2. **Sniffer Micro-Benchmarks (`results/sniffer_experiments.json`):**
-   - Single-threaded user-space packet parsing: **718,569 packets/second**
-   - Mean processing latency: **1.392 $\mu\text{s}$ per packet**
+   - Single-threaded in-memory packet parsing upper bound: **718,569 packets/second** (1.392 $\mu\text{s}$ per packet; excludes kernel `recvfrom` syscalls, queueing, and model inference; wire rate comparison: 48.3% of 64B [1.488 Mpps], 305% of 512B [235 kpps], 883% of 1500B [81.3 kpps] at 1 Gbps)
    - State transition verification: **8/8 protocol scenarios verified** (TCP 3-way handshake, graceful teardown, immediate RST flush, 5.0 s idle timeout, TIME_WAIT ACK absorption, interim micro-window evaluation, UDP bi-directional aggregation, IPv6 frame dropping).
 3. **Pipeline Ingestion Latencies (`results/pipeline_benchmarks.json`):**
    - Single-flow inference percentiles: $P_{50} = 3.250$ ms, $P_{90} = 4.027$ ms, $P_{95} = 4.196$ ms, $P_{99} = 5.911$ ms ($\mu = 3.380$ ms, $\sigma = 0.610$ ms)
@@ -77,7 +76,7 @@ All metrics trace directly to structured JSON execution logs saved under `report
 ### Step 1: Environment Setup
 Ensure Node.js v20+ and Python 3.12 are installed:
 ```powershell
-cd c:\Users\wwwsa\OneDrive\Desktop\sec
+cd .
 
 # Create and activate Python virtual environment
 python -m venv .venv

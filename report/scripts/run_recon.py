@@ -2,7 +2,7 @@ import os
 import json
 from pathlib import Path
 
-root_dir = Path(r"c:\Users\wwwsa\OneDrive\Desktop\sec")
+root_dir = Path(r".")
 results_dir = root_dir / "report" / "results"
 results_dir.mkdir(parents=True, exist_ok=True)
 

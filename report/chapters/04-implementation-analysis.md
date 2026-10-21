@@ -2,7 +2,7 @@
 
 ## 4.1 Live Packet Sniffer and Flow Aggregator
 
-The live network capture component—implemented in `LiveFlowSniffer` within [`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L250-L623) [CE-04]—is responsible for ingesting raw network packets from network interface cards (NICs), parsing network and transport-layer protocol headers, and assembling packets into bidirectional flow records.
+The live network capture component—implemented in `LiveFlowSniffer` within [`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L250-L623) [CE-04]—is responsible for ingesting raw network packets from network interface cards (NICs), parsing network and transport-layer protocol headers, and assembling packets into bidirectional flow records.
 
 ### 4.1.1 Raw Socket Creation and OS Binding Discrepancies
 The packet listener thread is initiated via `start_capture(host="0.0.0.0", port_filter=None)`:
@@ -139,7 +139,7 @@ While active and idle state timers exist for flush demarcation, the mathematical
 
 ## 4.3 High-Throughput Worker and Backpressure Queue
 
-Decoupling continuous packet reception from synchronous database insertion and multi-model inference is managed by `LiveWorker` in [`backend/detection/live_worker.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_worker.py) [CE-25].
+Decoupling continuous packet reception from synchronous database insertion and multi-model inference is managed by `LiveWorker` in [`backend/detection/live_worker.py`](backend/detection/live_worker.py) [CE-25].
 
 The worker instantiates a thread-safe FIFO queue:
 `self._queue: queue.Queue[Dict[str, float]] = queue.Queue(maxsize=10000)`
@@ -164,7 +164,7 @@ Batch drainage amortizes database transaction overhead and unlocks vectorized Nu
 
 ## 4.4 Pipeline v2 Execution Engine
 
-The core inference orchestrator—`DetectionPipeline` in [`backend/detection/pipeline.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/pipeline.py) [CE-01]—enforces the Pipeline v2 architecture.
+The core inference orchestrator—`DetectionPipeline` in [`backend/detection/pipeline.py`](backend/detection/pipeline.py) [CE-01]—enforces the Pipeline v2 architecture.
 
 In `_detect_rows(flows)` (lines 305-368), the pipeline executes the following sequence:
 1. **Extraction & Transformation:** Feature dictionaries are transformed into an $(N, 32)$ NumPy floating-point matrix via `extract_features_matrix()`, followed by `self.normalizer.transform(raw)` [CE-38].
@@ -206,7 +206,7 @@ $\text{MSE}(x) = \frac{1}{32} \sum_{j=1}^{32} (x_j - \hat{x}_j)^2$ [CE-11].
 
 ## 4.6 Canonical Routing State Machine and Decision Table
 
-The routing state machine—implemented in `route_signals()` within [`backend/detection/router.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/router.py) [CE-12]—fuses the classifier, statistical, and autoencoder evidence into deterministic routing decisions.
+The routing state machine—implemented in `route_signals()` within [`backend/detection/router.py`](backend/detection/router.py) [CE-12]—fuses the classifier, statistical, and autoencoder evidence into deterministic routing decisions.
 
 The canonical logic enforces the decision matrix shown in Table IV and Fig. 10.
 
@@ -245,17 +245,109 @@ Crucially, `router.py` strictly validates all incoming signal arrays: non-finite
 
 ## 4.7 Suricata EVE Streaming Bridge
 
-The Suricata integration component—implemented in `SuricataLiveTailer` and `eve_to_flow_features` within [`backend/suricata/tailer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/suricata/tailer.py) [CE-05]—bridges external Suricata NIDS logs into CyberGuard's inference pipeline (Fig. 11).
+The Suricata integration component—implemented in `SuricataLiveTailer` and `eve_to_flow_features` within [`backend/suricata/tailer.py`](backend/suricata/tailer.py) [CE-05]—bridges external Suricata NIDS logs into CyberGuard's inference pipeline (Fig. 11).
 
-```mermaid
-flowchart LR
-    SURI["Suricata 7.x Network IDS Engine"] -->|Append Alert Records| EVE["Live EVE Log Stream (/var/log/suricata/eve.json)"]
-    EVE -->|Tail Inotify / ReadLine| TAIL["SuricataLiveTailer Bridge Engine"]
-    TAIL -->|Parse JSON Record| MAP["Feature Synthesis (eve_to_flow_features)"]
-    MAP -->|Approximated 32-Feature Vector| PIPE["Pipeline v2 Inference Engine"]
-    PIPE -->|Persist Alert Record| DB["SQLite WAL Storage (cyberguard.db)"]
-```
-<div class="figure-caption"><strong>Fig. 11.</strong> Architectural Topology of Suricata Live Tailer EVE Streaming Ingestion.</div>
+<div id="fig11-container" class="figure-container" style="width: 100%; max-width: 760px; margin: 16px auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+<svg viewBox="0 0 760 280" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+  <defs>
+    <linearGradient id="headerGrad11" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <marker id="arrBlue11" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 Z" fill="#2563eb" />
+    </marker>
+    <marker id="arrDark11" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 Z" fill="#475569" />
+    </marker>
+  </defs>
+
+  <!-- Banner Header -->
+  <rect x="0" y="0" width="760" height="34" rx="8" fill="url(#headerGrad11)" />
+  <rect x="0" y="24" width="760" height="10" fill="url(#headerGrad11)" />
+  <text x="380" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff" letter-spacing="0.5">
+    SURICATA LIVE TAILER: EVE STREAMING INGESTION &amp; FEATURE SYNTHESIS TOPOLOGY
+  </text>
+
+  <!-- Tier 1: Log Generation & Sensor Tailer -->
+  <rect x="15" y="46" width="730" height="98" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" />
+  <text x="28" y="64" font-size="11" font-weight="700" fill="#334155" letter-spacing="0.3">TIER 1: EXTERNAL NIDS SENSOR &amp; LOG TAILER</text>
+
+  <!-- Box 1: Suricata Engine -->
+  <g transform="translate(30, 72)">
+    <rect width="200" height="60" rx="5" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
+    <text x="100" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#0f172a">Suricata 7.x NIDS</text>
+    <text x="100" y="38" text-anchor="middle" font-size="9" fill="#475569">Multi-threaded packet sniffing</text>
+    <text x="100" y="50" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#0284c7">AF_PACKET / PF_RING</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <path d="M230, 102 L272, 102" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrDark11)" />
+  <text x="251" y="94" text-anchor="middle" font-size="8" fill="#64748b">Appends alerts</text>
+
+  <!-- Box 2: eve.json -->
+  <g transform="translate(280, 72)">
+    <rect width="200" height="60" rx="5" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
+    <text x="100" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#0f172a">Live EVE Log Stream</text>
+    <text x="100" y="38" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#0369a1">/var/log/suricata/eve.json</text>
+    <text x="100" y="50" text-anchor="middle" font-size="8.5" fill="#475569">JSON stream records</text>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <path d="M480, 102 L522, 102" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrDark11)" />
+  <text x="501" y="94" text-anchor="middle" font-size="8" fill="#64748b">Inotify / tail</text>
+
+  <!-- Box 3: SuricataLiveTailer -->
+  <g transform="translate(530, 72)">
+    <rect width="200" height="60" rx="5" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" />
+    <text x="100" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#1e3a8a">SuricataLiveTailer</text>
+    <text x="100" y="38" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#2563eb">backend/suricata/tailer.py</text>
+    <text x="100" y="50" text-anchor="middle" font-size="8.5" font-weight="600" fill="#16a34a">[CE-05] Non-blocking reader</text>
+  </g>
+
+  <!-- Down/Turn Arrow: Tier 1 Tailer -> Tier 2 Feature Synthesis -->
+  <path d="M630, 132 L630, 154 L130, 154 L130, 178" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrBlue11)" />
+  <rect x="320" y="146" width="120" height="16" rx="3" fill="#ffffff" stroke="#93c5fd" stroke-width="1" />
+  <text x="380" y="158" text-anchor="middle" font-size="8.5" font-weight="600" fill="#1e40af">Parsed EVE Alert Dict</text>
+
+  <!-- Tier 2: Feature Synthesis & Pipeline Ingestion -->
+  <rect x="15" y="170" width="730" height="98" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1" />
+  <text x="28" y="188" font-size="11" font-weight="700" fill="#166534" letter-spacing="0.3">TIER 2: CYBERGUARD FEATURE SYNTHESIS &amp; AUDIT PIPELINE</text>
+
+  <!-- Box 4: Feature Synthesis -->
+  <g transform="translate(30, 196)">
+    <rect width="200" height="60" rx="5" fill="#ffffff" stroke="#16a34a" stroke-width="1.2" />
+    <text x="100" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#14532d">Feature Synthesis</text>
+    <text x="100" y="38" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#15803d">eve_to_flow_features()</text>
+    <text x="100" y="50" text-anchor="middle" font-size="8.5" font-weight="600" fill="#0284c7">[CE-40] 32-Feature Vector</text>
+  </g>
+
+  <!-- Arrow 4 -> 5 -->
+  <path d="M230, 226 L272, 226" fill="none" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrBlue11)" />
+  <text x="251" y="218" text-anchor="middle" font-size="8" fill="#15803d">Flow vector</text>
+
+  <!-- Box 5: Pipeline Engine -->
+  <g transform="translate(280, 196)">
+    <rect width="200" height="60" rx="5" fill="#ffffff" stroke="#16a34a" stroke-width="1.2" />
+    <text x="100" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#14532d">Pipeline v2 Engine</text>
+    <text x="100" y="38" text-anchor="middle" font-size="9" fill="#475569">RandomForest / LightGBM</text>
+    <text x="100" y="50" text-anchor="middle" font-size="8.5" font-weight="600" fill="#2563eb">[CE-08] Multi-class scoring</text>
+  </g>
+
+  <!-- Arrow 5 -> 6 -->
+  <path d="M480, 226 L522, 226" fill="none" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrBlue11)" />
+  <text x="501" y="218" text-anchor="middle" font-size="8" fill="#15803d">Persist audit</text>
+
+  <!-- Box 6: SQLite WAL DB -->
+  <g transform="translate(530, 196)">
+    <rect width="200" height="60" rx="5" fill="#ffffff" stroke="#16a34a" stroke-width="1.2" />
+    <text x="100" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#14532d">SQLite WAL Storage</text>
+    <text x="100" y="38" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#047857">cyberguard.db</text>
+    <text x="100" y="50" text-anchor="middle" font-size="8.5" font-weight="600" fill="#16a34a">[CE-05] Concurrent WAL Mode</text>
+  </g>
+</svg>
+</div>
+<div class="figure-caption"><strong>Fig. 11.</strong> Architectural Topology of Suricata Live Tailer EVE Streaming Ingestion and Feature Synthesis Pipeline.</div>
 
 ### 4.7.1 Forensic Analysis of Train/Serve Skew in `eve_to_flow_features`
 Suricata EVE JSON log entries record summarized flow records (such as `flow.pkts_toserver`, `flow.bytes_toserver`, and `flow.age`). However, EVE logs do not record per-packet inter-arrival times or fine-grained TCP window dynamics. 
@@ -308,20 +400,135 @@ The parser strictly enforces fail-closed validation:
 
 ## 4.9 Autonomous Decision Engine and Contradiction Guard
 
-The cognitive advisory tier—`DecisionEngine` in [`backend/decision/engine.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/decision/engine.py) [CE-14]—coordinates multi-source intelligence to propose containment playbooks (Fig. 12).
+The cognitive advisory tier—`DecisionEngine` in [`backend/decision/engine.py`](backend/decision/engine.py) [CE-14]—coordinates multi-source intelligence to propose containment playbooks (Fig. 12).
 
-```mermaid
-flowchart LR
-    Alert["Pipeline Alert: known_attack"] --> RAG["Defense RAG Engine"]
-    RAG -->|"Top-K Techniques"| CTX["Context Assembly"]
-    CTX -->|"Prompt + Context"| LLM["Llama-3-8B-Instruct"]
-    LLM -->|"JSON Decision"| PARSE["JSON Parser & Fallback"]
-    PARSE --> GUARD{"Contradiction Guard"}
-    
-    GUARD -->|"Severity High & LLM Benign"| OVERRIDE["Force Malicious"]
-    GUARD -->|"Consistent"| PROCEED["Submit to Safety Gate"]
-    OVERRIDE --> PROCEED
-```
+<div id="fig12-container" class="figure-container" style="width: 100%; max-width: 760px; margin: 16px auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+<svg viewBox="0 0 760 290" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+  <defs>
+    <linearGradient id="headerGrad12" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+    <marker id="arr12Blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 Z" fill="#2563eb" />
+    </marker>
+    <marker id="arr12Red" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 Z" fill="#dc2626" />
+    </marker>
+    <marker id="arr12Green" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 Z" fill="#16a34a" />
+    </marker>
+  </defs>
+
+  <!-- Banner Header -->
+  <rect x="0" y="0" width="760" height="34" rx="8" fill="url(#headerGrad12)" />
+  <rect x="0" y="24" width="760" height="10" fill="url(#headerGrad12)" />
+  <text x="380" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff" letter-spacing="0.5">
+    MULTI-STAGE NEURO-SYMBOLIC DECISION ENGINE &amp; CONTRADICTION GUARD
+  </text>
+
+  <!-- Tier 1: Ingestion to Cognitive LLM (Top) -->
+  <rect x="15" y="46" width="730" height="100" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" />
+  <text x="28" y="64" font-size="11" font-weight="700" fill="#334155" letter-spacing="0.3">TIER 1: TELEMETRY INGESTION, RETRIEVAL AUGMENTATION &amp; LLM INFERENCE</text>
+
+  <!-- 1. Pipeline Alert -->
+  <g transform="translate(25, 74)">
+    <rect width="155" height="60" rx="4" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
+    <text x="77" y="22" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0f172a">Pipeline Alert</text>
+    <text x="77" y="38" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#0284c7">known_attack</text>
+    <text x="77" y="50" text-anchor="middle" font-size="8" fill="#475569">Detection alert stream</text>
+  </g>
+
+  <path d="M180, 104 L205, 104" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr12Blue)" />
+
+  <!-- 2. Defense RAG -->
+  <g transform="translate(210, 74)">
+    <rect width="165" height="60" rx="4" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
+    <text x="82" y="22" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0f172a">Defense RAG</text>
+    <text x="82" y="38" text-anchor="middle" font-size="8" fill="#475569">MITRE ATT&amp;CK &amp; D3FEND</text>
+    <text x="82" y="50" text-anchor="middle" font-size="8" font-family="monospace" fill="#0284c7">Top-K Playbooks [CE-43]</text>
+  </g>
+
+  <path d="M375, 104 L400, 104" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr12Blue)" />
+
+  <!-- 3. Context Assembly -->
+  <g transform="translate(405, 74)">
+    <rect width="160" height="60" rx="4" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
+    <text x="80" y="22" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0f172a">Context Assembly</text>
+    <text x="80" y="38" text-anchor="middle" font-size="8" fill="#475569">Prompt sanitization</text>
+    <text x="80" y="50" text-anchor="middle" font-size="8" fill="#64748b">Defends injection</text>
+  </g>
+
+  <path d="M565, 104 L590, 104" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr12Blue)" />
+
+  <!-- 4. Llama-3-8B -->
+  <g transform="translate(595, 74)">
+    <rect width="140" height="60" rx="4" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5" />
+    <text x="70" y="22" text-anchor="middle" font-size="10" font-weight="700" fill="#1e3a8a">Llama-3-8B</text>
+    <text x="70" y="38" text-anchor="middle" font-size="8" fill="#1e40af">Local GPU inference</text>
+    <text x="70" y="50" text-anchor="middle" font-size="7.5" font-family="monospace" fill="#2563eb">SmartDecision JSON</text>
+  </g>
+
+  <!-- Turn Arrow from Llama-3 to Tier 2 -->
+  <path d="M665, 134 L665, 155 L102, 155 L102, 178" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arr12Blue)" />
+  <rect x="330" y="147" width="120" height="16" rx="3" fill="#ffffff" stroke="#93c5fd" stroke-width="1" />
+  <text x="390" y="159" text-anchor="middle" font-size="8" font-weight="600" fill="#1e40af">Raw LLM JSON Output</text>
+
+  <!-- Tier 2: Validation & Contradiction Guard -->
+  <rect x="15" y="170" width="730" height="110" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1" />
+  <text x="28" y="188" font-size="11" font-weight="700" fill="#166534" letter-spacing="0.3">TIER 2: JSON SCHEMA VALIDATION, CONTRADICTION GUARD &amp; FORMAL SAFETY ADMISSION</text>
+
+  <!-- 5. JSON Parser -->
+  <g transform="translate(25, 198)">
+    <rect width="155" height="70" rx="4" fill="#ffffff" stroke="#16a34a" stroke-width="1.2" />
+    <text x="77" y="20" text-anchor="middle" font-size="10.5" font-weight="700" fill="#14532d">JSON Parser</text>
+    <text x="77" y="36" text-anchor="middle" font-size="8" fill="#475569">Pydantic validation</text>
+    <text x="77" y="48" text-anchor="middle" font-size="8" fill="#475569">Safe schema fallback</text>
+    <text x="77" y="60" text-anchor="middle" font-size="7.5" font-family="monospace" fill="#15803d">SmartDecision schema</text>
+  </g>
+
+  <path d="M180, 233 L210, 233" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arr12Green)" />
+
+  <!-- 6. Contradiction Guard Diamond -->
+  <g transform="translate(215, 203)">
+    <polygon points="85,0 170,30 85,60 0,30" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5" />
+    <text x="85" y="24" text-anchor="middle" font-size="9" font-weight="700" fill="#991b1b">ContradictionGuard</text>
+    <text x="85" y="38" text-anchor="middle" font-size="7.5" font-weight="600" fill="#b91c1c">Sev HIGH &amp; LLM Benign?</text>
+    <text x="85" y="50" text-anchor="middle" font-size="7" fill="#7f1d1d">[CE-14 / CE-44]</text>
+  </g>
+
+  <!-- Branch: High/Benign Override -->
+  <path d="M385, 218 L430, 218" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr12Red)" />
+  <text x="405" y="212" text-anchor="middle" font-size="8" font-weight="700" fill="#dc2626">YES</text>
+
+  <g transform="translate(435, 198)">
+    <rect width="140" height="34" rx="3" fill="#fee2e2" stroke="#ef4444" stroke-width="1.2" />
+    <text x="70" y="16" text-anchor="middle" font-size="9" font-weight="700" fill="#991b1b">Overrule to Malicious</text>
+    <text x="70" y="28" text-anchor="middle" font-size="7.5" fill="#7f1d1d">Suppresses hallucination</text>
+  </g>
+
+  <!-- Branch: Consistent -->
+  <path d="M385, 248 L430, 248" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arr12Green)" />
+  <text x="405" y="258" text-anchor="middle" font-size="8" font-weight="700" fill="#16a34a">NO</text>
+
+  <g transform="translate(435, 236)">
+    <rect width="140" height="32" rx="3" fill="#f0fdf4" stroke="#86efac" stroke-width="1.2" />
+    <text x="70" y="15" text-anchor="middle" font-size="8.5" font-weight="700" fill="#14532d">Corroborated Verdict</text>
+    <text x="70" y="26" text-anchor="middle" font-size="7.5" fill="#166534">Admit LLM containment</text>
+  </g>
+
+  <!-- Merge to Formal Safety Gate -->
+  <path d="M575, 215 L590, 215 L590, 233 L605, 233" stroke="#2563eb" stroke-width="1.5" />
+  <path d="M575, 252 L590, 252 L590, 233 L605, 233" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr12Blue)" />
+
+  <g transform="translate(610, 203)">
+    <rect width="125" height="60" rx="4" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5" />
+    <text x="62" y="20" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1e3a8a">Formal Safety Gate</text>
+    <text x="62" y="34" text-anchor="middle" font-size="8" fill="#475569">SymPy Invariants</text>
+    <text x="62" y="46" text-anchor="middle" font-size="7.5" font-family="monospace" fill="#2563eb">verify_action() [CE-18]</text>
+  </g>
+</svg>
+</div>
 <div class="figure-caption"><strong>Fig. 12.</strong> Multi-Stage Neuro-Symbolic Defense Decision Engine and Contradiction Guard.</div>
 
 ### 4.9.1 Retrieval-Augmented Generation (RAG) Context Assembly
@@ -339,7 +546,7 @@ As audited in Section 8.3, while this heuristic prevents adversarial bypasses, c
 
 ## 4.10 Defensive Containment Actuators and Two-Person Rule
 
-CyberGuard implements three distinct actuator execution modules within [`backend/actuators/`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/) [CE-18]:
+CyberGuard implements three distinct actuator execution modules within [`backend/actuators/`](backend/actuators/) [CE-18]:
 
 1. **`HostFirewallActuator` (`firewall.py`):**
    - Windows: Injects firewall rules using `netsh advfirewall firewall add rule name="CyberGuard-Block-{IP}" dir=in action=block remoteip={IP}`.
@@ -387,7 +594,7 @@ sequenceDiagram
 
 ## 4.11 Formal Safety Gate and SMT Proof Generator
 
-The formal safety verification engine—`FormalSafetyVerifier` in [`backend/safety/formal_verifier.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/safety/formal_verifier.py) [CE-16]—governs all mitigation actions proposed by neural models or human operators.
+The formal safety verification engine—`FormalSafetyVerifier` in [`backend/safety/formal_verifier.py`](backend/safety/formal_verifier.py) [CE-16]—governs all mitigation actions proposed by neural models or human operators.
 
 The verifier evaluates four First-Order Logic safety invariants simultaneously:
 - **Invariant $I_1$ (Critical Asset Preservation / No Self-DoS):**
@@ -455,14 +662,14 @@ No external or internal SMT solver (such as Z3, CVC5, or Yices) is ever executed
 
 ## 4.12 API Layer, Token Authentication, and RBAC
 
-The API layer is exposed via FastAPI in [`backend/api/`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/api/):
+The API layer is exposed via FastAPI in [`backend/api/`](backend/api/):
 - **Authentication (`backend/api/auth.py`):** Implements OAuth2 Password Bearer flow issuing HMAC-SHA256 signed JSON Web Tokens (JWT) with configured expiration lifespans. Passwords are salted and hashed using bcrypt [CE-52].
 - **Role-Based Access Control (RBAC):** Users are assigned granular roles (`admin`, `analyst`, `observer`). Endpoint decorators enforce permission boundaries: `observer` accounts can view dashboards and telemetry but cannot initiate uploads or trigger containment actions [CE-53].
 - **Anti-Tamper Proofs:** All administrative resolutions and incident reviews generate immutable audit entries in `AlertRecord` and `DecisionCase` with SHA-256 state digests [CE-54].
 
 ## 4.13 Web Frontend Dashboard Architecture
 
-The frontend—located in [`frontend/`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/frontend/)—is implemented entirely in Vanilla HTML5, CSS3, and JavaScript, completely eliminating heavyweight runtime framework dependencies (React, Vue, or Angular) [CE-21].
+The frontend—located in [`frontend/`](frontend/)—is implemented entirely in Vanilla HTML5, CSS3, and JavaScript, completely eliminating heavyweight runtime framework dependencies (React, Vue, or Angular) [CE-21].
 
 Architectural properties:
 - **Structure:** A unified Single Page Application (`index.html`) modularized into 11 specialized JavaScript controllers in `frontend/js/` (including `api.js`, `dashboard.js`, `charts.js`, `live-operations.js`, `defense-simulator.js`, `suricata.js`, and `review.js`).
@@ -474,7 +681,7 @@ Architectural properties:
 
 ## 4.14 Background Ingestion Worker Queue and Lifespan Concurrency
 
-Asynchronous decoupling between high-throughput packet sniffing and multi-model inference is coordinated by `LiveIngestionWorker` in [`backend/detection/worker.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/worker.py#L1-L120) [CE-22].
+Asynchronous decoupling between high-throughput packet sniffing and multi-model inference is coordinated by `LiveIngestionWorker` in [`backend/detection/worker.py`](backend/detection/worker.py#L1-L120) [CE-22].
 
 ### 4.14.1 Worker Thread Lifecycle and Backpressure Mechanics
 When the live capture pipeline is started, the worker thread is spawned as a background daemon:
@@ -512,7 +719,7 @@ The queue enforces strict backpressure control:
 3. **Adaptive Batch Micro-Flushing:** The worker consumes flow records in batches of $B=50$ or flushes every $\Delta t_{\text{flush}} = 500$ ms, balancing vectorized inference throughput against maximum alert latency.
 
 ### 4.14.2 FastAPI Lifespan Concurrency Coordination
-In [`backend/main.py:25-55`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/main.py#L25-L55) [CE-12], the application lifespan context manager coordinates startup and teardown:
+In [`backend/main.py:25-55`](backend/main.py#L25-L55) [CE-12], the application lifespan context manager coordinates startup and teardown:
 
 ```python
 # File: backend/main.py:25-45
@@ -541,7 +748,7 @@ Upon SIGTERM or SIGINT, the lifespan manager initiates an orderly shutdown: the 
 
 ## 4.15 Database Persistence, ORM Models, and Incident Store
 
-CyberGuard persists detection incidents, raw flow summaries, and audit logs within a local SQLite database (`cyberguard.db`) managed via SQLAlchemy in [`backend/database.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/database.py#L1-L150) [CE-26].
+CyberGuard persists detection incidents, raw flow summaries, and audit logs within a local SQLite database (`cyberguard.db`) managed via SQLAlchemy in [`backend/database.py`](backend/database.py#L1-L150) [CE-26].
 
 ### 4.15.1 Relational Schema Architecture
 The persistence layer defines four primary relational entities:
@@ -561,7 +768,7 @@ Write-Ahead Logging permits simultaneous readers without blocking writers, maint
 
 ## 4.16 Host Process Actuator and Signal Handling
 
-In addition to network firewall containment, CyberGuard incorporates process-level containment via `ProcessActuator` in [`backend/actuators/process.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/actuators/process.py#L1-L120) [CE-23].
+In addition to network firewall containment, CyberGuard incorporates process-level containment via `ProcessActuator` in [`backend/actuators/process.py`](backend/actuators/process.py#L1-L120) [CE-23].
 
 ### 4.16.1 Process Termination Mechanics
 When an endpoint compromise or malicious command-and-control binary is identified, `ProcessActuator.execute(action="kill_process", target=pid_or_name)` executes platform-specific termination:
@@ -588,7 +795,7 @@ If a containment request targets any process in this whitelist, `ProcessActuator
 
 ## 4.17 Mathematical Derivations of Canonical Flow Features
 
-To establish full theoretical traceability for the feature extraction pipeline ([`backend/detection/live_sniffer.py`](file:///c:/Users/wwwsa/OneDrive/Desktop/sec/backend/detection/live_sniffer.py#L160-L245) [CE-04]), this section provides the formal mathematical derivations for the 32 statistical flow features.
+To establish full theoretical traceability for the feature extraction pipeline ([`backend/detection/live_sniffer.py`](backend/detection/live_sniffer.py#L160-L245) [CE-04]), this section provides the formal mathematical derivations for the 32 statistical flow features.
 
 Let a bidirectional flow $\mathcal{F}$ consist of two ordered sequences of packet arrival events:
 - Forward packets: $\mathcal{P}_{\text{fwd}} = \{(t_{1}^{\text{f}}, L_{1}^{\text{f}}), (t_{2}^{\text{f}}, L_{2}^{\text{f}}), \dots, (t_{N_{\text{f}}}^{\text{f}}, L_{N_{\text{f}}}^{\text{f}})\}$
