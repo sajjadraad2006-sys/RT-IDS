@@ -88,7 +88,7 @@
     "pages": "3971-3988",
     "doi": "10.5555/3571166.3571389",
     "url": "https://www.usenix.org/conference/usenixsecurity22/presentation/arp",
-    "accessed": "2026-10-17"
+    "accessed": "2026-10-22"
   },
   {
     "key": "pendlebury2019tesseract",
@@ -101,7 +101,7 @@
     "pages": "729-746",
     "doi": "10.5555/3361338.3361389",
     "url": "https://www.usenix.org/conference/usenixsecurity19/presentation/pendlebury",
-    "accessed": "2026-10-17"
+    "accessed": "2026-10-22"
   },
   {
     "key": "axelsson2000base",
@@ -244,8 +244,8 @@
     "volume": "",
     "pages": "229-238",
     "doi": "10.5555/1267724.1267742",
-    "url": "https://www.usenix.org/conference/lisa-99/snort-lightweight-intrusion-detection-networks",
-    "accessed": "2026-10-17"
+    "url": "https://www.usenix.org/legacy/publications/library/proceedings/lisa99/roesch.html",
+    "accessed": "2026-10-22"
   },
   {
     "key": "mccanne1993bsd",
@@ -258,7 +258,7 @@
     "pages": "259-270",
     "doi": "10.5555/1267303.1267323",
     "url": "https://www.usenix.org/legacy/publications/library/proceedings/sd93/mccanne.pdf",
-    "accessed": "2026-10-17"
+    "accessed": "2026-10-22"
   },
   {
     "key": "suricata2024engine",
@@ -271,7 +271,7 @@
     "pages": "1-320",
     "doi": "",
     "url": "https://docs.suricata.io/en/suricata-7.0.0/",
-    "accessed": "2026-10-17"
+    "accessed": "2026-10-22"
   },
   {
     "key": "rfc9293tcp",
@@ -309,8 +309,8 @@
     "volume": "",
     "pages": "1-39",
     "doi": "",
-    "url": "https://www.mitre.org/sites/default/files/publications/pr-18-0944-11-mitre-attack-design-and-philosophy.pdf",
-    "accessed": "2026-10-17"
+    "url": "https://attack.mitre.org/docs/ATTACK_Design_and_Philosophy_March_2020.pdf",
+    "accessed": "2026-10-22"
   },
   {
     "key": "kaloroumakis2021d3fend",
@@ -323,7 +323,7 @@
     "pages": "2522-2531",
     "doi": "",
     "url": "https://d3fend.mitre.org",
-    "accessed": "2026-10-17"
+    "accessed": "2026-10-22"
   },
   {
     "key": "shostack2014threat",
@@ -336,12 +336,12 @@
     "pages": "1-624",
     "doi": "",
     "url": "https://www.wiley.com/en-us/Threat+Modeling%3A+Designing+for+Security-p-9781118809990",
-    "accessed": "2026-10-17"
+    "accessed": "2026-10-22"
   },
   {
     "key": "demoura2008z3",
     "type": "inproceedings",
-    "authors": "L. de Moura and N. Bjørner",
+    "authors": "L. de Moura and N. Bj\u00f8rner",
     "title": "Z3: An Efficient SMT Solver",
     "venue": "Proc. 14th Int. Conf. Tools Algorithms Constr. Anal. Syst. (TACAS)",
     "year": 2008,
@@ -362,7 +362,7 @@
     "pages": "1-100",
     "doi": "",
     "url": "https://smtlib.cs.uiowa.edu/papers/smt-lib-reference-v2.0-r10.12.21.pdf",
-    "accessed": "2026-10-17"
+    "accessed": "2026-10-22"
   },
   {
     "key": "islam2019soar",
@@ -441,7 +441,7 @@
     "pages": "1-36",
     "doi": "",
     "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
-    "accessed": "2026-10-17"
+    "accessed": "2026-10-22"
   },
   {
     "key": "stouffer2015nist80082",
@@ -466,8 +466,8 @@
     "volume": "",
     "pages": "1-140",
     "doi": "",
-    "url": "https://webstore.iec.ch/publication/34346",
-    "accessed": "2026-10-17"
+    "url": "https://www.isa.org/standards-and-publications/isa-standards/isa-standards-committees/isa99",
+    "accessed": "2026-10-22"
   },
   {
     "key": "genge2012cyber",
@@ -486,7 +486,7 @@
   {
     "key": "krotofil2013industrial",
     "type": "inproceedings",
-    "authors": "M. Krotofil and A. A. Cárdenas",
+    "authors": "M. Krotofil and A. A. C\u00e1rdenas",
     "title": "Resilience of Process Control Systems to Cyber-Physical Attacks",
     "venue": "Proc. 18th Nordic Conf. Secur. IT Syst. (NordSec)",
     "year": 2013,
@@ -568,8 +568,8 @@
     "title": "Modbus Application Protocol Specification V1.1b3",
     "publisher": "Modbus Organization, Inc.",
     "year": 2012,
-    "url": "https://modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf",
-    "accessed": "2026-10-21"
+    "url": "https://www.modbus.org/",
+    "accessed": "2026-10-22"
   },
   {
     "key": "opcfoundation2022spec",
@@ -579,6 +579,6 @@
     "publisher": "OPC Foundation",
     "year": 2022,
     "url": "https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-2-security-model/",
-    "accessed": "2026-10-21"
+    "accessed": "2026-10-22"
   }
 ]

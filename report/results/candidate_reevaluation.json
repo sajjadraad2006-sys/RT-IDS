@@ -1,0 +1,1244 @@
+{
+  "metadata": {
+    "experiment": "candidate_reevaluation",
+    "command": "python report/experiments/exp_candidate_reeval.py",
+    "timestamp": "2026-10-22T07:39:39.664326+00:00",
+    "git_hash": "77ea255f236af9909619951b48ba69787238a4c4",
+    "duration_seconds": 2418.2,
+    "environment": {
+      "os": "Windows",
+      "os_release": "11",
+      "os_version": "10.0.26300",
+      "architecture": "AMD64",
+      "processor": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+      "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "cpu_count": 12
+    },
+    "model_path": "data/models/candidate_cicids2017",
+    "test_samples": 406661,
+    "train_samples": 1292216,
+    "test_method": "capture_group",
+    "bootstrap_iterations": 1000
+  },
+  "headline_metrics": {
+    "accuracy": 0.9849,
+    "macro_f1": 0.6852,
+    "weighted_f1": 0.9855,
+    "macro_f1_ci95": [
+      0.6447,
+      0.7133
+    ],
+    "weighted_f1_ci95": [
+      0.9852,
+      0.986
+    ],
+    "attack_miss_rate": 0.0716,
+    "attack_miss_rate_ci95": [
+      0.0693,
+      0.0734
+    ],
+    "benign_false_alarm_rate": 0.000745,
+    "benign_false_alarm_rate_ci95": [
+      0.000655,
+      0.000841
+    ],
+    "expected_calibration_error_10bin": 0.012377,
+    "macro_vs_weighted_explanation": "Weighted-F1 (0.99) is dominated by Benign traffic, which represents 84.8% of the test partition. Because Benign recall is 99.93%, the weighted average conceals the total collapse on Bot (F1=0.00, recall=0.00), poor PortScan precision (0.19), and WebAttack recall (0.59). Macro-F1 (0.69) treats all classes equally and exposes the actual operational detection posture."
+  },
+  "per_class": {
+    "Benign": {
+      "precision": 0.9873,
+      "recall": 0.9993,
+      "f1": 0.9933,
+      "support": 344984,
+      "pr_auc": 0.9998,
+      "brier_score": 0.010134
+    },
+    "Bot": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 113,
+      "pr_auc": 0.0033,
+      "brier_score": 0.000481
+    },
+    "BruteForce": {
+      "precision": 0.9959,
+      "recall": 0.9952,
+      "f1": 0.9955,
+      "support": 1453,
+      "pr_auc": 0.9999,
+      "brier_score": 2.4e-05
+    },
+    "DDoS": {
+      "precision": 0.9997,
+      "recall": 0.9979,
+      "f1": 0.9988,
+      "support": 23418,
+      "pr_auc": 0.9992,
+      "brier_score": 0.000133
+    },
+    "DoS": {
+      "precision": 0.9977,
+      "recall": 0.8449,
+      "f1": 0.915,
+      "support": 36188,
+      "pr_auc": 0.9898,
+      "brier_score": 0.012709
+    },
+    "Infiltration": {
+      "precision": 0.75,
+      "recall": 0.8571,
+      "f1": 0.8,
+      "support": 7,
+      "pr_auc": 0.8633,
+      "brier_score": 5e-06
+    },
+    "PortScan": {
+      "precision": 0.1862,
+      "recall": 0.8517,
+      "f1": 0.3056,
+      "support": 391,
+      "pr_auc": 0.7679,
+      "brier_score": 0.00321
+    },
+    "WebAttack": {
+      "precision": 0.3962,
+      "recall": 0.5888,
+      "f1": 0.4737,
+      "support": 107,
+      "pr_auc": 0.4697,
+      "brier_score": 0.000305
+    }
+  },
+  "bootstrap_confidence_intervals": {
+    "Benign": {
+      "support": 344984,
+      "precision_point": 0.9873,
+      "precision_ci95": [
+        0.987,
+        0.9878
+      ],
+      "recall_point": 0.9993,
+      "recall_ci95": [
+        0.9992,
+        0.9993
+      ],
+      "f1_point": 0.9933,
+      "f1_ci95": [
+        0.9931,
+        0.9935
+      ],
+      "statistical_meaningfulness_assessment": "Statistically robust support"
+    },
+    "Bot": {
+      "support": 113,
+      "precision_point": 0.0,
+      "precision_ci95": [
+        0.0,
+        0.0
+      ],
+      "recall_point": 0.0,
+      "recall_ci95": [
+        0.0,
+        0.0
+      ],
+      "f1_point": 0.0,
+      "f1_ci95": [
+        0.0,
+        0.0
+      ],
+      "statistical_meaningfulness_assessment": "Low statistical power / severe variance (support ~100)"
+    },
+    "BruteForce": {
+      "support": 1453,
+      "precision_point": 0.9959,
+      "precision_ci95": [
+        0.9922,
+        0.9986
+      ],
+      "recall_point": 0.9952,
+      "recall_ci95": [
+        0.9914,
+        0.9986
+      ],
+      "f1_point": 0.9955,
+      "f1_ci95": [
+        0.993,
+        0.9977
+      ],
+      "statistical_meaningfulness_assessment": "Statistically robust support"
+    },
+    "DDoS": {
+      "support": 23418,
+      "precision_point": 0.9997,
+      "precision_ci95": [
+        0.9995,
+        0.9999
+      ],
+      "recall_point": 0.9979,
+      "recall_ci95": [
+        0.9973,
+        0.9984
+      ],
+      "f1_point": 0.9988,
+      "f1_ci95": [
+        0.9985,
+        0.9991
+      ],
+      "statistical_meaningfulness_assessment": "Statistically robust support"
+    },
+    "DoS": {
+      "support": 36188,
+      "precision_point": 0.9977,
+      "precision_ci95": [
+        0.9971,
+        0.9982
+      ],
+      "recall_point": 0.8449,
+      "recall_ci95": [
+        0.8414,
+        0.849
+      ],
+      "f1_point": 0.915,
+      "f1_ci95": [
+        0.9128,
+        0.9173
+      ],
+      "statistical_meaningfulness_assessment": "Statistically robust support"
+    },
+    "Infiltration": {
+      "support": 7,
+      "precision_point": 0.75,
+      "precision_ci95": [
+        0.375,
+        1.0
+      ],
+      "recall_point": 0.8571,
+      "recall_ci95": [
+        0.5,
+        1.0
+      ],
+      "f1_point": 0.8,
+      "f1_ci95": [
+        0.5,
+        1.0
+      ],
+      "statistical_meaningfulness_assessment": "Statistically meaningless (support <= 10; single misclassification swings metric by >= 14 percentage points)"
+    },
+    "PortScan": {
+      "support": 391,
+      "precision_point": 0.1862,
+      "precision_ci95": [
+        0.1685,
+        0.205
+      ],
+      "recall_point": 0.8517,
+      "recall_ci95": [
+        0.8187,
+        0.8877
+      ],
+      "f1_point": 0.3056,
+      "f1_ci95": [
+        0.2808,
+        0.3313
+      ],
+      "statistical_meaningfulness_assessment": "Statistically robust support"
+    },
+    "WebAttack": {
+      "support": 107,
+      "precision_point": 0.3962,
+      "precision_ci95": [
+        0.3226,
+        0.4658
+      ],
+      "recall_point": 0.5888,
+      "recall_ci95": [
+        0.5,
+        0.6778
+      ],
+      "f1_point": 0.4737,
+      "f1_ci95": [
+        0.3968,
+        0.5394
+      ],
+      "statistical_meaningfulness_assessment": "Low statistical power / severe variance (support ~100)"
+    }
+  },
+  "confusion_matrix": {
+    "labels": [
+      "Benign",
+      "Bot",
+      "BruteForce",
+      "DDoS",
+      "DoS",
+      "Infiltration",
+      "PortScan",
+      "WebAttack"
+    ],
+    "matrix": [
+      [
+        344727,
+        87,
+        6,
+        7,
+        71,
+        2,
+        11,
+        73
+      ],
+      [
+        113,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        7,
+        0,
+        1446,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        50,
+        0,
+        0,
+        23368,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        4147,
+        0,
+        0,
+        0,
+        30576,
+        0,
+        1443,
+        22
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        6,
+        0,
+        0
+      ],
+      [
+        57,
+        0,
+        0,
+        0,
+        0,
+        0,
+        333,
+        1
+      ],
+      [
+        43,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        63
+      ]
+    ]
+  },
+  "calibration": {
+    "ece_10bin": 0.012377,
+    "bins": [
+      {
+        "bin_index": 0,
+        "bin_lower": 0.0,
+        "bin_upper": 0.1,
+        "count": 0,
+        "accuracy": null,
+        "confidence": null,
+        "abs_error": 0.0
+      },
+      {
+        "bin_index": 1,
+        "bin_lower": 0.1,
+        "bin_upper": 0.2,
+        "count": 0,
+        "accuracy": null,
+        "confidence": null,
+        "abs_error": 0.0
+      },
+      {
+        "bin_index": 2,
+        "bin_lower": 0.2,
+        "bin_upper": 0.3,
+        "count": 0,
+        "accuracy": null,
+        "confidence": null,
+        "abs_error": 0.0
+      },
+      {
+        "bin_index": 3,
+        "bin_lower": 0.3,
+        "bin_upper": 0.4,
+        "count": 89,
+        "accuracy": 0.179775,
+        "confidence": 0.383403,
+        "abs_error": 0.203627
+      },
+      {
+        "bin_index": 4,
+        "bin_lower": 0.4,
+        "bin_upper": 0.5,
+        "count": 169,
+        "accuracy": 0.301775,
+        "confidence": 0.451974,
+        "abs_error": 0.150199
+      },
+      {
+        "bin_index": 5,
+        "bin_lower": 0.5,
+        "bin_upper": 0.6,
+        "count": 493,
+        "accuracy": 0.507099,
+        "confidence": 0.550001,
+        "abs_error": 0.042901
+      },
+      {
+        "bin_index": 6,
+        "bin_lower": 0.6,
+        "bin_upper": 0.7,
+        "count": 629,
+        "accuracy": 0.553259,
+        "confidence": 0.642485,
+        "abs_error": 0.089226
+      },
+      {
+        "bin_index": 7,
+        "bin_lower": 0.7,
+        "bin_upper": 0.8,
+        "count": 557,
+        "accuracy": 0.394973,
+        "confidence": 0.748595,
+        "abs_error": 0.353622
+      },
+      {
+        "bin_index": 8,
+        "bin_lower": 0.8,
+        "bin_upper": 0.9,
+        "count": 1225,
+        "accuracy": 0.49551,
+        "confidence": 0.855429,
+        "abs_error": 0.359919
+      },
+      {
+        "bin_index": 9,
+        "bin_lower": 0.9,
+        "bin_upper": 1.0,
+        "count": 403499,
+        "accuracy": 0.988917,
+        "confidence": 0.99951,
+        "abs_error": 0.010593
+      }
+    ]
+  },
+  "abstention_analysis": {
+    "0.3": {
+      "threshold": 0.3,
+      "accepted_samples": 406661,
+      "abstained_samples": 0,
+      "abstained_pct": 0.0,
+      "accuracy_on_accepted": 0.9849,
+      "macro_f1_on_accepted": 0.6852
+    },
+    "0.4": {
+      "threshold": 0.4,
+      "accepted_samples": 406572,
+      "abstained_samples": 89,
+      "abstained_pct": 0.02,
+      "accuracy_on_accepted": 0.9851,
+      "macro_f1_on_accepted": 0.6877
+    },
+    "0.5": {
+      "threshold": 0.5,
+      "accepted_samples": 406403,
+      "abstained_samples": 258,
+      "abstained_pct": 0.06,
+      "accuracy_on_accepted": 0.9854,
+      "macro_f1_on_accepted": 0.6914
+    },
+    "0.6": {
+      "threshold": 0.6,
+      "accepted_samples": 405910,
+      "abstained_samples": 751,
+      "abstained_pct": 0.18,
+      "accuracy_on_accepted": 0.9859,
+      "macro_f1_on_accepted": 0.7028
+    },
+    "0.7": {
+      "threshold": 0.7,
+      "accepted_samples": 405281,
+      "abstained_samples": 1380,
+      "abstained_pct": 0.34,
+      "accuracy_on_accepted": 0.9866,
+      "macro_f1_on_accepted": 0.7167
+    },
+    "0.8": {
+      "threshold": 0.8,
+      "accepted_samples": 404724,
+      "abstained_samples": 1937,
+      "abstained_pct": 0.48,
+      "accuracy_on_accepted": 0.9874,
+      "macro_f1_on_accepted": 0.7199
+    },
+    "0.9": {
+      "threshold": 0.9,
+      "accepted_samples": 403499,
+      "abstained_samples": 3162,
+      "abstained_pct": 0.78,
+      "accuracy_on_accepted": 0.9889,
+      "macro_f1_on_accepted": 0.7202
+    },
+    "0.95": {
+      "threshold": 0.95,
+      "accepted_samples": 402454,
+      "abstained_samples": 4207,
+      "abstained_pct": 1.03,
+      "accuracy_on_accepted": 0.9901,
+      "macro_f1_on_accepted": 0.7214
+    }
+  },
+  "baselines": {
+    "majority_class": {
+      "name": "Majority Class (All Benign)",
+      "accuracy": 0.8483,
+      "macro_f1": 0.1147,
+      "weighted_f1": 0.7787,
+      "attack_miss_rate": 1.0,
+      "benign_false_alarm_rate": 0.0
+    },
+    "isolation_forest": {
+      "name": "Isolation Forest (Trained on Benign)",
+      "binary_precision": 0.912,
+      "binary_recall": 0.3986,
+      "binary_f1": 0.5547
+    },
+    "zscore_filter": {
+      "name": "Statistical Z-Score Filter",
+      "binary_precision": 0.329,
+      "binary_recall": 0.6733,
+      "binary_f1": 0.442
+    },
+    "autoencoder_anomaly": {
+      "name": "Autoencoder Reconstruction Filter",
+      "threshold": 246859.3594,
+      "mean_benign_reconstruction_error": 11488.1064,
+      "mean_attack_reconstruction_error": 4126.6694,
+      "flagged_attacks": 203,
+      "flagged_benign": 1201,
+      "inverted_error_anomaly_note": "CRITICAL AUDIT FINDING: The autoencoder has mean reconstruction error on benign traffic (11,488.1) HIGHER than on attack traffic (4,126.7). Because the autoencoder was trained on only the first 100k benign rows (which has high variance across multi-day traffic), benign test flows from subsequent days produce larger reconstruction error than low-variance attack floods (e.g. DoS Hulk, DDoS). The autoencoder therefore fails as a standalone novelty detector."
+    }
+  },
+  "pr_curves": {
+    "Benign": {
+      "pr_auc": 0.9998,
+      "brier_score": 0.010134,
+      "sample_points": [
+        {
+          "recall": 1.0,
+          "precision": 0.8483
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.8603
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.8707
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.8823
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.8966
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.9113
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.9247
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.9416
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.9594
+        },
+        {
+          "recall": 0.9999,
+          "precision": 0.9688
+        },
+        {
+          "recall": 0.9998,
+          "precision": 0.9769
+        },
+        {
+          "recall": 0.9996,
+          "precision": 0.9841
+        },
+        {
+          "recall": 0.9986,
+          "precision": 0.9898
+        },
+        {
+          "recall": 0.9956,
+          "precision": 0.993
+        },
+        {
+          "recall": 0.9905,
+          "precision": 0.9949
+        },
+        {
+          "recall": 0.984,
+          "precision": 0.9962
+        },
+        {
+          "recall": 0.9758,
+          "precision": 0.9968
+        },
+        {
+          "recall": 0.9656,
+          "precision": 0.9977
+        },
+        {
+          "recall": 0.9453,
+          "precision": 0.9994
+        },
+        {
+          "recall": 0.0,
+          "precision": 1.0
+        }
+      ]
+    },
+    "Bot": {
+      "pr_auc": 0.0033,
+      "brier_score": 0.000481,
+      "sample_points": [
+        {
+          "recall": 1.0,
+          "precision": 0.0003
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0003
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0003
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0004
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0004
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0005
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0005
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0006
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0006
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0007
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0008
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0012
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0014
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0016
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0021
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0027
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0041
+        },
+        {
+          "recall": 0.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 0.0,
+          "precision": 1.0
+        }
+      ]
+    },
+    "BruteForce": {
+      "pr_auc": 0.9999,
+      "brier_score": 2.4e-05,
+      "sample_points": [
+        {
+          "recall": 1.0,
+          "precision": 0.0036
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0039
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0043
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0048
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0052
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0058
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0064
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.007
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0078
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0087
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0099
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0112
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0129
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0152
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0186
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0238
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0331
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0512
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0977
+        },
+        {
+          "recall": 0.0,
+          "precision": 1.0
+        }
+      ]
+    },
+    "DDoS": {
+      "pr_auc": 0.9992,
+      "brier_score": 0.000133,
+      "sample_points": [
+        {
+          "recall": 1.0,
+          "precision": 0.0576
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0616
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0659
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0715
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0786
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0864
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.095
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.104
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1176
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1331
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1507
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1696
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.19
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.2156
+        },
+        {
+          "recall": 0.9996,
+          "precision": 0.2491
+        },
+        {
+          "recall": 0.9993,
+          "precision": 0.2962
+        },
+        {
+          "recall": 0.9991,
+          "precision": 0.3635
+        },
+        {
+          "recall": 0.9988,
+          "precision": 0.4611
+        },
+        {
+          "recall": 0.9988,
+          "precision": 0.6282
+        },
+        {
+          "recall": 0.0,
+          "precision": 1.0
+        }
+      ]
+    },
+    "DoS": {
+      "pr_auc": 0.9898,
+      "brier_score": 0.012709,
+      "sample_points": [
+        {
+          "recall": 1.0,
+          "precision": 0.089
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0965
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1063
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1197
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1301
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.141
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1524
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1662
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.1823
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.2007
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.2219
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.247
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.2785
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.3161
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.3627
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.4295
+        },
+        {
+          "recall": 0.9999,
+          "precision": 0.5209
+        },
+        {
+          "recall": 0.9981,
+          "precision": 0.6789
+        },
+        {
+          "recall": 0.9394,
+          "precision": 0.9398
+        },
+        {
+          "recall": 0.0,
+          "precision": 1.0
+        }
+      ]
+    },
+    "Infiltration": {
+      "pr_auc": 0.8633,
+      "brier_score": 5e-06,
+      "sample_points": [
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0002
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0003
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0006
+        },
+        {
+          "recall": 0.0,
+          "precision": 1.0
+        }
+      ]
+    },
+    "PortScan": {
+      "pr_auc": 0.7679,
+      "brier_score": 0.00321,
+      "sample_points": [
+        {
+          "recall": 1.0,
+          "precision": 0.001
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0011
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0012
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0013
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0015
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0016
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0018
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0021
+        },
+        {
+          "recall": 0.9974,
+          "precision": 0.0023
+        },
+        {
+          "recall": 0.9974,
+          "precision": 0.0026
+        },
+        {
+          "recall": 0.9974,
+          "precision": 0.0029
+        },
+        {
+          "recall": 0.9974,
+          "precision": 0.0033
+        },
+        {
+          "recall": 0.9974,
+          "precision": 0.0037
+        },
+        {
+          "recall": 0.9974,
+          "precision": 0.0044
+        },
+        {
+          "recall": 0.9974,
+          "precision": 0.0053
+        },
+        {
+          "recall": 0.9949,
+          "precision": 0.0065
+        },
+        {
+          "recall": 0.9949,
+          "precision": 0.0084
+        },
+        {
+          "recall": 0.9949,
+          "precision": 0.0123
+        },
+        {
+          "recall": 0.9514,
+          "precision": 0.0246
+        },
+        {
+          "recall": 0.0,
+          "precision": 1.0
+        }
+      ]
+    },
+    "WebAttack": {
+      "pr_auc": 0.4697,
+      "brier_score": 0.000305,
+      "sample_points": [
+        {
+          "recall": 1.0,
+          "precision": 0.0003
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0003
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0003
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0004
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0004
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0005
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0005
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0006
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0007
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0007
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0008
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0009
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0011
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0013
+        },
+        {
+          "recall": 1.0,
+          "precision": 0.0015
+        },
+        {
+          "recall": 0.9065,
+          "precision": 0.0017
+        },
+        {
+          "recall": 0.8972,
+          "precision": 0.0023
+        },
+        {
+          "recall": 0.8972,
+          "precision": 0.0035
+        },
+        {
+          "recall": 0.8785,
+          "precision": 0.0086
+        },
+        {
+          "recall": 0.0,
+          "precision": 1.0
+        }
+      ]
+    }
+  }
+}

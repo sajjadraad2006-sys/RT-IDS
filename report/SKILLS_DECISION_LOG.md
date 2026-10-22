@@ -64,3 +64,38 @@ During the independent auditor fix-pass, the following evaluation of catalog ski
 1. **Citation & DOI Validation**: Evaluated whether to install an external catalog skill vs. writing a dedicated, transparent stdlib verification script. Decision: Built `report/scripts/verify_references.py` using standard library `urllib.request` querying authoritative REST APIs (Crossref `api.crossref.org` and DataCite `api.datacite.org`). No untrusted third-party packages or catalog skills were introduced, ensuring absolute reproducibility and zero supply-chain risk.
 2. **Quality Gates & Broken Link Audit**: Built direct verification scripts (`report/scratch/measure_quality_gates.py`, `report/tests/test_citations.py`) validating HTML DOM integrity, internal anchor resolution, and KaTeX rendering.
 3. **Skill Footprint Constraint**: Maintained strict discipline by installing 0 new skills during the fix-pass, keeping the total installed skills at 6.
+
+---
+
+## 4. Fix-Pass 2 Skills Discovery Matrix (18 Mandatory Queries)
+
+Executed on 2026-10-22 against catalog `rmyndharis/antigravity-skills` (v0.1.11, 307 catalog skills) using `npx @rmyndharis/antigravity-skills search "<query>"`. Raw results captured in `report/results/catalog_search_pass2.json`.
+
+| # | Query | Matches Found | Key Skills Found | Action & Decision Rationale |
+|---|-------|:-------------:|------------------|-----------------------------|
+| 1 | `model evaluation` | 20 | `llm-evaluation`, `threat-modeling-expert` | **Evaluated & Rejected**: Matches focus on LLMs and threat modeling. Evaluation of tabular and autoencoder models requires standard scikit-learn / PyTorch metrics; built custom evaluation script in `report/experiments/exp_candidate_reeval.py`. |
+| 2 | `imbalanced classification` | 0 | None in catalog | **Custom Tooling Built**: No dedicated imbalanced classification skill in catalog. Implemented per-class metrics, macro vs. weighted F1 analysis, and stratified bootstrap sampling directly using scikit-learn. |
+| 3 | `data leakage` | 20 | `data-engineer`, `data-engineering-*` | **Custom Tooling Built**: Catalog skills focus on ETL/data warehouses. Built dataset leakage forensics scripts checking exact/near hash collisions and time/day disjointness. |
+| 4 | `cross-validation` | 20 | `deployment-validation-*`, `application-performance-*` | **Evaluated & Rejected**: Matches are deployment config validators, not statistical cross-validation. Used scikit-learn cross-validation routines directly. |
+| 5 | `calibration` | 0 | None in catalog | **Custom Tooling Built**: No calibration skill in catalog. Implemented 10-bin Expected Calibration Error (ECE), Brier score, and reliability diagram generators directly. |
+| 6 | `experiment tracking` | 6 | `mlops-engineer`, `data-engineering-*` | **Installed `mlops-engineer`**: Applied for experiment artifact versioning, metadata logging schema, and reproducibility tracking. |
+| 7 | `reproducibility` | 0 | None in catalog | **Custom Tooling Built**: Built deterministic experiment runners enforcing seeds, recording environment details, git commit hashes, and raw output JSONs per Truth Rules. |
+| 8 | `benchmark` | 1 | `llm-evaluation` | **Evaluated & Rejected**: LLM-specific. Benchmark suite already implemented in `report/experiments/`. |
+| 9 | `statistics` | 1 | `seo-content-refresher` | **Evaluated & Rejected**: Irrelevant SEO skill matching keyword. Statistical tests and confidence intervals implemented via SciPy/NumPy. |
+| 10 | `bootstrap` | 0 | None in catalog | **Custom Tooling Built**: Implemented non-parametric percentile bootstrap (1,000 resamples) for 95% confidence intervals on tiny classes (Infiltration, WebAttack, Bot). |
+| 11 | `confidence interval` | 1 | `e2e-testing-patterns` | **Evaluated & Rejected**: E2E testing skill matched coincidentally. CI computation built directly into experiment scripts. |
+| 12 | `data validation` | 20 | `data-quality-frameworks`, `data-engineer` | **Installed `data-quality-frameworks`**: Applied for schema integrity verification, manifest checksum audits, and missing/corrupt row assertions on CICIDS2017 CSVs. |
+| 13 | `security audit` | 20 | `security-auditor`, `firmware-analyst` | **Already Installed (`security-auditor`)**: Continued use for threat surface and defensive posture analysis. |
+| 14 | `scientific writing` | 11 | `postmortem-writing`, `angular-migration` | **Evaluated & Rejected**: Unrelated writing skills. Adhering to IEEE thesis guidelines and local `docs-architect` skill. |
+| 15 | `pdf` | 0 | None in catalog | **Custom Tooling Built**: Custom Playwright/Paged.js build pipeline maintained in `report/build.mjs`. |
+| 16 | `report QA` | 2 | `data-storytelling`, `team-collaboration-issue` | **Already Installed (`data-storytelling`)**: Narrative framing and tabular presentation. |
+| 17 | `accessibility` | 7 | `accessibility-compliance-accessibility-audit` | **Installed `accessibility-compliance-accessibility-audit`**: Applied to audit PDF/HTML report contrast, heading hierarchies, table headers, and ARIA labels. |
+| 18 | `link checker` | 4 | `linkerd-patterns`, `kubernetes-architect` | **Evaluated & Rejected**: Matches are service mesh tools. Internal anchor link checker built directly into test suite (`test_citations.py`). |
+
+### Fix-Pass 2 Skills Usage Impact:
+- **`data-quality-frameworks`**: Structured the manifest and CSV integrity verification pipeline in `report/experiments/audit_dataset_provenance.py` to validate types, ranges, non-finite values, and hash fidelity.
+- **`mlops-engineer`**: Standardized experiment outputs (`report/results/*.json`) with explicit metadata schemas, git commit hashes, execution seeds, environment signatures, and execution timers.
+- **`accessibility-compliance-accessibility-audit`**: Guided HTML/PDF structure compliance: ensuring table headers (`<th>`), SVG accessibility titles, color contrast ratios on heatmaps, and RTL directionality for Arabic text.
+- **`data-scientist`** (pre-installed): Guided the design of the day-disjoint split protocol, duplicate-policy sensitivity analysis, train/serve feature skew ablation, and non-parametric bootstrap confidence intervals.
+- **`machine-learning-ops-ml-pipeline`** (pre-installed): Guided the candidate model re-evaluation harness, isolation forest / z-score baseline comparisons, and train/serve skew identification across `live_sniffer.py` and `tailer.py`.
+

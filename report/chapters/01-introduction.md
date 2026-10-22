@@ -210,9 +210,10 @@ This investigation operates under strict methodological and operational boundari
 [STUDENT CONTRIBUTIONS - TO BE FILLED BY CANDIDATE]
 
 *The specific contributions made by the graduate candidate in the execution of this Master's research include:*
-- Design and execution of the 6-tier empirical testing harness evaluating packet sniffing throughput, pipeline inference latency, and memory utilization across varied batch dimensions.
+- Design and execution of the multi-tier empirical testing harness evaluating packet sniffing throughput, pipeline inference latency, and memory utilization across varied batch dimensions.
 - Formulation and verification of the 45-node verified IEEE citation graph and automated reference validation engine.
-- Byte-level static analysis and AST audit of 31,865 Python source lines, 9,682 Python test lines, and 6,917 frontend lines across the repository, identifying critical train/serve skew and socket binding constraints.
+- Byte-level static analysis and AST audit of the complete codebase disaggregated across 299 files: 31,865 Python source lines (27,750 SLOC across 139 files), 9,682 Python test lines (7,756 SLOC across 44 files), 6,917 frontend lines (6,223 SLOC across 13 files), 12,606 documentation and configuration lines (11,816 SLOC across 31 files), 617 automation and operational script lines (513 SLOC across 8 files), and 51,420 dataset/raw fixture lines (49,053 SLOC across 64 files).
+- Independent empirical reproduction and adversarial evaluation of the real CICIDS2017 candidate pipeline (`data/models/candidate_cicids2017/`), executing synthetic-to-real transfer gap measurements, true day-disjoint temporal evaluations, duplicate resolution sensitivity analyses, and train/serve feature skew ablations.
 - Conception and formal modeling of the mechatronic cyber-physical safety interlock framework reconciling network containment with ISO 13849 robotic safety requirements.
 
 ## 1.7 Thesis Outline

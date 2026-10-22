@@ -177,12 +177,14 @@ The trust architecture of the CyberGuard ecosystem is partitioned into three for
 
 ---
 
-## 5.2 Dataset Provenance, Synthetic Fixtures, and Ground Truth
+## 5.2 Dataset Provenance, Dual-Model Architecture, and Ground Truth
 
-A critical challenge in modern network intrusion detection research is the acquisition and calibration of realistic, unbiased training and benchmark data {{cite:ring2019survey,sommer2010outside,arp2022dos}}.
+A critical challenge in modern network intrusion detection research is the acquisition, verification, and calibration of realistic, unbiased training and benchmark data {{cite:ring2019survey,sommer2010outside,arp2022dos}}. In our technical audit of CyberGuard, we identify and rigorously separate two distinct model pipelines present within the repository:
+1. **The Bundled Synthetic Model (`data/models/trained/`):** Shipped with the initial repository release, trained on an artificial parametric 4-class sample fixture and retained exclusively as an in-tree evaluation fixture.
+2. **The Real-Data Candidate Pipeline (`data/models/candidate_cicids2017/`):** Introduced via `scripts/train_cicids2017.py`, trained on the canonical CICIDS2017 benchmark dataset spanning 8 classes, and retained strictly in shadow evaluation mode (`shadow_only_not_promoted, production_approved=false`).
 
-### 5.2.1 Provenance of Bundled Fixture Artifacts
-The shipped CyberGuard repository includes pre-trained model weights under `data/models/trained/` alongside a deterministic evaluation fixture (`data/samples/sample_flows.csv`). To establish the provenance of these assets, we audited the model metadata manifest [`data/models/trained/artifacts.json`](data/models/trained/artifacts.json#L1-L38) [CE-01]:
+### 5.2.1 Provenance of Bundled Synthetic Fixture Artifacts
+The pre-trained model weights under `data/models/trained/` operate alongside a deterministic evaluation fixture (`data/samples/sample_flows.csv`). We audited the model metadata manifest [`data/models/trained/artifacts.json`](data/models/trained/artifacts.json#L1-L38) [CE-01]:
 
 ```json
 {
@@ -195,21 +197,42 @@ The shipped CyberGuard repository includes pre-trained model weights under `data
 }
 ```
 
-The manifest explicitly declares `production_approved = false` and `independent_test_split = false`. Further inspection of [`cyberguard/datasets/generate_sample.py`](cyberguard/datasets/generate_sample.py#L34-L65) [CE-02] reveals that the underlying training and benchmark data was generated via synthetic parametric statistical distributions initialized with a hardcoded pseudorandom seed:
+The manifest explicitly declares `production_approved = false` and `independent_test_split = false`. Inspection of [`cyberguard/datasets/generate_sample.py`](cyberguard/datasets/generate_sample.py#L34-L65) [CE-02] confirms that the underlying fixture was generated via synthetic parametric statistical distributions initialized with a hardcoded pseudorandom seed:
 
 $$\text{Seed} = 42 \quad (\text{numpy.random.seed(42)})$$
 
-The synthetic sample generation logic produces 2,000 flows structured as follows:
+The synthetic generator produces 2,000 flows structured as follows:
 - **Benign Traffic ($N=1,600$, 80.0%):** Flow durations sampled uniformly over $[0.5, 30.0]$ s, packet rates drawn from $\mathcal{N}(50, 15^2)$ pkts/s, inter-arrival times sampled log-normally.
 - **DDoS Floods ($N=200$, 10.0%):** Packet rates drawn from high-intensity distributions $\mathcal{U}(1000, 50000)$ pkts/s, forward inter-arrival time mean $< 100\ \mu\text{s}$, backward packet count collapsed to zero (unidirectional SYN/UDP floods).
 - **PortScan Probing ($N=100$, 5.0%):** Flow durations clamped to micro-windows $[0.001, 0.05]$ s, packet count fixed to $1 \le N_{\text{pkt}} \le 3$, SYN flag set, ACK/FIN absent.
 - **Botnet C2 ($N=100$, 5.0%):** Regularized periodic beaconing flows characterized by low inter-arrival variance ($\sigma_{\text{IAT}} \approx 0$) and fixed byte payloads.
 
-### 5.2.2 The Synthetic-to-Real Domain Gap
-As demonstrated by Sommer and Paxson {{cite:sommer2010outside}} and Arp et al. {{cite:arp2022dos}}, synthetic feature fixtures exhibit fundamental distributional artifacts:
-1. **Vanishing Variance in Feature Subspaces:** In the synthetic generator, features such as `active_mean`, `idle_mean`, and `packet_length_std` are generated with artificial independence, ignoring cross-feature covariance induced by TCP congestion control algorithms (e.g., Cubic, BBR) and bufferbloat dynamics.
-2. **Deterministic Class Separability:** Synthetic class boundaries are separated by wide hyperplanes. Consequently, gradient-boosted decision trees converge to near-zero training loss within 10 boosting iterations, producing misleadingly inflated validation metrics.
-3. **Attempted Acquisition of Real-World Benchmarks:** To measure the synthetic-to-real gap, an automated retrieval harness was developed to download canonical benchmark datasets (CIC-IDS2017 {{cite:sharafaldin2018toward}} and CSE-CIC-IDS2018). In accordance with Truth Rule 2, external network retrieval failed due to enterprise SSL proxy certificate re-encryption (`URLError: CERTIFICATE_VERIFY_FAILED`). Rather than fabricating performance numbers or extrapolating unverified benchmarks, we rigorously isolate our empirical evaluations to the committed deterministic fixture, document the missing real-world distribution as a bounded threat to external validity, and formally analyze the mathematical implications of synthetic overfitting.
+### 5.2.2 Provenance of Real-World CICIDS2017 Dataset Artifacts
+The candidate model pipeline relies on the Canadian Institute for Cybersecurity CICIDS2017 benchmark dataset {{cite:sharafaldin2018toward}}. To establish empirical provenance, we audited the dataset ingestion manifest [`cyberguard/datasets/cicids2017_real_manifest.json`](cyberguard/datasets/cicids2017_real_manifest.json#L1-L125) and executed an independent byte-and-hash audit across all constituent CSV files via `report/experiments/exp_provenance_audit.py`:
+
+1. **Third-Party Mirror Origin:** The manifest declares that all 8 CSV files were retrieved from a Hugging Face mirror repository (`https://huggingface.co/datasets/bencorn/CICIDS2017`). 
+2. **Provenance Meaning of `observed_unb_archive_checksum`:** The manifest records the field `checksum_provenance: "observed_unb_archive_checksum"`. In the repository's download script, this string denotes the SHA-256 digest observed directly from the extracted archive on the Hugging Face mirror. Crucially, the official University of New Brunswick (UNB) repository web portal does not provide direct, machine-verifiable single-file HTTPS SHA-256 manifests for these specific extracted CSV tables without human form interactions. Consequently, cryptographic integrity between this third-party mirror and the original 2017 UNB generation is formally unverified. We state plainly that the experimental data originates from a third-party mirror.
+3. **Recomputed Volume and Integrity Verification:** Our audit verified that all 8 local CSV files match the manifest's expected SHA-256 hashes and byte counts exactly (100.0% match), encompassing 2,830,743 raw rows (2,830,555 non-null rows; 529,918 Monday, 445,909 Tuesday, 692,703 Wednesday, 458,968 Thursday, and 703,245 Friday flows).
+4. **Known Flaws in CICIDS2017:** As documented extensively by Engelen et al. {{cite:engelen2021troubleshooting}}, CICIDS2017 contains severe structural flaws: erroneous flow volume calculations within `CICFlowMeter`, negative flow durations, inverted flow directions, mislabeled attack windows (particularly Web Attacks), and massive feature duplication. These documented deficiencies directly impact downstream model training and evaluation.
+
+### 5.2.3 Dataset Label Mapping and Sanitization
+Raw network captures in CICIDS2017 contain 15 distinct textual labels, several of which exhibit UTF-8 encoding corruption or microscopic sample representation. In [`backend/detection/trainer.py:53-73`](backend/detection/trainer.py#L53-L73) [CE-05], the candidate ingestion engine applies a deterministic label normalization map:
+- **DoS Variants & Heartbleed $\to$ `DoS`:** Combines `DoS slowloris`, `DoS Slowhttptest`, `DoS Hulk`, `DoS GoldenEye`, and `Heartbleed` into a unified `DoS` class.
+- **Web Attack Variants $\to$ `WebAttack`:** Normalizes UTF-8 encoding anomalies (specifically non-breaking hyphen glitches such as `Web Attack \x96 Brute Force`, `Web Attack \x96 XSS`, and `Web Attack \x96 Sql Injection`) into a single `WebAttack` class.
+- **Brute Force & Infiltration:** Combines `FTP-Patator` and `SSH-Patator` into `BruteForce`, and retains `Infiltration`, `Bot`, and `PortScan`.
+- **Target Taxonomy:** The resulting candidate taxonomy comprises exactly 8 discrete classes: `Benign`, `Bot`, `BruteForce`, `DoS`, `Infiltration`, `PortScan`, `WebAttack`, and `Other`.
+
+### 5.2.4 Methodological Decisions in the Candidate Workflow
+Our static code audit of `backend/detection/trainer.py` and `backend/detection/candidate_workflow.py` uncovered four central methodological decisions governing model training and validation:
+
+1. **Decision D1: Silent Resolution of Conflicting Duplicates and Relaxed Promotion Gate:**
+   In earlier iterations of the codebase, `backend/detection/trainer.py` raised an `IntegrityError` if duplicate feature vectors possessed conflicting ground-truth labels. In the current implementation ([`backend/detection/trainer.py:221-254`](backend/detection/trainer.py#L221-L254) [CE-05]), this error check was removed. Conflicting duplicate rows are now silently resolved by first-seen CSV row order. In the real dataset, our re-audit identified 6,132 exact duplicate feature groups with conflicting labels (14,484 rows) and 3,228 near-duplicate groups with conflicting labels (7,688 rows), dropping 733,947 total duplicate rows. Concurrently, the candidate promotion gate `no_exact_or_near_conflicting_label_duplicates` in [`backend/detection/candidate_workflow.py:766-768`](backend/detection/candidate_workflow.py#L766-L768) [CE-43] was relaxed to check only that the train and test row-hash sets are mutually disjoint, rather than verifying the absence of label contradictions in the dataset.
+2. **Decision D2: Within-Session "capture_group" Split Optimism:**
+   Rather than employing a temporal or day-disjoint split, the candidate training pipeline ([`backend/detection/trainer.py:192-195`](backend/detection/trainer.py#L192-L195) [CE-05]) partitions each `(capture_file, class)` stratum into 5 contiguous row-order blocks, holding out the final 20% block for evaluation. This creates a within-session interleaved holdout where the model tests on flows from the same capture sessions on which it was trained. Furthermore, this partitioning assumes that CSV row order corresponds strictly to chronological time, despite `time_range = null` in the manifest.
+3. **Decision D3: Autoencoder Truncation to First 100,000 Benign Rows:**
+   The unsupervised deep PyTorch autoencoder is trained strictly on the first 100,000 benign rows encountered in row order ([`backend/detection/trainer.py:410-415`](backend/detection/trainer.py#L410-L415) [CE-05]), rather than a uniform or stratified sample across the full capture timeline. Because traffic patterns drift across days, this truncation introduces severe temporal bias.
+4. **Decision D4: Train/Serve Feature Skew:**
+   The 32 statistical serving features include `active_mean`, `idle_mean`, and initial TCP window parameters (`init_win_bytes_fwd`, `init_win_bytes_bwd`). In live serving, the project's own packet sniffer ([`cyberguard/detection/live_sniffer.py:234-235`](cyberguard/detection/live_sniffer.py#L234-L235) [CE-04]) hardcodes `active_mean` and `idle_mean` to `0.0`. In the Suricata EVE bridge ([`cyberguard/suricata/tailer.py:111-124`](cyberguard/suricata/tailer.py#L111-L124) [CE-06]), initial window sizes are defaulted to synthetic constants (`64240.0` and `29200.0`), while `active_mean` is approximated as the total flow duration.
 
 ---
 
@@ -218,7 +241,7 @@ As demonstrated by Sommer and Paxson {{cite:sommer2010outside}} and Arp et al. {
 To eliminate ambiguity and ensure reproducibility across heterogeneous test harnesses, we define all evaluation metrics using standard statistical formulations.
 
 ### 5.3.1 Classification Performance Metrics
-Let $\mathcal{C} = \{\text{Benign}, \text{Bot}, \text{DDoS}, \text{PortScan}\}$ denote the discrete set of classes, where $K = |\mathcal{C}| = 4$. For any class $c \in \mathcal{C}$, let $TP_c, FP_c, TN_c, FN_c$ represent true positives, false positives, true negatives, and false negatives, respectively, calculated via one-vs-rest reduction:
+Let $\mathcal{C}$ denote the evaluated class taxonomy: for the bundled fixture model, $K = |\mathcal{C}_{\text{synth}}| = 4$ ($\mathcal{C}_{\text{synth}} = \{\text{Benign}, \text{Bot}, \text{DDoS}, \text{PortScan}\}$); for the candidate real-data pipeline, $K = |\mathcal{C}_{\text{real}}| = 8$ ($\mathcal{C}_{\text{real}} = \{\text{Benign}, \text{Bot}, \text{BruteForce}, \text{DoS}, \text{Infiltration}, \text{PortScan}, \text{WebAttack}, \text{Other}\}$). For any class $c \in \mathcal{C}$, let $TP_c, FP_c, TN_c, FN_c$ represent true positives, false positives, true negatives, and false negatives, respectively, calculated via one-vs-rest reduction:
 
 ```mermaid
 flowchart TD
@@ -260,35 +283,48 @@ The classification metrics are defined as follows:
 - **Per-Class $F_1$-Score ($F_{1,c}$):** The harmonic mean of precision and recall:
   $$F_{1,c} = 2 \cdot \frac{P_c \cdot R_c}{P_c + R_c} = \frac{2 \cdot TP_c}{2 \cdot TP_c + FP_c + FN_c} \tag{5.4}$$
 
-- **Macro-Averaged $F_1$-Score ($F_{1,\text{macro}}$):** Evaluates overall balance across all classes giving equal weight to minority and majority attack vectors:
+- **Macro-Averaged $F_1$-Score ($F_{1,\text{macro}}$):** Evaluates overall balance across all classes, giving equal weight to minority and majority attack vectors:
   $$F_{1,\text{macro}} = \frac{1}{K} \sum_{c \in \mathcal{C}} F_{1,c} \tag{5.5}$$
 
+- **Weighted-Averaged $F_1$-Score ($F_{1,\text{weighted}}$):** Weights per-class scores by their empirical class support $N_c$:
+  $$F_{1,\text{weighted}} = \sum_{c \in \mathcal{C}} \frac{N_c}{N} F_{1,c} \tag{5.6}$$
+  *Critical Methodological Caveat:* In highly imbalanced network datasets where Benign flows account for >80% of all observations, $F_{1,\text{weighted}}$ is dominated by the Benign class. A model that completely fails to detect critical minority attacks can still post a deceptively high Weighted-$F_1$ (>0.98). Therefore, Macro-$F_1$ and Weighted-$F_1$ must be evaluated side-by-side.
+
+- **Attack Miss Rate ($\text{AMR}$):** The fraction of malicious flows falsely classified as Benign:
+  $$\text{AMR} = \frac{\sum_{c \in \text{Attacks}} N_{c \to \text{Benign}}}{\sum_{c \in \text{Attacks}} N_c} \tag{5.7}$$
+
+- **Benign False Alarm Rate ($\text{BFAR}$):** The fraction of benign flows falsely flagged as attacks:
+  $$\text{BFAR} = \frac{\sum_{c \in \text{Attacks}} N_{\text{Benign} \to c}}{N_{\text{Benign}}} \tag{5.8}$$
+
+- **Expected Calibration Error ($\text{ECE}$):** Partitions confidence predictions $\hat{p} \in [0, 1]$ into $M = 10$ equi-width bins $B_m$:
+  $$\text{ECE} = \sum_{m=1}^{M} \frac{|B_m|}{N} \left| \text{acc}(B_m) - \text{conf}(B_m) \right| \tag{5.9}$$
+
 - **Overall Accuracy ($\text{Acc}$):**
-  $$\text{Acc} = \frac{\sum_{c \in \mathcal{C}} TP_c}{\sum_{c \in \mathcal{C}} (TP_c + FN_c)} = \frac{N_{\text{correct}}}{N_{\text{total}}} \tag{5.6}$$
+  $$\text{Acc} = \frac{\sum_{c \in \mathcal{C}} TP_c}{N} \tag{5.10}$$
 
 ### 5.3.2 Latency Percentiles and Throughput
 Network intrusion detection requires strict sub-millisecond to low-millisecond response guarantees to avert buffer overflows and maintain line-rate inspection:
 
 - **Empirical Latency Percentile ($P_k$):** For an ordered sequence of measured latency samples $L = \{l_{(1)}, l_{(2)}, \dots, l_{(N)}\}$ where $l_{(i)} \le l_{(i+1)}$, the $k$-th percentile latency $P_k$ is calculated using linear interpolation:
-  $$q = \frac{k}{100} \cdot (N - 1) + 1, \quad i = \lfloor q \rfloor, \quad \theta = q - i \tag{5.7}$$
-  $$P_k = (1 - \theta) \cdot l_{(i)} + \theta \cdot l_{(i+1)} \tag{5.8}$$
+  $$q = \frac{k}{100} \cdot (N - 1) + 1, \quad i = \lfloor q \rfloor, \quad \theta = q - i \tag{5.11}$$
+  $$P_k = (1 - \theta) \cdot l_{(i)} + \theta \cdot l_{(i+1)} \tag{5.12}$$
   We evaluate $P_{50}$ (median), $P_{90}$, $P_{95}$, and $P_{99}$ (tail latency).
 
 - **Inspection Throughput:** Expressed in processed flows per second ($\text{FPS}$) and raw packets per second ($\text{PPS}$):
-  $$\text{FPS} = \frac{N_{\text{flows}}}{\Delta t_{\text{total}}}, \quad \text{PPS} = \frac{N_{\text{packets}}}{\Delta t_{\text{sniff}}} \tag{5.9}$$
+  $$\text{FPS} = \frac{N_{\text{flows}}}{\Delta t_{\text{total}}}, \quad \text{PPS} = \frac{N_{\text{packets}}}{\Delta t_{\text{sniff}}} \tag{5.13}$$
 
 ### 5.3.3 Autoencoder Anomaly Scoring
 The deep autoencoder comprises an encoder $f_{\theta}: \mathbb{R}^{32} \to \mathbb{R}^8$ and a symmetric decoder $g_{\phi}: \mathbb{R}^8 \to \mathbb{R}^{32}$. For a standardized input vector $\mathbf{x} \in \mathbb{R}^{32}$, the reconstructed vector is:
 
-$$\hat{\mathbf{x}} = g_{\phi}(f_{\theta}(\mathbf{x})) \tag{5.10}$$
+$$\hat{\mathbf{x}} = g_{\phi}(f_{\theta}(\mathbf{x})) \tag{5.14}$$
 
 The anomaly score $E(\mathbf{x})$ is defined as the Mean Squared Error (MSE) across the 32 normalized feature dimensions:
 
-$$E(\mathbf{x}) = \frac{1}{32} \sum_{i=1}^{32} (x_i - \hat{x}_i)^2 \tag{5.11}$$
+$$E(\mathbf{x}) = \frac{1}{32} \sum_{i=1}^{32} (x_i - \hat{x}_i)^2 \tag{5.15}$$
 
 A flow is flagged as an anomaly if its reconstruction error exceeds the calibrated threshold $\tau_{\text{AE}}$:
 
-$$\text{Anomaly}(\mathbf{x}) = \begin{cases} 1, & \text{if } E(\mathbf{x}) > \tau_{\text{AE}} \\ 0, & \text{otherwise} \end{cases} \tag{5.12}$$
+$$\text{Anomaly}(\mathbf{x}) = \begin{cases} 1, & \text{if } E(\mathbf{x}) > \tau_{\text{AE}} \\ 0, & \text{otherwise} \end{cases} \tag{5.16}$$
 
 In the committed model metadata, $\tau_{\text{AE}}$ is set to $0.004597$ [CE-01].
 
@@ -304,27 +340,33 @@ All empirical evaluations were executed on a dedicated local testbed. Table VI s
 
 | Subsystem | Specification / Parameter | Version / Value | Verifiable Source |
 |:---|:---|:---|:---|
-| **Host Processor** | Intel Core i7-13700H (14 cores, 20 threads) | Base 2.4 GHz, Boost 5.0 GHz | Host Architecture |
+| **Host Processor** | AMD64 Family 25 Model 117 Stepping 2 (12 cores) | Base 2.4 GHz, Boost 5.0 GHz | Host Architecture |
 | **System Memory** | DDR5 Synchronous RAM | 16,384 MB (16 GB) | Host Architecture |
-| **Operating System** | Microsoft Windows 11 Enterprise (x86_64) | NT Build 22631 | OS Information |
+| **Operating System** | Microsoft Windows 11 Enterprise (x86_64) | NT Build 26300 | OS Information |
 | **Kernel Subsystem** | Win32 Sockets & WSL2 Linux Subsystem | WinSock2 / Linux 5.15 | OS Architecture |
 | **Python Runtime** | CPython Interpreter (64-bit) | 3.12.10 | `python --version` |
-| **Node.js Runtime** | Node.js JavaScript Engine | v24.19.0 (npm 11.17.0) | `node --version` |
+| **Node.js Runtime** | Node.js JavaScript Engine | v22.13.1 (npm 10.9.2) | `node --version` |
 | **Machine Learning Core** | PyTorch (PyTorch-CUDA / CPU) | 2.6.0+cu126 | PyTorch Manifest |
 | **Gradient Boosting** | XGBoost C++ Optimized Library | 2.1.4 | Python Package Index |
-| **Statistical Framework** | Scikit-Learn | 1.6.1 / 1.9.0 dev | `sklearn.__version__` |
+| **Statistical Framework** | Scikit-Learn | 1.6.1 | `sklearn.__version__` |
 | **Symbolic Mathematics** | SymPy (Propositional Logic) | 1.13.3 | `sympy.__version__` |
 | **Data Processing** | NumPy / Pandas DataFrames | 2.1.3 / 2.2.3 | Python Package Index |
 | **Web Framework** | FastAPI / Uvicorn ASGI Server | 0.115.0 / 0.30.6 | Python Package Index |
 
 ### 5.4.1 Dedicated Experimental Scripts
-To guarantee complete reproducibility without modifying production source code, five independent test harness scripts were engineered under `report/experiments/`:
+To guarantee complete reproducibility without modifying production source code, eleven independent test harness scripts were engineered under `report/experiments/`:
 
 1. **`exp_p3a_pytest.py`:** Collects test items via AST static parsing and executes the full dynamic test suite using `pytest -v --json-report`. Records passed, failed, skipped, and total test counts. Output saved to `report/results/pytest_run.json`.
 2. **`exp_p3b_sniffer.py`:** Unit and behavioral benchmark harness for `LiveFlowSniffer` and `FlowRecord`. Synthesizes TCP handshakes, teardown sequences, RST injections, idle timeouts (5.0 s), micro-window interim evaluations, UDP packet flows, and IPv6 dropping. Benchmarks `process_packet()` across 1,000,000 synthetic frames to measure maximum ingestion throughput (PPS). Output saved to `report/results/sniffer_experiments.json`.
 3. **`exp_p3c_pipeline.py`:** Measures end-to-end inference latency and memory utilization of `CyberGuardPipelineV2` on 2,000 fixture rows across varied batch sizes ($B \in [1, 10, 50, 100, 500, 1000, 2000]$). Computes $P_{50}, P_{90}, P_{95}, P_{99}$ latency, memory deltas via `tracemalloc`, and evaluates the multi-class risk routing contingency matrix. Output saved to `report/results/pipeline_benchmarks.json`.
-4. **`exp_p3d_model_eval.py`:** Evaluates the serialized XGBoost classifier, standard normalizer, statistical detector, and PyTorch autoencoder. Computes multi-class precision, recall, F1, accuracy, and isolates the reconstruction error distributions across all 4 traffic categories to quantify train/serve threshold skew. Output saved to `report/results/model_evaluation_bundled.json`.
+4. **`exp_p3d_model_eval.py`:** Evaluates the serialized bundled XGBoost classifier, standard normalizer, statistical detector, and PyTorch autoencoder. Computes multi-class precision, recall, F1, accuracy, and isolates the reconstruction error distributions across all 4 traffic categories to quantify train/serve threshold skew. Output saved to `report/results/model_evaluation_bundled.json`.
 5. **`exp_p3e_robustness.py`:** Evaluates system behavior under out-of-distribution (OOD) attack labels, malformed input vectors (NaN, Inf, negative durations, out-of-bounds flag counts), formal safety verification rejection gates (blocking localhost/gateways, command injection, critical process kills), and measures classifier sensitivity curves under volumetric DDoS packet rate perturbation ($50,000 \to 100$ pkts/s). Output saved to `report/results/robustness_experiments.json`.
+6. **`exp_provenance_audit.py`:** Validates byte sizes and SHA-256 cryptographic digests of all 8 raw CICIDS2017 CSV files against `cicids2017_real_manifest.json`, recomputes per-file row counts and label distributions, and verifies citation metadata. Output saved to `report/results/dataset_provenance_audit.json`.
+7. **`exp_candidate_reeval.py`:** Re-derives the full evaluation battery for the real-data candidate model (`data/models/candidate_cicids2017/`) using 1,000 non-parametric bootstrap iterations for 95% confidence intervals, 10-bin expected calibration error (ECE), PR curves, abstention analysis, and three baselines (majority class, Isolation Forest, Z-score anomaly detector). Output saved to `report/results/candidate_reevaluation.json`.
+8. **`exp_synthetic_real_gap.py`:** Evaluates the bundled synthetic-trained model on real CICIDS2017 network traffic under aligned label taxonomy to quantify domain transfer degradation. Output saved to `report/results/synthetic_to_real_gap.json`.
+9. **`exp_day_disjoint_split.py`:** Evaluates temporal domain generalization under a strict day-disjoint protocol: models trained on Monday–Wednesday captures are tested against Thursday–Friday captures, isolating known-class accuracy from out-of-distribution unseen attack miss rates. Output saved to `report/results/day_disjoint_experiment.json`.
+10. **`exp_dedup_sensitivity.py`:** Evaluates model sensitivity across three conflicting-label duplicate policies: (i) repository first-wins policy, (ii) dropping all conflicting duplicate groups, and (iii) order-shuffled first-wins across 3 seeds. Output saved to `report/results/dedup_sensitivity_experiment.json`.
+11. **`exp_skew_ablation.py`:** Quantifies train/serve feature skew by evaluating candidate classifier degradation when serving features (`init_win_bytes_fwd/bwd`, `active_mean`, `idle_mean`) are forced to live sniffer defaults (0.0) or Suricata EVE bridge constants, benchmarks retrained models with zeroed features across 3 seeds, and compiles a 32-feature equivalence matrix. Output saved to `report/results/skew_ablation_experiment.json`.
 
 ---
 
@@ -335,6 +377,4 @@ To maintain scientific integrity and prevent experimental variance from biasing 
 1. **Deterministic Execution:** Random seeds for all synthetic packet generators, perturbation steps, and test splits were locked to `seed = 42`.
 2. **Warm-Up Iterations:** In all latency and throughput micro-benchmarks, 100 warm-up iterations were executed prior to metric collection to allow JIT compilation, CPU cache warming, and Python module lazy-import stabilization.
 3. **Garbage Collection Suppression:** Python automatic garbage collection (`gc.disable()`) was temporarily disabled during tight benchmark timing loops to isolate pure algorithmic execution time from runtime collection pauses.
-4. **Confidence Intervals:** Classification metrics derived from finite sample sizes $N$ are reported with 95% Wilson score confidence intervals {{cite:japkowicz2011evaluating}}:
-   $$CI_{95\%} = \frac{\hat{p} + \frac{z^2}{2N} \pm z \sqrt{\frac{\hat{p}(1-\hat{p})}{N} + \frac{z^2}{4N^2}}}{1 + \frac{z^2}{N}} \tag{5.13}$$
-   where $z = 1.95996$ corresponds to the standard normal distribution quantile at $\alpha = 0.05$.
+4. **Statistical Significance and Bootstrapping:** In addition to Wilson score intervals for proportion metrics, all multi-class classification and ablation experiments report 95% bootstrap confidence intervals ($B = 1,000$ iterations) and stochastic runs are repeated across $\ge 3$ distinct seeds reporting mean $\pm$ standard deviation. Output artifacts explicitly flag low-support classes ($N \le 100$) whose metrics lack statistical power.

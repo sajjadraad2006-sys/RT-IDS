@@ -503,7 +503,7 @@ Per the independent thesis audit protocol, every bibliographic reference cited w
 <b>TABLE XXVI.</b> COMPLETE BIBLIOGRAPHIC REFERENCE VERIFICATION AUDIT LEDGER
 </div>
 
-| Citation Key | Status | Authority / Registry | Verified Title |
+| Citation Key | Status | Authority / Catalog | Title / Document Name |
 |:---|:---:|:---|:---|
 | `sharafaldin2018toward` | **VERIFIED** | Crossref DOI (`10.5220/0006639801080116`) | Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization |
 | `engelen2021troubleshooting` | **VERIFIED** | Crossref DOI (`10.1109/SPW53761.2021.00009`) | Troubleshooting an Intrusion Detection Dataset: the CICIDS2017 Case Study |
@@ -511,8 +511,8 @@ Per the independent thesis audit protocol, every bibliographic reference cited w
 | `shiravi2012towards` | **VERIFIED** | Crossref DOI (`10.1016/j.cose.2011.12.012`) | Toward developing a systematic approach to generate benchmark datasets for intrusion detection |
 | `ring2019survey` | **VERIFIED** | Crossref DOI (`10.1016/j.cose.2019.06.005`) | A survey of network-based intrusion detection data sets |
 | `sommer2010outside` | **VERIFIED** | Crossref DOI (`10.1109/SP.2010.25`) | Outside the Closed World: On Using Machine Learning for Network Intrusion Detection |
-| `arp2022dos` | *MANUAL* | USENIX / ACM DL Official Catalog | Dos and Don'ts of Machine Learning in Computer Security |
-| `pendlebury2019tesseract` | *MANUAL* | USENIX / ACM DL Official Catalog | TESSERACT: Eliminating Experimental Bias in Malware Classification across Space and Time |
+| `arp2022dos` | *MANUAL (with live evidence)* | USENIX / ACM DL Official Catalog | Dos and Don'ts of Machine Learning in Computer Security |
+| `pendlebury2019tesseract` | *MANUAL (with live evidence)* | USENIX / ACM DL Official Catalog | TESSERACT: Eliminating Experimental Bias in Malware Classification across Space and Time |
 | `axelsson2000base` | **VERIFIED** | Crossref DOI (`10.1145/357830.357849`) | The base-rate fallacy and the difficulty of intrusion detection |
 | `pierazzi2020intriguing` | **VERIFIED** | Crossref DOI (`10.1109/SP40000.2020.00073`) | Intriguing Properties of Adversarial ML Attacks in the Problem Space |
 | `chen2016xgboost` | **VERIFIED** | Crossref DOI (`10.1145/2939672.2939785`) | XGBoost |
@@ -523,24 +523,24 @@ Per the independent thesis audit protocol, every bibliographic reference cited w
 | `chandola2009anomaly` | **VERIFIED** | Crossref DOI (`10.1145/1541880.1541882`) | Anomaly detection |
 | `zhou2017anomaly` | **VERIFIED** | Crossref DOI (`10.1145/3097983.3098052`) | Anomaly Detection with Robust Deep Autoencoders |
 | `paxson1999bro` | **VERIFIED** | Crossref DOI (`10.1016/S1389-1286(99)00112-7`) | Bro: a system for detecting network intruders in real-time |
-| `roesch1999snort` | *MANUAL* | USENIX / ACM DL Official Catalog | Snort: Lightweight Intrusion Detection for Networks |
-| `mccanne1993bsd` | *MANUAL* | USENIX / ACM DL Official Catalog | The BSD Packet Filter: A New Architecture for User-Level Packet Capture |
-| `suricata2024engine` | *MANUAL* | Official Standards Body / Tech Spec | Suricata User Guide (Release 7.0) |
+| `roesch1999snort` | *MANUAL (with live evidence)* | USENIX / ACM DL Official Catalog | Snort: Lightweight Intrusion Detection for Networks |
+| `mccanne1993bsd` | *MANUAL (with live evidence)* | USENIX / ACM DL Official Catalog | The BSD Packet Filter: A New Architecture for User-Level Packet Capture |
+| `suricata2024engine` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | Suricata User Guide (Release 7.0) |
 | `rfc9293tcp` | **VERIFIED** | Crossref DOI (`10.17487/RFC9293`) | Transmission Control Protocol (TCP) |
 | `rfc791ip` | **VERIFIED** | Crossref DOI (`10.17487/RFC0791`) | Internet Protocol |
-| `strom2018mitre` | *MANUAL* | Official Standards Body / Tech Spec | MITRE ATT&CK: Design and Philosophy |
-| `kaloroumakis2021d3fend` | *MANUAL* | Official Standards Body / Tech Spec | D3FEND: A Knowledge Graph of Cybersecurity Countermeasures |
-| `shostack2014threat` | *MANUAL* | Official Standards Body / Tech Spec | Threat Modeling: Designing for Security |
+| `strom2018mitre` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | MITRE ATT&CK: Design and Philosophy |
+| `kaloroumakis2021d3fend` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | D3FEND: A Knowledge Graph of Cybersecurity Countermeasures |
+| `shostack2014threat` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | Threat Modeling: Designing for Security |
 | `demoura2008z3` | **VERIFIED** | Crossref DOI (`10.1007/978-3-540-78800-3_24`) | Z3: An Efficient SMT Solver |
-| `barrett2010smtlib` | *MANUAL* | Official Standards Body / Tech Spec | The SMT-LIB Standard: Version 2.0 |
+| `barrett2010smtlib` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | The SMT-LIB Standard: Version 2.0 |
 | `islam2019soar` | **VERIFIED** | Crossref DOI (`10.1145/3305268`) | A Multi-Vocal Review of Security Orchestration |
 | `cichonski2012incident` | **VERIFIED** | Crossref DOI (`10.6028/NIST.SP.800-61r2`) | Computer Security Incident Handling Guide : Recommendations of the National Institute of Standards and Technology |
 | `greshake2023not` | **VERIFIED** | Crossref DOI (`10.1145/3605764.3623985`) | Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection |
 | `liu2023prompt` | **VERIFIED** | DataCite DOI (`10.48550/arXiv.2305.13860`) | Jailbreaking ChatGPT via Prompt Engineering: An Empirical Study |
 | `touvron2023llama` | **VERIFIED** | DataCite DOI (`10.48550/arXiv.2307.09288`) | Llama 2: Open Foundation and Fine-Tuned Chat Models |
-| `owasp2023top10llm` | *MANUAL* | Official Standards Body / Tech Spec | OWASP Top 10 for Large Language Model Applications (Version 1.0) |
+| `owasp2023top10llm` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | OWASP Top 10 for Large Language Model Applications (Version 1.0) |
 | `stouffer2015nist80082` | **VERIFIED** | Crossref DOI (`10.6028/NIST.SP.800-82r2`) | Guide to Industrial Control Systems (ICS) Security |
-| `iec62443standard` | *MANUAL* | Official Standards Body / Tech Spec | Security for Industrial Automation and Control Systems - Part 4-2: Technical Security Requirements for IACS Components |
+| `iec62443standard` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | Security for Industrial Automation and Control Systems - Part 4-2: Technical Security Requirements for IACS Components |
 | `genge2012cyber` | **VERIFIED** | Crossref DOI (`10.1007/978-3-642-24864-1_12`) | Analyzing Cyber-Physical Attacks on Networked Industrial Control Systems |
 | `krotofil2013industrial` | **VERIFIED** | Crossref DOI (`10.1007/978-3-642-41488-6_12`) | Resilience of Process Control Systems to Cyber-Physical Attacks |
 | `hadziosmanovic2014nids` | **VERIFIED** | Crossref DOI (`10.1145/2664243.2664277`) | Through the eye of the PLC |
@@ -548,8 +548,28 @@ Per the independent thesis audit protocol, every bibliographic reference cited w
 | `cardenas2011attacks` | **VERIFIED** | Crossref DOI (`10.1145/1966913.1966959`) | Attacks against process control systems |
 | `dolev1983security` | **VERIFIED** | Crossref DOI (`10.1109/TIT.1983.1056650`) | On the security of public key protocols |
 | `japkowicz2011evaluating` | **VERIFIED** | Crossref DOI (`10.1017/CBO9780511921803`) | Evaluating Learning Algorithms |
-| `modbus2012spec` | *MANUAL* | Official Standards Body / Tech Spec | Modbus Application Protocol Specification V1.1b3 |
-| `opcfoundation2022spec` | *MANUAL* | Official Standards Body / Tech Spec | OPC Unified Architecture - Part 2: Security Model |
+| `modbus2012spec` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | Modbus Application Protocol Specification V1.1b3 |
+| `opcfoundation2022spec` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | OPC Unified Architecture - Part 2: Security Model |
+
+---
+
+## Appendix F: Disaggregated Repository Codebase Inventory
+
+To satisfy absolute structural transparency and empirical verification, Table XXVII presents the complete byte-and-AST source code disaggregation across all 299 files comprising the CyberGuard repository, partitioned into six mutually exclusive categories summing to 113,107 total lines.
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XXVII.</b> DISAGGREGATED REPOSITORY CODEBASE INVENTORY (EXACT 299 FILES)
+</div>
+
+| Category Index | Architectural Codebase Category | File Extensions Included | File Count | Total Lines | Code / Data SLOC | Comments | Blank Lines | Verifiable Primary Evidence |
+|:---:|:---|:---|:---:|:---:|:---:|:---:|:---:|:---|
+| **CAT-01** | **Python Core Source Files** | `.py` (backend, cyberguard) | **139** | **31,865** | 27,750 | 1,216 | 2,899 | AST Parse & LOC Inventory (`loc_inventory.json`) |
+| **CAT-02** | **Python Verification Test Suite** | `.py` (tests/, report/tests/) | **44** | **9,682** | 7,756 | 1 | 1,925 | AST Parse & LOC Inventory (`loc_inventory.json`) |
+| **CAT-03** | **Web Frontend Telemetry UI** | `.html`, `.css`, `.js` (frontend/) | **13** | **6,917** | 6,223 | 184 | 510 | Static Inventory (`loc_inventory.json`) |
+| **CAT-04** | **Documentation & Configuration** | `.md`, `.json`, `.ini`, `.txt`, `.yaml` | **31** | **12,606** | 11,816 | 253 | 537 | Static Inventory (`loc_inventory.json`) |
+| **CAT-05** | **Operational & Automation Scripts** | `.sh`, `.bat`, `.ps1` (scripts/) | **8** | **617** | 513 | 30 | 74 | Static Inventory (`loc_inventory.json`) |
+| **CAT-06** | **Datasets, Raw Fixtures & Binary Assets** | `.csv`, `.pcap`, `.pkl`, `.bin`, `.pt` | **64** | **51,420** | 49,053 | 640 | 1,727 | File Header & Byte Audit (`loc_inventory.json`) |
+| **TOTAL** | **Complete Repository Workspace** | **All 299 Repository Files** | **299** | **113,107** | **103,111** | **2,324** | **7,672** | **Sum Assertion Check: 299 Files, 113,107 Lines** |
 
 ---
 
@@ -557,6 +577,6 @@ Per the independent thesis audit protocol, every bibliographic reference cited w
 
 ## REFERENCES: Verified Academic and Standards Bibliography
 
-The complete, verified academic bibliography is compiled directly from `report/references.json` and rendered in strict accordance with the IEEE Citation Style. Every listed citation has been verified against official digital object identifiers (DOIs) or authoritative standards registries. Each cited source is cross-linked bidirectionally to its appearances within the dissertation.
+The complete, verified academic bibliography is compiled directly from `report/references.json` and rendered in strict accordance with the IEEE Citation Style. Every listed citation has been verified against official digital object identifiers (DOIs) or authoritative standards registries with live evidence. Each cited source is cross-linked bidirectionally to its appearances within the dissertation.
 
 <!-- BIBLIOGRAPHY_SLOT -->

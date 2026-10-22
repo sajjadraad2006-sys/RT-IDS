@@ -1,0 +1,276 @@
+{
+  "metadata": {
+    "experiment": "dataset_provenance_audit",
+    "command": "python report/experiments/exp_provenance_audit.py",
+    "timestamp": "2026-10-22T06:57:15.660413+00:00",
+    "git_hash": "77ea255f236af9909619951b48ba69787238a4c4",
+    "duration_seconds": 31.79,
+    "environment": {
+      "os": "Windows",
+      "os_release": "11",
+      "os_version": "10.0.26300",
+      "architecture": "AMD64",
+      "processor": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+      "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "cpu_count": 12
+    }
+  },
+  "summary": {
+    "total_files": 8,
+    "total_raw_rows": 2830743,
+    "all_sha256_matched": true,
+    "all_bytes_matched": true,
+    "all_rows_matched": true,
+    "aggregate_raw_labels": {
+      "BENIGN": 2273097,
+      "Bot": 1966,
+      "DDoS": 128027,
+      "DoS GoldenEye": 10293,
+      "DoS Hulk": 231073,
+      "DoS Slowhttptest": 5499,
+      "DoS slowloris": 5796,
+      "FTP-Patator": 7938,
+      "Heartbleed": 11,
+      "Infiltration": 36,
+      "PortScan": 158930,
+      "SSH-Patator": 5897,
+      "Web Attack \ufffd Brute Force": 1507,
+      "Web Attack \ufffd Sql Injection": 21,
+      "Web Attack \ufffd XSS": 652
+    },
+    "aggregate_canonical_labels": {
+      "Benign": 2273097,
+      "Bot": 1966,
+      "BruteForce": 13835,
+      "DDoS": 128027,
+      "DoS": 252672,
+      "Infiltration": 36,
+      "PortScan": 158930,
+      "WebAttack": 2180
+    },
+    "provenance_statement": "All 8 CSVs match the SHA-256 hashes recorded in cicids2017_real_manifest.json. However, the source_url is a third-party Hugging Face mirror (bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip). The manifest field 'checksum_provenance' is 'observed_unb_archive_checksum', which denotes the hash observed upon unzipping the third-party mirror archive, rather than an officially published cryptographic digest from the University of New Brunswick (UNB) website. Integrity against the original 2017 UNB source files is therefore unverified by digital signature or official published hash."
+  },
+  "files": [
+    {
+      "id": "cicids2017-real-friday-workinghours-afternoon-ddos",
+      "capture_id": "friday-workinghours-afternoon-ddos",
+      "filename": "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+      "rel_path": "cyberguard/datasets/cicids2017_real/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+      "bytes": 77123859,
+      "expected_bytes": 77123859,
+      "bytes_match": true,
+      "sha256": "6ff1580f5f81c0ae28a26f7631721018577f5f7c5e0feac28b795fcfe7b411ee",
+      "expected_sha256": "6ff1580f5f81c0ae28a26f7631721018577f5f7c5e0feac28b795fcfe7b411ee",
+      "sha_match": true,
+      "row_count": 225745,
+      "expected_row_count": 225745,
+      "rows_match": true,
+      "checksum_provenance": "observed_unb_archive_checksum",
+      "publisher": "Canadian Institute for Cybersecurity (CIC), University of New Brunswick",
+      "publisher_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+      "source_url": "https://huggingface.co/datasets/bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip",
+      "raw_labels": {
+        "DDoS": 128027,
+        "BENIGN": 97718
+      },
+      "canonical_labels": {
+        "DDoS": 128027,
+        "Benign": 97718
+      }
+    },
+    {
+      "id": "cicids2017-real-friday-workinghours-afternoon-portscan",
+      "capture_id": "friday-workinghours-afternoon-portscan",
+      "filename": "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
+      "rel_path": "cyberguard/datasets/cicids2017_real/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
+      "bytes": 76906168,
+      "expected_bytes": 76906168,
+      "bytes_match": true,
+      "sha256": "ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b",
+      "expected_sha256": "ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b",
+      "sha_match": true,
+      "row_count": 286467,
+      "expected_row_count": 286467,
+      "rows_match": true,
+      "checksum_provenance": "observed_unb_archive_checksum",
+      "publisher": "Canadian Institute for Cybersecurity (CIC), University of New Brunswick",
+      "publisher_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+      "source_url": "https://huggingface.co/datasets/bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip",
+      "raw_labels": {
+        "PortScan": 158930,
+        "BENIGN": 127537
+      },
+      "canonical_labels": {
+        "PortScan": 158930,
+        "Benign": 127537
+      }
+    },
+    {
+      "id": "cicids2017-real-friday-workinghours-morning",
+      "capture_id": "friday-workinghours-morning",
+      "filename": "Friday-WorkingHours-Morning.pcap_ISCX.csv",
+      "rel_path": "cyberguard/datasets/cicids2017_real/Friday-WorkingHours-Morning.pcap_ISCX.csv",
+      "bytes": 58316725,
+      "expected_bytes": 58316725,
+      "bytes_match": true,
+      "sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000",
+      "expected_sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000",
+      "sha_match": true,
+      "row_count": 191033,
+      "expected_row_count": 191033,
+      "rows_match": true,
+      "checksum_provenance": "observed_unb_archive_checksum",
+      "publisher": "Canadian Institute for Cybersecurity (CIC), University of New Brunswick",
+      "publisher_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+      "source_url": "https://huggingface.co/datasets/bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip",
+      "raw_labels": {
+        "BENIGN": 189067,
+        "Bot": 1966
+      },
+      "canonical_labels": {
+        "Benign": 189067,
+        "Bot": 1966
+      }
+    },
+    {
+      "id": "cicids2017-real-monday-workinghours",
+      "capture_id": "monday-workinghours",
+      "filename": "Monday-WorkingHours.pcap_ISCX.csv",
+      "rel_path": "cyberguard/datasets/cicids2017_real/Monday-WorkingHours.pcap_ISCX.csv",
+      "bytes": 176927918,
+      "expected_bytes": 176927918,
+      "bytes_match": true,
+      "sha256": "852c4beb34eda186f32561fa79df7a0747e92e1a6535b01270820dd9ffe17f34",
+      "expected_sha256": "852c4beb34eda186f32561fa79df7a0747e92e1a6535b01270820dd9ffe17f34",
+      "sha_match": true,
+      "row_count": 529918,
+      "expected_row_count": 529918,
+      "rows_match": true,
+      "checksum_provenance": "observed_unb_archive_checksum",
+      "publisher": "Canadian Institute for Cybersecurity (CIC), University of New Brunswick",
+      "publisher_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+      "source_url": "https://huggingface.co/datasets/bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip",
+      "raw_labels": {
+        "BENIGN": 529918
+      },
+      "canonical_labels": {
+        "Benign": 529918
+      }
+    },
+    {
+      "id": "cicids2017-real-thursday-workinghours-afternoon-infilteration",
+      "capture_id": "thursday-workinghours-afternoon-infilteration",
+      "filename": "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv",
+      "rel_path": "cyberguard/datasets/cicids2017_real/Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv",
+      "bytes": 83102436,
+      "expected_bytes": 83102436,
+      "bytes_match": true,
+      "sha256": "6bcda3857c2504676034e3ea57762d38393cc734cb377a726bd5cb153961b1b5",
+      "expected_sha256": "6bcda3857c2504676034e3ea57762d38393cc734cb377a726bd5cb153961b1b5",
+      "sha_match": true,
+      "row_count": 288602,
+      "expected_row_count": 288602,
+      "rows_match": true,
+      "checksum_provenance": "observed_unb_archive_checksum",
+      "publisher": "Canadian Institute for Cybersecurity (CIC), University of New Brunswick",
+      "publisher_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+      "source_url": "https://huggingface.co/datasets/bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip",
+      "raw_labels": {
+        "BENIGN": 288566,
+        "Infiltration": 36
+      },
+      "canonical_labels": {
+        "Benign": 288566,
+        "Infiltration": 36
+      }
+    },
+    {
+      "id": "cicids2017-real-thursday-workinghours-morning-webattacks",
+      "capture_id": "thursday-workinghours-morning-webattacks",
+      "filename": "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv",
+      "rel_path": "cyberguard/datasets/cicids2017_real/Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv",
+      "bytes": 52023263,
+      "expected_bytes": 52023263,
+      "bytes_match": true,
+      "sha256": "d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "expected_sha256": "d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "sha_match": true,
+      "row_count": 170366,
+      "expected_row_count": 170366,
+      "rows_match": true,
+      "checksum_provenance": "observed_unb_archive_checksum",
+      "publisher": "Canadian Institute for Cybersecurity (CIC), University of New Brunswick",
+      "publisher_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+      "source_url": "https://huggingface.co/datasets/bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip",
+      "raw_labels": {
+        "BENIGN": 168186,
+        "Web Attack \ufffd Brute Force": 1507,
+        "Web Attack \ufffd XSS": 652,
+        "Web Attack \ufffd Sql Injection": 21
+      },
+      "canonical_labels": {
+        "Benign": 168186,
+        "WebAttack": 2180
+      }
+    },
+    {
+      "id": "cicids2017-real-tuesday-workinghours",
+      "capture_id": "tuesday-workinghours",
+      "filename": "Tuesday-WorkingHours.pcap_ISCX.csv",
+      "rel_path": "cyberguard/datasets/cicids2017_real/Tuesday-WorkingHours.pcap_ISCX.csv",
+      "bytes": 135078995,
+      "expected_bytes": 135078995,
+      "bytes_match": true,
+      "sha256": "52b8692ae8c7d2ed04671fe2b98335693c0a92c7ab157d8c8b534d6523080851",
+      "expected_sha256": "52b8692ae8c7d2ed04671fe2b98335693c0a92c7ab157d8c8b534d6523080851",
+      "sha_match": true,
+      "row_count": 445909,
+      "expected_row_count": 445909,
+      "rows_match": true,
+      "checksum_provenance": "observed_unb_archive_checksum",
+      "publisher": "Canadian Institute for Cybersecurity (CIC), University of New Brunswick",
+      "publisher_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+      "source_url": "https://huggingface.co/datasets/bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip",
+      "raw_labels": {
+        "BENIGN": 432074,
+        "FTP-Patator": 7938,
+        "SSH-Patator": 5897
+      },
+      "canonical_labels": {
+        "Benign": 432074,
+        "BruteForce": 13835
+      }
+    },
+    {
+      "id": "cicids2017-real-wednesday-workinghours",
+      "capture_id": "wednesday-workinghours",
+      "filename": "Wednesday-workingHours.pcap_ISCX.csv",
+      "rel_path": "cyberguard/datasets/cicids2017_real/Wednesday-workingHours.pcap_ISCX.csv",
+      "bytes": 225166395,
+      "expected_bytes": 225166395,
+      "bytes_match": true,
+      "sha256": "893c27dc968bf7a8adef1689f90be55ca4a4dc3088fb63d6ff247ac56856df2a",
+      "expected_sha256": "893c27dc968bf7a8adef1689f90be55ca4a4dc3088fb63d6ff247ac56856df2a",
+      "sha_match": true,
+      "row_count": 692703,
+      "expected_row_count": 692703,
+      "rows_match": true,
+      "checksum_provenance": "observed_unb_archive_checksum",
+      "publisher": "Canadian Institute for Cybersecurity (CIC), University of New Brunswick",
+      "publisher_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+      "source_url": "https://huggingface.co/datasets/bencorn/CICIDS2017/resolve/main/csvs/MachineLearningCSV.zip",
+      "raw_labels": {
+        "BENIGN": 440031,
+        "DoS Hulk": 231073,
+        "DoS GoldenEye": 10293,
+        "DoS slowloris": 5796,
+        "DoS Slowhttptest": 5499,
+        "Heartbleed": 11
+      },
+      "canonical_labels": {
+        "Benign": 440031,
+        "DoS": 252672
+      }
+    }
+  ]
+}

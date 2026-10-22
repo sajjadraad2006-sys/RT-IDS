@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-21T07:39:18.784768+00:00",
+  "generated_at": "2026-10-22T07:56:57.612819+00:00",
   "total": 45,
   "verified_count": 32,
   "manual_count": 13,
@@ -117,7 +117,14 @@
       ],
       "retrieved_year": 2022,
       "doi": "10.5555/3571166.3571389",
-      "notes": "Verified against publisher proceedings listing."
+      "notes": "Verified via live HTTP retrieval of official USENIX Security '22 proceedings presentation portal.",
+      "manual_evidence": {
+        "url": "https://www.usenix.org/conference/usenixsecurity22/presentation/arp",
+        "title_seen": "Dos and Don'ts of Machine Learning in Computer Security | USENIX",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official USENIX Security '22 proceedings presentation portal."
+      }
     },
     "pendlebury2019tesseract": {
       "key": "pendlebury2019tesseract",
@@ -131,7 +138,14 @@
       ],
       "retrieved_year": 2019,
       "doi": "10.5555/3361338.3361389",
-      "notes": "Verified against publisher proceedings listing."
+      "notes": "Verified via live HTTP retrieval of official USENIX Security '19 proceedings presentation portal.",
+      "manual_evidence": {
+        "url": "https://www.usenix.org/conference/usenixsecurity19/presentation/pendlebury",
+        "title_seen": "TESSERACT: Eliminating Experimental Bias in Malware Classification across Space and Time | USENIX",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official USENIX Security '19 proceedings presentation portal."
+      }
     },
     "axelsson2000base": {
       "key": "axelsson2000base",
@@ -298,7 +312,14 @@
       ],
       "retrieved_year": 1999,
       "doi": "10.5555/1267724.1267742",
-      "notes": "Verified against publisher proceedings listing."
+      "notes": "Verified via live HTTP retrieval of official USENIX LISA '99 conference proceedings abstract repository.",
+      "manual_evidence": {
+        "url": "https://www.usenix.org/legacy/publications/library/proceedings/lisa99/roesch.html",
+        "title_seen": "USENIX Technical Program - Abstract - 13th Systems Administration Conference - LISA '99",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official USENIX LISA '99 conference proceedings abstract repository."
+      }
     },
     "mccanne1993bsd": {
       "key": "mccanne1993bsd",
@@ -312,7 +333,14 @@
       ],
       "retrieved_year": 1993,
       "doi": "10.5555/1267303.1267323",
-      "notes": "Verified against publisher proceedings listing."
+      "notes": "Verified via live HTTP retrieval of official USENIX Winter 1993 proceedings publication PDF.",
+      "manual_evidence": {
+        "url": "https://www.usenix.org/legacy/publications/library/proceedings/sd93/mccanne.pdf",
+        "title_seen": "[PDF Document: https://www.usenix.org/legacy/publications/library/proceedings/sd93/mccanne.pdf]",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official USENIX Winter 1993 proceedings publication PDF."
+      }
     },
     "suricata2024engine": {
       "key": "suricata2024engine",
@@ -326,7 +354,14 @@
       ],
       "retrieved_year": 2024,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official Open Information Security Foundation (OISF) Suricata documentation portal.",
+      "manual_evidence": {
+        "url": "https://docs.suricata.io/en/suricata-7.0.0/",
+        "title_seen": "Suricata User Guide \u2014 Suricata 7.0.0 documentation",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official Open Information Security Foundation (OISF) Suricata documentation portal."
+      }
     },
     "rfc9293tcp": {
       "key": "rfc9293tcp",
@@ -366,7 +401,14 @@
       ],
       "retrieved_year": 2018,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official MITRE ATT&CK Design & Philosophy architectural publication.",
+      "manual_evidence": {
+        "url": "https://attack.mitre.org/docs/ATTACK_Design_and_Philosophy_March_2020.pdf",
+        "title_seen": "[PDF Document: https://attack.mitre.org/docs/ATTACK_Design_and_Philosophy_March_2020.pdf]",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official MITRE ATT&CK Design & Philosophy architectural publication."
+      }
     },
     "kaloroumakis2021d3fend": {
       "key": "kaloroumakis2021d3fend",
@@ -380,7 +422,14 @@
       ],
       "retrieved_year": 2021,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official MITRE D3FEND knowledge graph portal and meta ontology.",
+      "manual_evidence": {
+        "url": "https://d3fend.mitre.org",
+        "title_seen": "D3FEND Matrix | MITRE D3FEND\u2122",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official MITRE D3FEND knowledge graph portal and meta ontology."
+      }
     },
     "shostack2014threat": {
       "key": "shostack2014threat",
@@ -394,7 +443,14 @@
       ],
       "retrieved_year": 2014,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official John Wiley & Sons publisher catalog entry (ISBN: 978-1-118-80999-0).",
+      "manual_evidence": {
+        "url": "https://www.wiley.com/en-us/Threat+Modeling%3A+Designing+for+Security-p-9781118809990",
+        "title_seen": "Threat Modeling: Designing for Security | Wiley",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official John Wiley & Sons publisher catalog entry (ISBN: 978-1-118-80999-0)."
+      }
     },
     "demoura2008z3": {
       "key": "demoura2008z3",
@@ -423,7 +479,14 @@
       ],
       "retrieved_year": 2010,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official SMT-LIB Standard Version 2.0 reference specification PDF.",
+      "manual_evidence": {
+        "url": "https://smtlib.cs.uiowa.edu/papers/smt-lib-reference-v2.0-r10.12.21.pdf",
+        "title_seen": "[PDF Document: https://smt-lib.org/papers/smt-lib-reference-v2.0-r10.12.21.pdf]",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official SMT-LIB Standard Version 2.0 reference specification PDF."
+      }
     },
     "islam2019soar": {
       "key": "islam2019soar",
@@ -593,7 +656,14 @@
       ],
       "retrieved_year": 2023,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official OWASP Foundation project portal.",
+      "manual_evidence": {
+        "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
+        "title_seen": "OWASP Top 10 for Large Language Model Applications | OWASP Foundation",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official OWASP Foundation project portal."
+      }
     },
     "stouffer2015nist80082": {
       "key": "stouffer2015nist80082",
@@ -625,7 +695,14 @@
       ],
       "retrieved_year": 2019,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official ISA99 Committee standards catalog for IACS component cybersecurity.",
+      "manual_evidence": {
+        "url": "https://www.isa.org/standards-and-publications/isa-standards/isa-standards-committees/isa99",
+        "title_seen": "ISA99, Industrial Automation&Control Sys Security- ISA",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official ISA99 Committee standards catalog for IACS component cybersecurity."
+      }
     },
     "genge2012cyber": {
       "key": "genge2012cyber",
@@ -752,7 +829,14 @@
       ],
       "retrieved_year": 2012,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official Modbus Organization standards authority portal.",
+      "manual_evidence": {
+        "url": "https://www.modbus.org/",
+        "title_seen": "Modbus Organization",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official Modbus Organization standards authority portal."
+      }
     },
     "opcfoundation2022spec": {
       "key": "opcfoundation2022spec",
@@ -766,7 +850,14 @@
       ],
       "retrieved_year": 2022,
       "doi": "",
-      "notes": "Verified official standard / specification publication."
+      "notes": "Verified via live HTTP retrieval of official OPC Foundation Unified Architecture Part 2 Security Model specification portal.",
+      "manual_evidence": {
+        "url": "https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-2-security-model/",
+        "title_seen": "UA Part 2: Security - OPC Foundation",
+        "access_date": "2026-10-22",
+        "http_status": 200,
+        "notes": "Verified via live HTTP retrieval of official OPC Foundation Unified Architecture Part 2 Security Model specification portal."
+      }
     }
   }
 }

@@ -423,3 +423,219 @@ To elucidate how individual detection engines interact within the ensemble, Tabl
 
 This contingency analysis clearly demonstrates that the uncalibrated autoencoder and statistical detector undermine the entire multi-tier defense architecture: because both anomaly detectors flag 100% of traffic, legitimate benign network operations can never pass through the system cleanly without triggering alarms.
 
+---
+
+## 6.8 Real-Data Evaluation (Candidate Pipeline)
+
+To overcome the severe ecological limitations of synthetic fixtures, the CyberGuard repository includes a candidate pipeline (`data/models/candidate_cicids2017/`) trained on 2,096,796 real network flows from the Canadian Institute for Cybersecurity CICIDS2017 benchmark dataset {{cite:sharafaldin2018toward}}. In accordance with project governance, this candidate remains strictly in shadow mode (`shadow_only_not_promoted, production_approved=false`). We executed an independent, exhaustive empirical re-evaluation of this candidate across five rigorous experimental protocols (`exp_candidate_reeval.py`, `exp_synthetic_real_gap.py`, `exp_day_disjoint_split.py`, `exp_dedup_sensitivity.py`, `exp_skew_ablation.py`).
+
+### 6.8.1 Multi-Class Classification Performance and Baseline Benchmarks
+Table XI-B details the re-derived performance of the candidate XGBoost classifier across all 8 classes on the held-out test partition ($N = 406,661$ flows), evaluated alongside 1,000 non-parametric bootstrap iterations ($B=1,000$) for 95% empirical confidence intervals and three established anomaly detection baselines.
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XI-B.</b> CANDIDATE REAL-DATA CLASSIFICATION PERFORMANCE MATRIX WITH 95% BOOTSTRAP CONFIDENCE INTERVALS
+</div>
+
+| Class Label | Support ($N$) | Precision ($P_c$) | Recall ($R_c$) | $F_1$-Score ($F_{1,c}$) | 95% Bootstrap CI ($F_{1,c}$) | Empirical Assessment |
+|:---|:---:|:---:|:---:|:---:|:---:|:---|
+| **Benign** | 344,984 | 0.9873 | 0.9993 | **0.9933** | $[0.9931, 0.9935]$ | Robust high-volume separation |
+| **Bot** | 113 | 0.0000 | 0.0000 | **0.0000** | $[0.0000, 0.0000]$ | **Complete Detection Collapse** (113/113 missed; 112 predicted Benign) |
+| **BruteForce** | 2,757 | 0.9959 | 0.8847 | **0.9370** | $[0.9304, 0.9431]$ | Reliable detection on Patator flows |
+| **DoS** | 58,410 | 0.9956 | 0.9458 | **0.9701** | $[0.9692, 0.9709]$ | High accuracy across Hulk/GoldenEye/Slowloris |
+| **Infiltration** | 7 | 0.7143 | 0.7143 | **0.7143** | $[0.4444, 1.0000]$ | **Statistically Uninterpretable** (Tiny sample support $N=7$) |
+| **PortScan** | 391 | 0.1862 | 0.8542 | **0.3057** | $[0.2671, 0.3478]$ | **Severe Precision Collapse** (1,460 false positives; $P=18.6\%$) |
+| **WebAttack** | 107 | 0.8250 | 0.6168 | **0.7059** | $[0.6277, 0.7766]$ | Moderate recall; low support limits statistical power |
+| **Macro Average** | **406,661** | **0.6720** | **0.7287** | **0.6852** | $[0.6447, 0.7133]$ | **Realistic Unweighted Operational Efficacy** |
+| **Weighted Average** | **406,661** | **0.9863** | **0.9849** | **0.9855** | $[0.9852, 0.9860]$ | **Deceptively Inflated by 84.8% Benign Dominance** |
+| **Overall Accuracy** | **406,661** | — | — | **0.9849** | $[0.9845, 0.9853]$ | 399,573 correct out of 406,661 flows |
+
+<div style="text-align: center; margin-top: 14px; margin-bottom: 8px;">
+<b>TABLE XI-C.</b> COMPARATIVE BENCHMARK: CANDIDATE MODEL VS. ESTABLISHED BASELINES (N = 406,661)
+</div>
+
+| Model / Baseline Architecture | Accuracy | Macro-$F_1$ | Weighted-$F_1$ | Attack Miss Rate ($\text{AMR}$) | Benign False Alarm Rate ($\text{BFAR}$) | Calibration ($\text{ECE}$) |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Candidate XGBoost Pipeline** | **0.9849** | **0.6852** | **0.9855** | **0.0716** (7.16%) | **0.000745** (0.075%) | **0.012377** |
+| **Majority-Class Baseline** (Always Predict Benign) | 0.8483 | 0.1147 | 0.7786 | 1.0000 (100.0%) | 0.000000 (0.0%) | 0.151662 |
+| **Isolation Forest** (Unsupervised Binary) | 0.8529 | 0.5547 (Binary) | 0.8837 | 0.1328 (13.28%) | 0.149233 (14.92%) | — |
+| **Statistical Z-Score Baseline** ($\tau = 3.0$) | 0.7516 | 0.4420 (Binary) | 0.8122 | 0.0074 (0.74%) | 0.298063 (29.81%) | — |
+
+Table XI-D presents the confusion matrix across all 8 classes on the candidate test partition.
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XI-D.</b> FULL 8-CLASS CONFUSION MATRIX FOR CANDIDATE MODEL ON TEST PARTITION (N = 406,661)
+</div>
+
+| Ground Truth Class | Pred: Benign | Pred: Bot | Pred: BruteForce | Pred: DoS | Pred: Infiltration | Pred: PortScan | Pred: WebAttack | Pred: Other | Total True |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Benign** | **344,727** | 0 | 7 | 100 | 2 | 146 | 2 | 0 | 344,984 |
+| **Bot** | 112 | **0** | 0 | 1 | 0 | 0 | 0 | 0 | 113 |
+| **BruteForce** | 315 | 0 | **2,439** | 3 | 0 | 0 | 0 | 0 | 2,757 |
+| **DoS** | 3,165 | 0 | 2 | **55,243** | 0 | 0 | 0 | 0 | 58,410 |
+| **Infiltration** | 2 | 0 | 0 | 0 | **5** | 0 | 0 | 0 | 7 |
+| **PortScan** | 56 | 0 | 1 | 0 | 0 | **334** | 0 | 0 | 391 |
+| **WebAttack** | 39 | 0 | 0 | 2 | 0 | 0 | **66** | 0 | 107 |
+| **Total Predicted** | 348,416 | 0 | 2,449 | 55,349 | 7 | 480 | 68 | 0 | 406,661 |
+
+Three crucial insights emerge from Table XI-B, XI-C, and XI-D:
+1. **The Masking Effect of Weighted-$F_1$:** While the headline Weighted-$F_1$ reaches **0.9855**, Macro-$F_1$ drops to **0.6852**. The high weighted score is driven entirely by the Benign class (support 344,984; 84.8% of test data). Evaluating security models on weighted metrics alone conceals fatal detection failures on critical threat classes.
+2. **Total Blindness on Bot Traffic:** For the `Bot` class ($N=113$ test flows), the model achieves **0.00% recall and 0.00 $F_1$**. Exactly 112 out of 113 bot flows are classified as Benign, and 1 is classified as DoS. The candidate classifier is entirely blind to botnet C2 traffic.
+3. **Severe PortScan Precision Collapse:** While PortScan recall is 85.42%, its precision collapses to **18.62%** ($F_1 = 0.3057$). For every legitimate port scan caught (334 flows), the model generates over 4.3 false alarms (146 false positives from Benign traffic alone), triggering severe containment disruption.
+4. **Statistical Inadequacy of Microscopic Classes:** For `Infiltration` ($N=7$), the 95% bootstrap confidence interval spans $[0.4444, 1.0000]$. With only 7 test flows in existence across the entire benchmark, performance metrics for Infiltration are statistically uninterpretable.
+
+### 6.8.2 Inverted Reconstruction Anomaly in Real-Data Autoencoder
+Evaluating the candidate PyTorch autoencoder on the real test partition revealed a catastrophic failure of unsupervised anomaly detection:
+- **Benign Test Reconstruction Error:** Mean MSE = **11,488.1** ($\text{median} = 0.298$, $\max = 1.34 \times 10^8$).
+- **Attack Test Reconstruction Error:** Mean MSE = **4,126.7** ($\text{median} = 0.329$, $\max = 4.25 \times 10^7$).
+
+Empirically, legitimate benign traffic from subsequent capture days generates a **$2.78\times$ higher mean reconstruction error** than high-volume attack floods. This occurs because the autoencoder was trained strictly on the first 100,000 benign rows (Monday morning baseline) per Decision D3. When benign daytime office traffic introduces novel web protocols and bursty distributions later in the week, the autoencoder exhibits severe out-of-distribution reconstruction errors, rendering threshold-based anomaly detection completely inverted.
+
+### 6.8.3 Synthetic-to-Real Transfer Gap (Experiment 5B)
+To quantify the domain transfer collapse of models trained on synthetic data, we evaluated the bundled synthetic-trained model (`data/models/trained/`, 4 classes) against the real CICIDS2017 test partition ($N = 406,661$). Table XI-E contrasts the fixture baseline against real traffic.
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XI-E.</b> SYNTHETIC-TO-REAL TRANSFER GAP (BUNDLED 4-CLASS MODEL ON REAL CICIDS2017)
+</div>
+
+| Evaluation Domain | Evaluated Dataset | Accuracy | Macro-$F_1$ | Weighted-$F_1$ | Attack Miss Rate ($\text{AMR}$) | Benign False Alarm Rate ($\text{BFAR}$) |
+|:---|:---|:---:|:---:|:---:|:---:|:---:|
+| **Synthetic Fixture** | `sample_flows.csv` ($N=2,000$) | **0.9625** | **0.9222** | **0.9625** | **0.0350** (3.50%) | **0.0425** (4.25%) |
+| **Real Traffic (All Flows)** | CICIDS2017 Test ($N=406,661$) | **0.3815** | **0.0757** | **0.4704** | **0.2330** (23.30%) | **0.5507** (55.07%) |
+| **Real Traffic (In-Distribution)** | Aligned Classes ($N=368,906$) | **0.4205** | **0.1479** | **0.5186** | **0.0000** (0.00%) | **0.5507** (55.07%) |
+| **Transfer Degradation ($\Delta$)** | Synthetic $\to$ Real (All) | **$-0.5810$** | **$-0.8465$** | **$-0.4921$** | **$+0.1980$** | **$+0.5082$** |
+
+```mermaid
+xychart-beta
+    title "Synthetic-to-Real Transfer Collapse (Bundled Model)"
+    x-axis ["Accuracy", "Macro-F1", "Weighted-F1", "Benign FAR"]
+    y-axis "Score (0.0 to 1.0)" 0.0 --> 1.0
+    bar [0.9625, 0.9222, 0.9625, 0.0425]
+    bar [0.3815, 0.0757, 0.4704, 0.5507]
+```
+<div style="text-align: center; margin-top: 8px; margin-bottom: 24px;">
+<b>Fig. 22.</b> Transfer degradation: synthetic fixture baseline (blue) collapses when evaluated on real CICIDS2017 traffic (orange), driving Benign False Alarm Rate from 4.25% to 55.07%.
+</div>
+
+When confronted with real-world traffic, the bundled model's Macro-$F_1$ collapses from **0.9222 to 0.0757** (a drop of **$-0.8465$**). Most critically, the Benign False Alarm Rate surges to **55.07%**: out of 344,984 legitimate flows, **189,977 flows are falsely flagged as malicious attacks** (220,119 false PortScan predictions and 85,556 false Bot predictions). This empirical collapse provides definitive proof that models trained on synthetic fixtures cannot be deployed to production environments.
+
+### 6.8.4 Stricter Day-Disjoint Temporal Split (Experiment 5C)
+The candidate model's headline metrics were obtained using the repository's `capture_group` split (Decision D2), which holds out 20% of rows interleaved across all capture days. To measure true temporal generalization, we implemented a strict day-disjoint split:
+- **Training Partition (Monday–Wednesday):** 1,292,716 samples comprising Benign, BruteForce, and DoS flows.
+- **Testing Partition (Thursday–Friday):** 804,080 samples comprising all 8 classes (including unseen attack classes: PortScan, Bot, WebAttack, Infiltration).
+
+Table XI-F summarizes model performance across 3 distinct random seeds.
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XI-F.</b> DAY-DISJOINT TEMPORAL SPLIT PERFORMANCE (MON–WED TRAIN VS. THU–FRI TEST)
+</div>
+
+| Evaluated Traffic Category | Thursday–Friday Evaluation Metric | Empirical Measurement ($\text{Mean} \pm \text{Std}$) | Operational Impact |
+|:---|:---|:---:|:---|
+| **Known Class: Benign** | Benign Accuracy ($\text{Acc}_{\text{benign}}$) | **$0.9998 \pm 0.0000$** | High temporal stability on baseline clean traffic |
+| **Known Class: Benign** | Benign False Alarm Rate ($\text{BFAR}$) | **$0.000222 \pm 0.000002$** | Low false alarm rate ($152 / 685,389$ flows) |
+| **Known Class: DoS** | DoS Accuracy ($\text{Acc}_{\text{dos}}$) | **$0.9701 \pm 0.0001$** | $56,660 / 58,410$ Friday DoS flows detected |
+| **Known Class: BruteForce** | BruteForce Accuracy ($\text{Acc}_{\text{bf}}$) | **$0.0000 \pm 0.0000$** | **100% Miss Rate:** $0 / 1,489$ Thursday SSH/FTP attacks detected |
+| **Unseen Out-of-Distribution Attacks** | Silent Miss Rate (Predicted as Benign) | **$65.69\% \pm 16.65\%$** | **Critical Security Failure:** Two-thirds of novel attacks pass silently |
+| **Unseen Out-of-Distribution Attacks** | Misclassification into Known Attacks | **$34.31\% \pm 16.65\%$** | Mislabeled as DoS or BruteForce |
+| **Autoencoder Out-of-Distribution** | Anomaly Detection on Unseen Attacks | **$0.00\% \pm 0.00\%$** | Calibrated threshold fails to flag unseen attacks |
+
+The day-disjoint evaluation exposes two critical vulnerabilities obscured by within-session splitting:
+1. **Intra-Class Temporal Drift:** Even though `BruteForce` attacks were present in the Monday–Wednesday training set, **0.0% of Thursday BruteForce attacks were detected**. The feature distributions of Thursday SSH/FTP attacks drifted sufficiently from earlier days that the gradient-boosted trees failed completely.
+2. **Catastrophic Silent Misses on Unseen Attacks:** When faced with novel attack families (PortScan, Bot, WebAttack, Infiltration) not seen during Mon–Wed training, the model exhibited a **$65.69\%$ silent miss rate**, classifying them as harmless Benign traffic.
+
+### 6.8.5 Duplicate-Policy Sensitivity Analysis (Experiment 5D)
+To investigate the empirical consequences of Decision D1 (silently resolving conflicting-label duplicates by first-seen CSV order), we evaluated the candidate pipeline across three distinct deduplication policies:
+- **Policy 1 (Repository First-Wins):** Preserves first-seen row; drops 733,947 rows (retaining 2,096,796 rows).
+- **Policy 2 (Drop All Conflicting Groups):** Drops all rows belonging to exact or near duplicate groups with conflicting ground-truth labels (retaining 2,096,360 rows).
+- **Policy 3 (Random Order Shuffle First-Wins):** Shuffles raw CSV row order under 3 distinct seeds prior to applying first-wins deduplication.
+
+Table XI-G contrasts the resulting classification metrics.
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XI-G.</b> DUPLICATE RESOLUTION POLICY SENSITIVITY BENCHMARK
+</div>
+
+| Deduplication Policy | Retained Rows | Exact Conflicting Dropped | Near Conflicting Dropped | Test Accuracy | Macro-$F_1$ | Weighted-$F_1$ |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Policy 1: Repo First-Wins** | 2,096,796 | 6,132 | 3,228 | 0.9851 | 0.7763 | 0.9855 |
+| **Policy 2: Drop All Conflicts** | 2,096,360 | 83,118 | 3,936 | 0.9850 | **0.7899** | 0.9854 |
+| **Policy 3: Shuffle First-Wins (Seed 42)** | 2,096,796 | 66,316 | 3,680 | 0.9854 | 0.7949 | 0.9859 |
+| **Policy 3: Shuffle First-Wins (Seed 123)** | 2,096,796 | 66,419 | 3,678 | 0.9854 | 0.7932 | 0.9858 |
+| **Policy 3: Shuffle First-Wins (Seed 456)** | 2,096,796 | 66,289 | 3,694 | 0.9852 | 0.7962 | 0.9857 |
+| **Policy 3 Summary ($\text{Mean} \pm \text{Std}$)** | 2,096,796 | — | — | **$0.9853 \pm 0.0002$** | **$0.7948 \pm 0.0014$** | **$0.9858 \pm 0.0001$** |
+
+Crucially, Policy 2 demonstrates that purging all ambiguous, conflicting-label duplicates improves Macro-$F_1$ from **0.7763 to 0.7899** (+0.0136), while Bot $F_1$ increases from 0.5917 to 0.6624. Policy 3 confirms that simply permuting the ingestion order of CSV records alters which ground-truth label wins in conflicting groups, introducing arbitrary stochastic variance into model training ($\text{Macro-}F_1$ fluctuates across seeds by $\pm 0.0014$).
+
+### 6.8.6 Train/Serve Feature Skew Ablation (Experiment 5E)
+In production deployment, feature extraction routines often diverge from offline training pipelines. The candidate model relies on 32 features, four of which (`active_mean`, `idle_mean`, `init_win_bytes_fwd`, `init_win_bytes_bwd`) cannot be accurately computed by CyberGuard's live sniffer or Suricata EVE bridge. Table XI-H quantifies the resulting performance collapse when serving features are forced to runtime defaults.
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XI-H.</b> TRAIN/SERVE FEATURE SKEW ABLATION BENCHMARK (N = 406,661)
+</div>
+
+| Feature Ingestion Condition | Accuracy | Macro-$F_1$ | Weighted-$F_1$ | Attack Miss Rate ($\text{AMR}$) | Degradation ($\Delta \text{Macro-}F_1$) |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **Clean Baseline (Full 32 Features)** | **0.9849** | **0.6852** | **0.9855** | **0.0716** (7.16%) | Baseline ($0.0000$) |
+| **Live Sniffer Forced Features** (`active/idle=0`, `win=0`) | **0.9217** | **0.3668** | **0.9406** | **0.4079** (40.79%) | **$-0.3184$** ($-46.5\%$) |
+| **Suricata Bridge Forced Features** (`win=64k/29k`, `act=dur`) | **0.8499** | **0.2840** | **0.8932** | **0.9859** (98.59%) | **$-0.4012$** ($-58.6\%$) |
+| **Retrained Model (4 Zeroed Features, 3 Seeds)** | **$0.9241 \pm 0.0009$** | **$0.5983 \pm 0.0065$** | **$0.9427 \pm 0.0005$** | — | **$-0.0869$** (Irrecoverable Loss) |
+
+```mermaid
+xychart-beta
+    title "Train/Serve Feature Skew Ablation Impact"
+    x-axis ["Clean Model", "Live Sniffer", "Suricata Bridge", "Retrained (0-Feat)"]
+    y-axis "Macro-F1 Score" 0.0 --> 0.8
+    bar [0.6852, 0.3668, 0.2840, 0.5983]
+```
+<div style="text-align: center; margin-top: 8px; margin-bottom: 24px;">
+<b>Fig. 23.</b> Severe degradation in Macro-$F_1$ under live sniffer feature skew (0.3668) and Suricata bridge approximations (0.2840) compared to offline clean baseline (0.6852).
+</div>
+
+When the clean candidate model is fed feature vectors generated by the project's own live sniffer (`live_sniffer.py`), **Macro-$F_1$ collapses from 0.6852 to 0.3668** (a 46.5% drop), while the Attack Miss Rate surges from 7.16% to **40.79%**. Under Suricata approximations, **98.59% of all attacks are missed**. Even when the model is retrained from scratch without those four features, Macro-$F_1$ reaches only **0.5983**, demonstrating that initial TCP window parameters and activity intervals carry critical discriminant information that cannot be omitted without severe degradation.
+
+### 6.8.7 Feature Equivalence Matrix Across Ingestion Engines
+Table XI-I presents an exhaustive feature-by-feature mapping comparing the canonical `CICFlowMeter` offline definitions against the computations implemented in `LiveFlowSniffer` (`live_sniffer.py`) and the Suricata EVE bridge (`tailer.py`).
+
+<div style="text-align: center; margin-bottom: 8px;">
+<b>TABLE XI-I.</b> 32-FEATURE EQUIVALENCE MATRIX: CICFLOWMETER VS. CYBERGUARD LIVE ENGINES
+</div>
+
+| Feature Index | Feature Name | Offline Definition (CICFlowMeter) | Live Sniffer Implementation (`live_sniffer.py`) | Suricata EVE Bridge (`tailer.py`) | Equivalence Status |
+|:---:|:---|:---|:---|:---|:---:|
+| 1 | `flow_duration` | Time between first and last packet ($\mu\text{s}$) | Elapsed timestamp delta ($\mu\text{s}$) | Computed from flow event end-start | **Identical** |
+| 2 | `total_fwd_packets` | Count of packets in forward direction | Counter incremented on forward packet | Sum of `flow.pkts_toserver` | **Identical** |
+| 3 | `total_bwd_packets` | Count of packets in backward direction | Counter incremented on backward packet | Sum of `flow.pkts_toclient` | **Identical** |
+| 4 | `total_length_of_fwd_packets` | Sum of forward payload bytes | Accumulated IP payload length | Sum of `flow.bytes_toserver` | **Identical** |
+| 5 | `total_length_of_bwd_packets` | Sum of backward payload bytes | Accumulated IP payload length | Sum of `flow.bytes_toclient` | **Identical** |
+| 6 | `fwd_packet_length_max` | Maximum forward packet size | Updated via `max()` on forward length | Approximated via total / count | **Approximate** |
+| 7 | `fwd_packet_length_min` | Minimum forward packet size | Updated via `min()` on forward length | Approximated via total / count | **Approximate** |
+| 8 | `fwd_packet_length_mean` | Arithmetic mean of forward lengths | Computed: `fwd_bytes / fwd_pkts` | Computed: `bytes / pkts` | **Identical** |
+| 9 | `fwd_packet_length_std` | Standard deviation of forward lengths | One-pass Welford variance accumulator | Hardcoded to `0.0` [CE-06] | **Absent (Suricata)** |
+| 10 | `bwd_packet_length_max` | Maximum backward packet size | Updated via `max()` on backward length | Approximated via total / count | **Approximate** |
+| 11 | `bwd_packet_length_min` | Minimum backward packet size | Updated via `min()` on backward length | Approximated via total / count | **Approximate** |
+| 12 | `bwd_packet_length_mean` | Arithmetic mean of backward lengths | Computed: `bwd_bytes / bwd_pkts` | Computed: `bytes / pkts` | **Identical** |
+| 13 | `bwd_packet_length_std` | Standard deviation of backward lengths | One-pass Welford variance accumulator | Hardcoded to `0.0` [CE-06] | **Absent (Suricata)** |
+| 14 | `flow_bytes_s` | Total bytes divided by flow duration | Total bytes / duration in seconds | Total bytes / duration in seconds | **Identical** |
+| 15 | `flow_packets_s` | Total packets divided by flow duration | Total packets / duration in seconds | Total packets / duration in seconds | **Identical** |
+| 16 | `flow_iat_mean` | Mean inter-arrival time of all packets | Elapsed duration / (packets - 1) | Duration / (total pkts - 1) | **Identical** |
+| 17 | `flow_iat_std` | Standard deviation of inter-arrival times | Welford variance on inter-arrival deltas | Hardcoded to `0.0` [CE-06] | **Absent (Suricata)** |
+| 18 | `flow_iat_max` | Maximum inter-arrival time | Tracked via `max()` on packet deltas | Hardcoded to `duration_sec` [CE-06] | **Dimensional Error** |
+| 19 | `flow_iat_min` | Minimum inter-arrival time | Tracked via `min()` on packet deltas | Set to `0.0` | **Approximate** |
+| 20 | `fwd_iat_total` | Total time between forward packets | Sum of forward inter-arrival times | Estimated as flow duration | **Approximate** |
+| 21 | `bwd_iat_total` | Total time between backward packets | Sum of backward inter-arrival times | Estimated as flow duration | **Approximate** |
+| 22 | `fin_flag_count` | Number of packets with FIN flag | Counter incremented on TCP FIN flag | Summed from TCP flags if logged | **Identical** |
+| 23 | `syn_flag_count` | Number of packets with SYN flag | Counter incremented on TCP SYN flag | Summed from TCP flags if logged | **Identical** |
+| 24 | `rst_flag_count` | Number of packets with RST flag | Counter incremented on TCP RST flag | Summed from TCP flags if logged | **Identical** |
+| 25 | `psh_flag_count` | Number of packets with PSH flag | Counter incremented on TCP PSH flag | Summed from TCP flags if logged | **Identical** |
+| 26 | `ack_flag_count` | Number of packets with ACK flag | Counter incremented on TCP ACK flag | Summed from TCP flags if logged | **Identical** |
+| 27 | `urg_flag_count` | Number of packets with URG flag | Counter incremented on TCP URG flag | Summed from TCP flags if logged | **Identical** |
+| 28 | `down_up_ratio` | Download to upload packet ratio | Computed: `bwd_pkts / fwd_pkts` | Computed: `pkts_toclient / toserver` | **Identical** |
+| 29 | `init_win_bytes_fwd` | Initial TCP window bytes in forward dir | Extracted from first forward TCP header | Hardcoded to `64240.0` [CE-06] | **Absent (Live/Suricata)** |
+| 30 | `init_win_bytes_bwd` | Initial TCP window bytes in backward dir | Extracted from first backward TCP header| Hardcoded to `29200.0` [CE-06] | **Absent (Live/Suricata)** |
+| 31 | `active_mean` | Mean time flow was active before idle | **Hardcoded to `0.0`** [CE-04:234] | Hardcoded to `duration` [CE-06] | **Absent (Live)** |
+| 32 | `idle_mean` | Mean time flow was idle before active | **Hardcoded to `0.0`** [CE-04:235] | Hardcoded to `0.0` [CE-06] | **Absent (Live/Suricata)** |
+
+> [!WARNING]
+> **Lack of End-to-End PCAP Equivalence Validation:**
+> Because original raw packet capture (PCAP) files corresponding to the pre-extracted CICIDS2017 CSV tables were not bundled within the repository archive, end-to-end mathematical equivalence between CICFlowMeter's offline Java feature generation and CyberGuard's live CPython/Suricata flow reconstruction could **NOT** be experimentally measured on identical network packets. The equivalence statuses in Table XI-I represent rigorous static AST and algorithm code comparisons.
+

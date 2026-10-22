@@ -7,7 +7,23 @@
 
 ---
 
-## Phase Checklist & Status
+## Phase Checklist & Status (Fix-Pass 2: Real-Data Model Integration)
+
+| Phase | Milestone | Status | Notes / Output |
+|:---:|:---|:---:|:---|
+| **P0** | **Skills Discovery (2B)** | **Completed** | 18 mandatory queries executed against catalog; 3 skills installed (`data-quality-frameworks`, `accessibility-compliance-accessibility-audit`, `mlops-engineer`); `SKILLS_DECISION_LOG.md` updated. |
+| **P1** | **Dataset Provenance & Integrity (4)** | **Completed** | Audited all 8 CSVs (2,830,743 raw rows, 2,830,555 non-null); verified 100% SHA-256 and byte counts against manifest; documented Hugging Face mirror origin and third-party checksums (`report/results/dataset_provenance_audit.json`). |
+| **P2** | **Candidate Re-Evaluation (5A)** | **Completed** | Re-evaluated candidate model ($N=406,661$): Acc 0.9849, Weighted-$F_1$ 0.9855, Macro-$F_1$ 0.6852 [95% CI: 0.6447, 0.7133], AMR 7.16%, BFAR 0.0745%, ECE 0.012377, Bot recall 0.00%, PortScan precision 0.1862, Infiltration support N=7 uninterpretable, baselines evaluated (`report/results/candidate_reevaluation.json`). |
+| **P3** | **Stronger Protocols (5B-5E)** | **Completed** | 5B: Synthetic->Real gap (Acc 0.3815, Macro-$F_1$ 0.0757, BFAR 55.07%); 5C: Day-disjoint split (Mon-Wed train, Thu-Fri test: 65.69% unseen attack miss rate, 100% BruteForce miss); 5D: Dedup sensitivity (Drop-all conflicting Macro-$F_1$ 0.7899 vs repo 0.7763); 5E: Skew ablation (Live sniffer Macro-$F_1$ 0.3668, Suricata bridge Macro-$F_1$ 0.2840). |
+| **P4** | **Document Methodological Decisions (6)** | **Completed** | Documented Decisions D1 (silent conflict resolution & relaxed gate), D2 (within-session row-block split), D3 (first 100k benign autoencoder truncation), D4 (train/serve feature skew) and 8-class label mappings in Ch. 5, 6, 8, 10 with file:line citations. |
+| **P5** | **Residual Defects Fixes (7)** | **Completed** | Defect 1: Verified `candidate_workflow.py:766-768` and all 67 in-repo line citations (0 errors); Defect 2: Partitioned 299 files into 6 categories (113,107 lines), added build assertion; Defect 3: Verified 13 MANUAL references with live evidence (`references_changelog.md`); Defect 4: Audited matching rules; Defect 5: Sanitized all paths and extended tree-wide privacy check; Defect 6: Compiled HTML & PDF. |
+| **P6** | **Rewrite Affected Chapters (8)** | **Completed** | Abstract (EN/AR), Ch. 1, 5, 6, 8, 10, 11 rewritten; added Section 6.8 "Real-Data Evaluation (Candidate Pipeline)" with Tables XI-B through XI-I and Figs. 22-23; updated H1 verdict; added 20 Hostile Examiner Challenges. |
+| **P7** | **Rebuild & Quality Gates (9)** | **Completed** | Recompiled HTML (2,103.6 KB) and PDF (5.33 MB, 105 pages [90-130]); 0 broken internal links (365 checked); 0 KaTeX errors; 0 privacy leaks in HTML, tree, PDF text or metadata; all 14 tests pass. |
+| **P8** | **Final Report Delivery (10)** | **Completed** | Final mission audit message prepared adhering to Truth Rules and candidly reporting all findings. |
+
+---
+
+## Historical Phase Checklist (Fix-Pass 1)
 
 | Phase | Milestone | Status | Notes / Output |
 |:---:|:---|:---:|:---|
@@ -24,17 +40,17 @@
 
 ---
 
-## Real Re-Measured Quality Gates Validation (Fix-Pass Audit)
-- **Target PDF Page Count:** 90–130 A4 pages $\to$ **Achieved: Exactly 94 A4 Pages (4.72 MB)**
+## Real Re-Measured Quality Gates Validation (Fix-Pass 2 Audit)
+- **Target PDF Page Count:** 90–130 A4 pages $\to$ **Achieved: Exactly 105 A4 Pages (5.33 MB)**
 - **Unresolved Citations:** `[]` (0 unresolved)
 - **Unresolved Missing Tags (`[?]`):** `[]` (0 unresolved)
-- **Clickable Internal Citation & CE Links:** 316 active cross-links (**0 broken links** confirmed by programmatic DOM audit)
+- **Clickable Internal Citation & CE Links:** 365 active cross-links (**0 broken links** confirmed by programmatic DOM audit)
 - **KaTeX Equation Errors:** 0 errors
-- **Rendered HTML Tables:** 33 tables (100% parsed)
-- **Mermaid Diagrams & SVGs:** 24 Mermaid diagrams, 14 SVGs
+- **Rendered HTML Tables:** 42 tables (100% parsed)
+- **Mermaid Diagrams & SVGs:** 24 Mermaid diagrams, 14 SVGs, 5 refreshed verification screenshots
 - **Arabic Abstract:** Fully rendered in RTL with connected Arabic typography
-- **Privacy & Portability Violations:** 0 (verified absent of `wwwsa`, `c:\Users`, or `file:///`)
-- **Truth Rules Audit:** 56/56 claims in `report/CLAIMS_LEDGER.md` verified against physical code or raw experiment outputs
+- **Privacy & Portability Violations:** 0 (verified absent of local username, absolute user paths, or absolute file URIs across HTML, report/ tree, PDF text, and PDF metadata)
+- **Truth Rules Audit:** 75/75 claims in `report/CLAIMS_LEDGER.md` verified against physical code or raw experiment outputs in `report/results/`
 
 ---
 
@@ -56,14 +72,15 @@
   - Python test lines: 9,682 (7,756 code lines across 44 files)
   - Frontend (JS, HTML, CSS) lines: 6,917 (6,223 code lines across 13 files)
   - Documentation and configuration lines: 12,606 (11,816 code lines across 31 files)
-  - Other (datasets, raw fixtures, CSVs, samples): 52,037 lines across 56 files
+  - Scripts (Shell, Batch, PowerShell): 617 lines (513 code lines across 8 files)
+  - Datasets & raw fixtures: 51,420 lines (49,053 code/data lines across 64 files)
   - Total: 299 files, 113,107 total lines.
 - Updated English abstract, Arabic abstract, Chapter 1, `PROGRESS.md`, and `CLAIMS_LEDGER.md` (`CLM-001`).
 
 ### Task 3: Portable Links & Privacy Hardening
-- Replaced all absolute Windows paths and `file:///` URLs across chapters, ledger, appendices, scripts, and documentation with clean repo-relative paths (`backend/detection/...`).
+- Replaced all absolute Windows paths and local file URLs across chapters, ledger, appendices, scripts, and documentation with clean repo-relative paths (`backend/detection/...`).
 - Removed username and local workspace paths from report headers and scripts.
-- Implemented automated build gate in `build.mjs` that aborts compilation if `wwwsa`, `c:\Users`, `c:/Users`, or `file:///` appear anywhere in the generated HTML.
+- Implemented automated build gate in `build.mjs` that aborts compilation if local usernames, Windows user directories, or file URI schemes appear anywhere in the generated HTML or report tree.
 
 ### Task 4: Claim Calibration
 - **Sniffer Throughput Calibration:** Explicitly qualified the 718,569 pkt/s figure as a single-threaded in-memory parse/flow-table upper bound on synthetic packets, excluding kernel `recvfrom` syscalls, OS queues, and ML inference. Added Table VIII-B comparing this throughput against Gigabit Ethernet wire rates (48.3% of 64B [1.488 Mpps], 305% of 512B [235 kpps], and 883% of 1500B [81.3 kpps]).

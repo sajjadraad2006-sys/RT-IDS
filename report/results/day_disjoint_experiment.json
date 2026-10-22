@@ -1,0 +1,251 @@
+{
+  "metadata": {
+    "experiment": "day_disjoint_split",
+    "command": "python report/experiments/exp_day_disjoint_split.py",
+    "timestamp": "2026-10-22T08:02:49.661169+00:00",
+    "git_hash": "77ea255f236af9909619951b48ba69787238a4c4",
+    "duration_seconds": 290.33,
+    "environment": {
+      "os": "Windows",
+      "os_release": "11",
+      "os_version": "10.0.26300",
+      "architecture": "AMD64",
+      "processor": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+      "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "cpu_count": 12
+    }
+  },
+  "summary": {
+    "seeds_evaluated": [
+      42,
+      123,
+      456
+    ],
+    "train_days": [
+      "Monday",
+      "Tuesday",
+      "Wednesday"
+    ],
+    "test_days": [
+      "Thursday",
+      "Friday"
+    ],
+    "train_samples": 1292716,
+    "test_samples": 804080,
+    "train_classes": [
+      "Benign",
+      "BruteForce",
+      "DoS"
+    ],
+    "test_classes": [
+      "Benign",
+      "Bot",
+      "DDoS",
+      "Infiltration",
+      "PortScan",
+      "WebAttack"
+    ],
+    "ood_classes": [
+      "Bot",
+      "DDoS",
+      "Infiltration",
+      "PortScan",
+      "WebAttack"
+    ],
+    "metrics_mean_std": {
+      "benign_accuracy": {
+        "mean": 0.9998,
+        "std": 0.0
+      },
+      "benign_false_alarm_rate": {
+        "mean": 0.000222,
+        "std": 2e-06
+      },
+      "ood_silent_miss_rate": {
+        "mean": 0.6569,
+        "std": 0.1665
+      },
+      "ood_predicted_as_known_attack_rate": {
+        "mean": 0.3431,
+        "std": 0.1665
+      }
+    },
+    "realistic_degradation_finding": "When evaluated on a realistic day-disjoint split (training Mon-Wed, testing Thu-Fri), the supervised model encounters 5 attack classes (Bot, DDoS, Infiltration, PortScan, WebAttack) that did not exist in training. Rather than achieving 98-99% accuracy as seen in the repository's within-session split, the supervised classifier silently predicts a substantial fraction of OOD attacks as Benign (silent miss rate), or forces them into arbitrary known attack classes (DoS/BruteForce). Furthermore, Benign false alarms increase due to natural multi-day background drift. This proves that within-session split metrics (capture_group) are highly optimistic due to temporal leakage."
+  },
+  "seed_runs": [
+    {
+      "seed": 42,
+      "duration_seconds": 61.95,
+      "benign_test_accuracy": 0.9998,
+      "benign_false_alarm_rate": 0.000221,
+      "ood_attacks_total": 125342,
+      "ood_silent_miss_rate": 0.4215,
+      "ood_predicted_known_attack_rate": 0.5785,
+      "autoencoder_ood_detection_rate": 0.0073,
+      "autoencoder_benign_far": 0.002611,
+      "ood_per_class_breakdown": {
+        "Bot": {
+          "support": 1087,
+          "predicted_benign_count": 1087,
+          "silent_miss_rate": 1.0,
+          "predicted_known_attack_count": 0,
+          "known_attack_mislabel_rate": 0.0,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "DDoS": {
+          "support": 121292,
+          "predicted_benign_count": 48925,
+          "silent_miss_rate": 0.4034,
+          "predicted_known_attack_count": 72367,
+          "known_attack_mislabel_rate": 0.5966,
+          "autoencoder_flagged_count": 918,
+          "autoencoder_detection_rate": 0.0076
+        },
+        "Infiltration": {
+          "support": 36,
+          "predicted_benign_count": 36,
+          "silent_miss_rate": 1.0,
+          "predicted_known_attack_count": 0,
+          "known_attack_mislabel_rate": 0.0,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "PortScan": {
+          "support": 1922,
+          "predicted_benign_count": 1781,
+          "silent_miss_rate": 0.9266,
+          "predicted_known_attack_count": 141,
+          "known_attack_mislabel_rate": 0.0734,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "WebAttack": {
+          "support": 1005,
+          "predicted_benign_count": 998,
+          "silent_miss_rate": 0.993,
+          "predicted_known_attack_count": 7,
+          "known_attack_mislabel_rate": 0.007,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        }
+      }
+    },
+    {
+      "seed": 123,
+      "duration_seconds": 61.63,
+      "benign_test_accuracy": 0.9998,
+      "benign_false_alarm_rate": 0.000225,
+      "ood_attacks_total": 125342,
+      "ood_silent_miss_rate": 0.7781,
+      "ood_predicted_known_attack_rate": 0.2219,
+      "autoencoder_ood_detection_rate": 0.0073,
+      "autoencoder_benign_far": 0.002611,
+      "ood_per_class_breakdown": {
+        "Bot": {
+          "support": 1087,
+          "predicted_benign_count": 1087,
+          "silent_miss_rate": 1.0,
+          "predicted_known_attack_count": 0,
+          "known_attack_mislabel_rate": 0.0,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "DDoS": {
+          "support": 121292,
+          "predicted_benign_count": 93609,
+          "silent_miss_rate": 0.7718,
+          "predicted_known_attack_count": 27683,
+          "known_attack_mislabel_rate": 0.2282,
+          "autoencoder_flagged_count": 918,
+          "autoencoder_detection_rate": 0.0076
+        },
+        "Infiltration": {
+          "support": 36,
+          "predicted_benign_count": 36,
+          "silent_miss_rate": 1.0,
+          "predicted_known_attack_count": 0,
+          "known_attack_mislabel_rate": 0.0,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "PortScan": {
+          "support": 1922,
+          "predicted_benign_count": 1801,
+          "silent_miss_rate": 0.937,
+          "predicted_known_attack_count": 121,
+          "known_attack_mislabel_rate": 0.063,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "WebAttack": {
+          "support": 1005,
+          "predicted_benign_count": 998,
+          "silent_miss_rate": 0.993,
+          "predicted_known_attack_count": 7,
+          "known_attack_mislabel_rate": 0.007,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        }
+      }
+    },
+    {
+      "seed": 456,
+      "duration_seconds": 62.32,
+      "benign_test_accuracy": 0.9998,
+      "benign_false_alarm_rate": 0.000221,
+      "ood_attacks_total": 125342,
+      "ood_silent_miss_rate": 0.7712,
+      "ood_predicted_known_attack_rate": 0.2288,
+      "autoencoder_ood_detection_rate": 0.0073,
+      "autoencoder_benign_far": 0.002611,
+      "ood_per_class_breakdown": {
+        "Bot": {
+          "support": 1087,
+          "predicted_benign_count": 1087,
+          "silent_miss_rate": 1.0,
+          "predicted_known_attack_count": 0,
+          "known_attack_mislabel_rate": 0.0,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "DDoS": {
+          "support": 121292,
+          "predicted_benign_count": 92745,
+          "silent_miss_rate": 0.7646,
+          "predicted_known_attack_count": 28547,
+          "known_attack_mislabel_rate": 0.2354,
+          "autoencoder_flagged_count": 918,
+          "autoencoder_detection_rate": 0.0076
+        },
+        "Infiltration": {
+          "support": 36,
+          "predicted_benign_count": 36,
+          "silent_miss_rate": 1.0,
+          "predicted_known_attack_count": 0,
+          "known_attack_mislabel_rate": 0.0,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "PortScan": {
+          "support": 1922,
+          "predicted_benign_count": 1790,
+          "silent_miss_rate": 0.9313,
+          "predicted_known_attack_count": 132,
+          "known_attack_mislabel_rate": 0.0687,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        },
+        "WebAttack": {
+          "support": 1005,
+          "predicted_benign_count": 1000,
+          "silent_miss_rate": 0.995,
+          "predicted_known_attack_count": 5,
+          "known_attack_mislabel_rate": 0.005,
+          "autoencoder_flagged_count": 0,
+          "autoencoder_detection_rate": 0.0
+        }
+      }
+    }
+  ]
+}

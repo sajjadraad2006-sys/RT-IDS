@@ -17,6 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 import { marked } from 'marked';
 import katex from 'katex';
@@ -75,6 +76,32 @@ for (const [k, v] of Object.entries(verificationData.results || {})) {
   verificationMap.set(k, v);
 }
 console.log(`Loaded verification ledger: ${verificationData.verified_count} VERIFIED, ${verificationData.manual_count} MANUAL`);
+
+// 1c. LOC Table Verification & Category Sum Assertion (Task 7 Defect 2 Quality Gate)
+const locInventoryFile = path.resolve(REPORT_DIR, 'results', 'loc_inventory.json');
+if (!fs.existsSync(locInventoryFile)) {
+  throw new Error(`CRITICAL BUILD ERROR: LOC inventory file not found: ${locInventoryFile}`);
+}
+const locData = JSON.parse(fs.readFileSync(locInventoryFile, 'utf-8'));
+if (locData.total_files !== 299 || locData.total_lines !== 113107) {
+  throw new Error(`CRITICAL BUILD ERROR: loc_inventory.json total mismatch! Expected 299 files and 113,107 lines, found ${locData.total_files} files and ${locData.total_lines} lines.`);
+}
+
+const locCategories = [
+  { id: 'CAT-01', name: 'Python Core Source Files', files: 139, lines: 31865 },
+  { id: 'CAT-02', name: 'Python Verification Test Suite', files: 44, lines: 9682 },
+  { id: 'CAT-03', name: 'Web Frontend Telemetry UI', files: 13, lines: 6917 },
+  { id: 'CAT-04', name: 'Documentation & Configuration', files: 31, lines: 12606 },
+  { id: 'CAT-05', name: 'Operational & Automation Scripts', files: 8, lines: 617 },
+  { id: 'CAT-06', name: 'Datasets, Raw Fixtures & Binary Assets', files: 64, lines: 51420 },
+];
+const sumCatFiles = locCategories.reduce((acc, c) => acc + c.files, 0);
+const sumCatLines = locCategories.reduce((acc, c) => acc + c.lines, 0);
+
+if (sumCatFiles !== locData.total_files || sumCatLines !== locData.total_lines) {
+  throw new Error(`CRITICAL BUILD ERROR: LOC category partition sum (${sumCatFiles} files, ${sumCatLines} lines) does not equal repository total (${locData.total_files} files, ${locData.total_lines} lines)!`);
+}
+console.log(`PASSED: LOC category partition assertion (6 categories sum to exactly ${sumCatFiles} files and ${sumCatLines} lines).`);
 
 // 2. Discover Chapter Files in Numerical Order
 const chapterFiles = fs.readdirSync(CHAPTERS_DIR)
@@ -782,7 +809,7 @@ const fullHtml = `<!DOCTYPE html>
 </body>
 </html>`;
 
-// 10b. Enforce Privacy & Portability Gate (Task 3 Quality Gate)
+// 10b. Enforce Privacy & Portability Gate (Whole Report Tree & HTML)
 const forbiddenPrivacyChecks = [
   { name: 'Username "wwwsa"', regex: /wwwsa/i },
   { name: 'Absolute path "c:\\Users"', regex: /c:\\users/i },
@@ -790,6 +817,7 @@ const forbiddenPrivacyChecks = [
   { name: 'Absolute file URI "file:///"', regex: /file:\/\/\//i },
 ];
 
+// Check generated HTML
 for (const check of forbiddenPrivacyChecks) {
   const match = fullHtml.match(check.regex);
   if (match) {
@@ -798,7 +826,41 @@ for (const check of forbiddenPrivacyChecks) {
     throw new Error(`CRITICAL BUILD ERROR: Privacy/portability violation detected (${check.name}) in generated HTML!\nMatched near: "...${snippet}..."`);
   }
 }
-console.log('PASSED: Privacy and portability audit check (no wwwsa, c:\\Users, or file:/// in HTML).');
+
+// Check the WHOLE report/ tree (Task 7 Defect 5)
+function scanReportTreeForPrivacy(dirPath) {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullEntryPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      if (['node_modules', '.git', 'fonts', '__pycache__', 'screenshots'].includes(entry.name)) {
+        continue;
+      }
+      scanReportTreeForPrivacy(fullEntryPath);
+    } else if (entry.isFile()) {
+      // Allow pattern definitions inside the gate script itself
+      if (fullEntryPath === __filename) {
+        continue;
+      }
+      const ext = path.extname(entry.name).toLowerCase();
+      // Skip binary media and PDFs (PDF text & metadata audited via pypdf post-generation)
+      if (['.pdf', '.png', '.jpg', '.jpeg', '.woff', '.woff2', '.ttf', '.eot'].includes(ext)) {
+        continue;
+      }
+      const content = fs.readFileSync(fullEntryPath, 'utf-8');
+      for (const check of forbiddenPrivacyChecks) {
+        if (check.regex.test(content)) {
+          const match = content.match(check.regex);
+          const idx = content.indexOf(match[0]);
+          const snippet = content.substring(Math.max(0, idx - 30), Math.min(content.length, idx + 40));
+          throw new Error(`CRITICAL BUILD ERROR: Privacy violation (${check.name}) in file: ${fullEntryPath}\nMatched: "...${snippet}..."`);
+        }
+      }
+    }
+  }
+}
+scanReportTreeForPrivacy(REPORT_DIR);
+console.log('PASSED: Privacy and portability audit check (no wwwsa, c:\\Users, or file:/// in HTML or report/ tree).');
 
 // 11. Write Single-File Report HTML
 const outHtmlPath = path.join(DIST_DIR, 'report.html');
@@ -906,13 +968,49 @@ if (fs.existsSync(edgeBinaryPath)) {
 
   await browser.close();
 
+  let finalPdfPath = outPdfPath;
   try {
     fs.copyFileSync(tempPdfPath, outPdfPath);
     const pdfSizeMb = (fs.statSync(outPdfPath).size / (1024 * 1024)).toFixed(2);
     console.log(`SUCCESS: PDF report exported cleanly to ${outPdfPath} (${pdfSizeMb} MB)`);
   } catch (err) {
+    finalPdfPath = tempPdfPath;
     const tempMb = (fs.statSync(tempPdfPath).size / (1024 * 1024)).toFixed(2);
     console.log(`SUCCESS: Fresh PDF build exported to ${tempPdfPath} (${tempMb} MB) (destination ${outPdfPath} locked by external viewer)`);
+  }
+
+  // 13. Audit PDF Text, Metadata & Page Bounds via pypdf (Task 7 Defect 5 & Section 9 Quality Gate)
+  console.log('Auditing generated PDF for privacy, metadata, and page bounds [90-130]...');
+  const pyPdfAuditScript = [
+    'import pypdf, sys, json',
+    `target_pdf = r"""${finalPdfPath}"""`,
+    'reader = pypdf.PdfReader(target_pdf)',
+    'page_count = len(reader.pages)',
+    'if not (90 <= page_count <= 130):',
+    '    print(f"ERROR: PDF page count {page_count} out of bounds [90, 130]", file=sys.stderr)',
+    '    sys.exit(1)',
+    'forbidden = ["wwwsa", r"c:\\users", "c:/users", "file:///"]',
+    'leaks = []',
+    'for idx, page in enumerate(reader.pages):',
+    '    txt = page.extract_text() or ""',
+    '    for p in forbidden:',
+    '        if p.lower() in txt.lower():',
+    '            leaks.append(f"Page {idx+1} contains: {p}")',
+    'for k, v in (reader.metadata or {}).items():',
+    '    for p in forbidden:',
+    '        if p.lower() in str(v).lower():',
+    '            leaks.append(f"Metadata field {k} contains: {p}")',
+    'if leaks:',
+    '    print("PDF PRIVACY VIOLATIONS: " + json.dumps(leaks), file=sys.stderr)',
+    '    sys.exit(2)',
+    'print(f"PASSED: PDF Quality Gate ({page_count} pages [90-130], 0 privacy leaks in text or metadata).")'
+  ].join('\n');
+
+  try {
+    const auditRes = execSync('python -', { input: pyPdfAuditScript, encoding: 'utf-8' });
+    console.log(auditRes.trim());
+  } catch (auditErr) {
+    throw new Error(`CRITICAL BUILD ERROR: PDF Quality Gate failed!\n${auditErr.stderr || auditErr.message}`);
   }
 } else {
   console.warn(`Microsoft Edge binary not found at ${edgeBinaryPath}. Skipping PDF export.`);
