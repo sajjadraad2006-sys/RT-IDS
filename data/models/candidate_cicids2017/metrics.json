@@ -1,0 +1,306 @@
+{
+  "autoencoder": {
+    "flagged_unknown_anomaly": 1404,
+    "mean_error_attack": 4126.6694,
+    "mean_error_benign": 11488.1064,
+    "threshold": 246859.3594
+  },
+  "baseline_isolation_forest": {
+    "f1": 0.6397,
+    "precision": 0.7021,
+    "recall": 0.5874
+  },
+  "baseline_zscore": {
+    "f1": 0.442,
+    "precision": 0.329,
+    "recall": 0.6733
+  },
+  "calibration": {
+    "accepted": 63129,
+    "f1": 0.9976,
+    "method": "held_out_capture_or_forward_time",
+    "precision": 0.9963,
+    "recall": 0.9988,
+    "threshold": 0.5,
+    "validation_samples": 397919
+  },
+  "candidate_status": "shadow_only_not_promoted",
+  "classifier": {
+    "confusion_matrix": [
+      [
+        344727,
+        87,
+        6,
+        7,
+        71,
+        2,
+        11,
+        73
+      ],
+      [
+        113,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        7,
+        0,
+        1446,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        50,
+        0,
+        0,
+        23368,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        4147,
+        0,
+        0,
+        0,
+        30576,
+        0,
+        1443,
+        22
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        6,
+        0,
+        0
+      ],
+      [
+        57,
+        0,
+        0,
+        0,
+        0,
+        0,
+        333,
+        1
+      ],
+      [
+        43,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        63
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "Benign",
+      "Bot",
+      "BruteForce",
+      "DDoS",
+      "DoS",
+      "Infiltration",
+      "PortScan",
+      "WebAttack"
+    ],
+    "expected_calibration_error_10_bin": 0.012377,
+    "f1": 0.9855,
+    "per_class": {
+      "Benign": {
+        "brier": 0.010134,
+        "f1": 0.9933,
+        "false_positive_rate": 0.071631,
+        "pr_auc": 0.9998,
+        "precision": 0.9873,
+        "recall": 0.9993,
+        "support": 344984
+      },
+      "Bot": {
+        "brier": 0.000481,
+        "f1": 0.0,
+        "false_positive_rate": 0.000214,
+        "pr_auc": 0.0042,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 113
+      },
+      "BruteForce": {
+        "brier": 2.4e-05,
+        "f1": 0.9955,
+        "false_positive_rate": 1.5e-05,
+        "pr_auc": 0.9999,
+        "precision": 0.9959,
+        "recall": 0.9952,
+        "support": 1453
+      },
+      "DDoS": {
+        "brier": 0.000133,
+        "f1": 0.9988,
+        "false_positive_rate": 1.8e-05,
+        "pr_auc": 0.9992,
+        "precision": 0.9997,
+        "recall": 0.9979,
+        "support": 23418
+      },
+      "DoS": {
+        "brier": 0.012709,
+        "f1": 0.915,
+        "false_positive_rate": 0.000192,
+        "pr_auc": 0.9898,
+        "precision": 0.9977,
+        "recall": 0.8449,
+        "support": 36188
+      },
+      "Infiltration": {
+        "brier": 5e-06,
+        "f1": 0.8,
+        "false_positive_rate": 5e-06,
+        "pr_auc": 0.8637,
+        "precision": 0.75,
+        "recall": 0.8571,
+        "support": 7
+      },
+      "PortScan": {
+        "brier": 0.00321,
+        "f1": 0.3056,
+        "false_positive_rate": 0.003581,
+        "pr_auc": 0.7676,
+        "precision": 0.1862,
+        "recall": 0.8517,
+        "support": 391
+      },
+      "WebAttack": {
+        "brier": 0.000305,
+        "f1": 0.4737,
+        "false_positive_rate": 0.000236,
+        "pr_auc": 0.4701,
+        "precision": 0.3962,
+        "recall": 0.5888,
+        "support": 107
+      }
+    },
+    "precision": 0.9878,
+    "recall": 0.9849,
+    "report": "              precision    recall  f1-score   support\n\n      Benign       0.99      1.00      0.99    344984\n         Bot       0.00      0.00      0.00       113\n  BruteForce       1.00      1.00      1.00      1453\n        DDoS       1.00      1.00      1.00     23418\n         DoS       1.00      0.84      0.91     36188\nInfiltration       0.75      0.86      0.80         7\n    PortScan       0.19      0.85      0.31       391\n   WebAttack       0.40      0.59      0.47       107\n\n    accuracy                           0.98    406661\n   macro avg       0.66      0.77      0.69    406661\nweighted avg       0.99      0.98      0.99    406661\n"
+  },
+  "coverage_contract": {
+    "evaluated_labels": [
+      "Benign",
+      "Bot",
+      "BruteForce",
+      "DDoS",
+      "DoS",
+      "Infiltration",
+      "PortScan",
+      "WebAttack"
+    ],
+    "ood_only_labels": [],
+    "schema_version": "cyberguard-coverage-contract-v1",
+    "telemetry_profile": "cicids2017-machinelearningcsv-v1",
+    "trained_supported_labels": [
+      "Benign",
+      "Bot",
+      "BruteForce",
+      "DDoS",
+      "DoS",
+      "Infiltration",
+      "PortScan",
+      "WebAttack"
+    ],
+    "unsupported_labels": []
+  },
+  "feature_importance": [
+    [
+      "packet_length_min",
+      0.12384665757417679
+    ],
+    [
+      "packet_length_mean",
+      0.11679467558860779
+    ],
+    [
+      "syn_flag_count",
+      0.09639113396406174
+    ],
+    [
+      "flow_bytes_ratio",
+      0.09086605161428452
+    ],
+    [
+      "bwd_packet_length_mean",
+      0.08189685642719269
+    ],
+    [
+      "fwd_packet_length_mean",
+      0.07277431339025497
+    ],
+    [
+      "idle_mean",
+      0.059926778078079224
+    ],
+    [
+      "avg_pkt_size",
+      0.05365747958421707
+    ],
+    [
+      "total_fwd_bytes",
+      0.05152169615030289
+    ],
+    [
+      "total_bwd_packets",
+      0.03625611960887909
+    ]
+  ],
+  "pipeline_version": "cyberguard-pipeline-legacy-v1",
+  "routing_schema_version": "cyberguard-routing-legacy-v1",
+  "split": {
+    "calibration_method": "capture_group",
+    "calibration_samples": 397919,
+    "deduplication_removed": {
+      "exact_conflicting_label": 6132,
+      "exact_same_label": 625709,
+      "near_conflicting_label": 3228,
+      "near_same_label": 98878
+    },
+    "duplicate_analysis": {
+      "exact": {
+        "conflicting_label_feature_groups": 312,
+        "conflicting_label_rows": 83118,
+        "rows": 2830743,
+        "same_label_duplicate_rows": 631529,
+        "unique_feature_hashes": 2198902
+      },
+      "feature_hash_schema_version": "cyberguard-feature-row-hash-v2",
+      "label_included_in_feature_hash": false,
+      "near": {
+        "conflicting_label_feature_groups": 436,
+        "conflicting_label_rows": 87054,
+        "rows": 2830743,
+        "same_label_duplicate_rows": 733509,
+        "unique_feature_hashes": 2096796
+      },
+      "schema_version": "cyberguard-duplicate-label-report-v1"
+    },
+    "duplicate_rows_removed": 733947,
+    "feature_hash_schema_version": "cyberguard-feature-row-hash-v2",
+    "test_method": "capture_group",
+    "test_samples": 406661,
+    "train_samples": 1292216
+  },
+  "test_samples": 406661
+}

@@ -36,6 +36,7 @@ datasets/
 !cyberguard/datasets/
 cyberguard/datasets/*
 !cyberguard/datasets/manifest.json
+!cyberguard/datasets/*_manifest.json
 !cyberguard/datasets/*.py
 !cyberguard/datasets/*_sources.json
 # The default manifest references this small deterministic fixture.  Keep the

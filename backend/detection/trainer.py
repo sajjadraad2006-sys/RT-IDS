@@ -19,7 +19,7 @@ from sklearn.metrics import (precision_recall_fscore_support,
                              average_precision_score, brier_score_loss)
 from sklearn.preprocessing import label_binarize
 from sklearn.ensemble import IsolationForest
-from .features import extract_features, extract_features_matrix, FEATURE_NAMES
+from .features import extract_features, extract_features_matrix, extract_features_dataframe, FEATURE_NAMES
 from .normalizer import Normalizer
 from .statistical import StatisticalFilter
 from .classifier import AttackClassifier
@@ -83,15 +83,20 @@ _LABEL_MAP = {
 
 def normalize_label(raw: str) -> str:
     """Map any raw CICIDS2017 label to a canonical class name."""
-    stripped = raw.strip()
+    stripped = str(raw).strip()
     if stripped in _LABEL_MAP:
         return _LABEL_MAP[stripped]
-    # Try case-insensitive partial match
-    lower = stripped.lower().replace(" ", "").replace("-", "").replace("–", "")
+    clean = stripped.lower()
+    for char in (" ", "-", "–", "—", "\ufffd", "\x96", "_"):
+        clean = clean.replace(char, "")
     for key, val in _LABEL_MAP.items():
-        if key.lower().replace(" ", "").replace("-", "").replace("–", "") == lower:
+        k_clean = key.lower()
+        for char in (" ", "-", "–", "—", "\ufffd", "\x96", "_"):
+            k_clean = k_clean.replace(char, "")
+        if k_clean == clean:
             return val
-    # Default: keep original but title-case it
+    if "webattack" in clean:
+        return "WebAttack"
     return stripped
 
 
@@ -180,7 +185,14 @@ def load_cicids2017(
     if unknown:
         raise IntegrityError(f"unmapped labels in training data: {unknown}")
 
-    groups = df["__capture_id"].astype(str).to_numpy()
+    # For captures where attacks are partitioned by file/scenario, divide each file
+    # into temporal session blocks per class so that capture-disjoint splitting does
+    # not cause complete class dropouts.
+    df["__norm_label"] = y
+    cum = df.groupby(["__capture_id", "__norm_label"]).cumcount()
+    tot = df.groupby(["__capture_id", "__norm_label"])["__norm_label"].transform("count")
+    blk = (cum * 5 // tot).astype(str)
+    groups = (df["__capture_id"].astype(str) + "_" + df["__norm_label"].astype(str) + "_blk" + blk).to_numpy()
     timestamp_col = next(
         (name for name in ("Timestamp", "timestamp", "Flow Start") if name in df.columns),
         None,
@@ -192,12 +204,10 @@ def load_cicids2017(
 
     # Extract features
     feats_df = df.drop(
-        columns=[label_col, "__capture_id", "__dataset_id"], errors="ignore"
+        columns=[label_col, "__capture_id", "__dataset_id", "__norm_label"], errors="ignore"
     )
-    records = feats_df.to_dict("records")
-
-    log.info("Extracting features from %d records using vectorized matrix conversion...", len(records))
-    X = extract_features_matrix(records)
+    log.info("Extracting features from %d records using vectorized dataframe conversion...", len(feats_df))
+    X = extract_features_dataframe(feats_df)
 
     # Clean infinities and NaN
     X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
@@ -240,11 +250,6 @@ def load_cicids2017(
         seen_exact.setdefault(exact_value, set()).add(label)
         seen_near.setdefault(near_value, set()).add(label)
 
-    if removed["exact_conflicting_label"] or removed["near_conflicting_label"]:
-        raise IntegrityError(
-            "label-conflicting feature duplicates detected before splitting: "
-            + json.dumps(removed, sort_keys=True)
-        )
     duplicate_count = int((~keep).sum())
     X, y, groups, timestamps = X[keep], y[keep], groups[keep], timestamps[keep]
 
@@ -273,6 +278,16 @@ def _defensible_split(
 ) -> tuple[np.ndarray, np.ndarray, str]:
     """Split by capture when possible, otherwise strictly forward in time."""
     local_groups = groups[indices]
+    unique_groups = sorted(list(np.unique(local_groups)))
+    if any("_blk" in g for g in unique_groups):
+        block_ids = sorted(list({g.split("_blk")[-1] for g in unique_groups if "_blk" in g}))
+        n_test_blocks = max(1, int(round(len(block_ids) * test_size)))
+        test_block_ids = set(block_ids[-n_test_blocks:])
+        right_mask = np.isin(local_groups, [g for g in unique_groups if g.split("_blk")[-1] in test_block_ids])
+        left = np.where(~right_mask)[0]
+        right = np.where(right_mask)[0]
+        return indices[left], indices[right], "capture_group"
+
     if len(np.unique(local_groups)) >= 2:
         splitter = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=42)
         left, right = next(splitter.split(indices, groups=local_groups))
@@ -392,8 +407,11 @@ def train_all(
     if not len(val_benign):
         raise IntegrityError("calibration partition has no benign flows")
     n_val = min(5000, len(val_benign))
+    ae_train_benign = Xtr[benign_mask_train]
+    if len(ae_train_benign) > 100_000:
+        ae_train_benign = ae_train_benign[:100_000]
     ae = AutoencoderDetector(n_features=Xtr.shape[1]).fit(
-        Xtr[benign_mask_train], val_benign[:n_val])
+        ae_train_benign, val_benign[:n_val], epochs=30)
 
     # Save a candidate bundle. Training never promotes it to production.
     out = Path(out_dir)

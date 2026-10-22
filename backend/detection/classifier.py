@@ -58,8 +58,14 @@ class AttackClassifier:
         weights = {c: len(y_enc) / (len(classes_unique) * n) for c, n in zip(classes_unique, counts)}
         sample_weight = np.array([weights[v] for v in y_enc])
 
-        import torch
-        xgb_device = "cuda" if torch.cuda.is_available() else "cpu"
+        xgb_device = "cpu"
+        try:
+            import xgboost as _xgb_probe
+            _test_clf = _xgb_probe.XGBClassifier(device="cuda", n_estimators=1, max_depth=1)
+            _test_clf.fit(np.zeros((2, 2)), np.array([0, 1]))
+            xgb_device = "cuda"
+        except Exception:
+            pass
         self.model = XGBClassifier(
             n_estimators=n_estimators,
             max_depth=max_depth,
