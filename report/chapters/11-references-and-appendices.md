@@ -529,7 +529,7 @@ Per the independent thesis audit protocol, every bibliographic reference cited w
 | `rfc9293tcp` | **VERIFIED** | Crossref DOI (`10.17487/RFC9293`) | Transmission Control Protocol (TCP) |
 | `rfc791ip` | **VERIFIED** | Crossref DOI (`10.17487/RFC0791`) | Internet Protocol |
 | `strom2018mitre` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | MITRE ATT&CK: Design and Philosophy |
-| `kaloroumakis2021d3fend` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | D3FEND: A Knowledge Graph of Cybersecurity Countermeasures |
+| `kaloroumakis2021d3fend` | *MANUAL (with live evidence)* | MITRE Technical Publication | Toward a Knowledge Graph of Cybersecurity Countermeasures |
 | `shostack2014threat` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | Threat Modeling: Designing for Security |
 | `demoura2008z3` | **VERIFIED** | Crossref DOI (`10.1007/978-3-540-78800-3_24`) | Z3: An Efficient SMT Solver |
 | `barrett2010smtlib` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | The SMT-LIB Standard: Version 2.0 |
@@ -548,7 +548,7 @@ Per the independent thesis audit protocol, every bibliographic reference cited w
 | `cardenas2011attacks` | **VERIFIED** | Crossref DOI (`10.1145/1966913.1966959`) | Attacks against process control systems |
 | `dolev1983security` | **VERIFIED** | Crossref DOI (`10.1109/TIT.1983.1056650`) | On the security of public key protocols |
 | `japkowicz2011evaluating` | **VERIFIED** | Crossref DOI (`10.1017/CBO9780511921803`) | Evaluating Learning Algorithms |
-| `modbus2012spec` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | Modbus Application Protocol Specification V1.1b3 |
+| `modbus2012spec` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | Specifications and Implementation Guides - Modbus Organization |
 | `opcfoundation2022spec` | *MANUAL (with live evidence)* | Official Standards Body / Tech Spec | OPC Unified Architecture - Part 2: Security Model |
 
 ---

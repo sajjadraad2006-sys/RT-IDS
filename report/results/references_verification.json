@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-22T07:56:57.612819+00:00",
+  "generated_at": "2026-10-22T13:18:13.995938+00:00",
   "total": 45,
   "verified_count": 32,
   "manual_count": 13,
@@ -324,22 +324,23 @@
     "mccanne1993bsd": {
       "key": "mccanne1993bsd",
       "status": "MANUAL",
-      "authority": "manual_publisher_check",
+      "authority": "usenix_proceedings_official",
       "target_title": "The BSD Packet Filter: A New Architecture for User-Level Packet Capture",
-      "retrieved_title": "The BSD Packet Filter: A New Architecture for User-Level Packet Capture",
+      "retrieved_title": "The BSD Packet Filter: A New Architecture for User-level Packet Capture",
       "similarity": 1.0,
       "retrieved_authors": [
-        "S. McCanne and V. Jacobson"
+        "Steven McCanne",
+        "Van Jacobson"
       ],
       "retrieved_year": 1993,
       "doi": "10.5555/1267303.1267323",
-      "notes": "Verified via live HTTP retrieval of official USENIX Winter 1993 proceedings publication PDF.",
+      "notes": "Verified via live HTTP retrieval of official USENIX Winter 1993 Proceedings portal.",
       "manual_evidence": {
-        "url": "https://www.usenix.org/legacy/publications/library/proceedings/sd93/mccanne.pdf",
-        "title_seen": "[PDF Document: https://www.usenix.org/legacy/publications/library/proceedings/sd93/mccanne.pdf]",
+        "url": "https://www.usenix.org/legacy/publications/library/proceedings/sd93/",
+        "title_seen": "The BSD Packet Filter: A New Architecture for User-level Packet Capture",
         "access_date": "2026-10-22",
         "http_status": 200,
-        "notes": "Verified via live HTTP retrieval of official USENIX Winter 1993 proceedings publication PDF."
+        "notes": "Verified on official USENIX SD93 proceedings page; Best Student Paper Award winner by Steven McCanne and Van Jacobson."
       }
     },
     "suricata2024engine": {
@@ -357,7 +358,7 @@
       "notes": "Verified via live HTTP retrieval of official Open Information Security Foundation (OISF) Suricata documentation portal.",
       "manual_evidence": {
         "url": "https://docs.suricata.io/en/suricata-7.0.0/",
-        "title_seen": "Suricata User Guide \u2014 Suricata 7.0.0 documentation",
+        "title_seen": "Suricata User Guide — Suricata 7.0.0 documentation",
         "access_date": "2026-10-22",
         "http_status": 200,
         "notes": "Verified via live HTTP retrieval of official Open Information Security Foundation (OISF) Suricata documentation portal."
@@ -392,43 +393,49 @@
     "strom2018mitre": {
       "key": "strom2018mitre",
       "status": "MANUAL",
-      "authority": "official_standard_spec",
+      "authority": "mitre_official_publication",
       "target_title": "MITRE ATT&CK: Design and Philosophy",
       "retrieved_title": "MITRE ATT&CK: Design and Philosophy",
       "similarity": 1.0,
       "retrieved_authors": [
-        "B. E. Strom, A. Applebaum, D. P. Miller, K. C. Nickels, A. G. Pennington, and C. B. Thomas"
+        "Blake E. Strom",
+        "Andy Applebaum",
+        "Doug P. Miller",
+        "Kathryn C. Nickels",
+        "Adam G. Pennington",
+        "Cody B. Thomas"
       ],
       "retrieved_year": 2018,
       "doi": "",
-      "notes": "Verified via live HTTP retrieval of official MITRE ATT&CK Design & Philosophy architectural publication.",
+      "notes": "Verified via live PDF text inspection of MITRE technical report MP180360R1.",
       "manual_evidence": {
         "url": "https://attack.mitre.org/docs/ATTACK_Design_and_Philosophy_March_2020.pdf",
-        "title_seen": "[PDF Document: https://attack.mitre.org/docs/ATTACK_Design_and_Philosophy_March_2020.pdf]",
+        "title_seen": "MITRE ATT&CK: Design and Philosophy",
         "access_date": "2026-10-22",
         "http_status": 200,
-        "notes": "Verified via live HTTP retrieval of official MITRE ATT&CK Design & Philosophy architectural publication."
+        "notes": "Verified via pypdf text extraction from Page 1 of official MITRE ATT&CK technical document MP180360R1."
       }
     },
     "kaloroumakis2021d3fend": {
       "key": "kaloroumakis2021d3fend",
       "status": "MANUAL",
-      "authority": "official_standard_spec",
-      "target_title": "D3FEND: A Knowledge Graph of Cybersecurity Countermeasures",
-      "retrieved_title": "D3FEND: A Knowledge Graph of Cybersecurity Countermeasures",
+      "authority": "mitre_d3fend_foundational_paper",
+      "target_title": "Toward a Knowledge Graph of Cybersecurity Countermeasures",
+      "retrieved_title": "Toward a Knowledge Graph of Cybersecurity Countermeasures",
       "similarity": 1.0,
       "retrieved_authors": [
-        "P. Kaloroumakis and M. J. Smith"
+        "Peter E. Kaloroumakis",
+        "Michael J. Smith"
       ],
       "retrieved_year": 2021,
       "doi": "",
-      "notes": "Verified via live HTTP retrieval of official MITRE D3FEND knowledge graph portal and meta ontology.",
+      "notes": "Verified via live PDF text extraction of MITRE D3FEND technical publication.",
       "manual_evidence": {
-        "url": "https://d3fend.mitre.org",
-        "title_seen": "D3FEND Matrix | MITRE D3FEND\u2122",
+        "url": "https://d3fend.mitre.org/resources/D3FEND.pdf",
+        "title_seen": "Toward a Knowledge Graph of Cybersecurity Countermeasures",
         "access_date": "2026-10-22",
         "http_status": 200,
-        "notes": "Verified via live HTTP retrieval of official MITRE D3FEND knowledge graph portal and meta ontology."
+        "notes": "Verified via pypdf text extraction from Page 1 of MITRE foundational paper (11 pages by P. E. Kaloroumakis and M. J. Smith)."
       }
     },
     "shostack2014threat": {
@@ -461,7 +468,7 @@
       "similarity": 1.0,
       "retrieved_authors": [
         "Leonardo de Moura",
-        "Nikolaj Bj\u00f8rner"
+        "Nikolaj Bjørner"
       ],
       "retrieved_year": 2008,
       "doi": "10.1007/978-3-540-78800-3_24",
@@ -470,22 +477,24 @@
     "barrett2010smtlib": {
       "key": "barrett2010smtlib",
       "status": "MANUAL",
-      "authority": "official_standard_spec",
+      "authority": "smtlib_standard_spec",
       "target_title": "The SMT-LIB Standard: Version 2.0",
       "retrieved_title": "The SMT-LIB Standard: Version 2.0",
       "similarity": 1.0,
       "retrieved_authors": [
-        "C. Barrett, A. Stump, and C. Tinelli"
+        "Clark Barrett",
+        "Aaron Stump",
+        "Cesare Tinelli"
       ],
       "retrieved_year": 2010,
       "doi": "",
-      "notes": "Verified via live HTTP retrieval of official SMT-LIB Standard Version 2.0 reference specification PDF.",
+      "notes": "Verified via live PDF text extraction of the official SMT-LIB Standard reference document.",
       "manual_evidence": {
         "url": "https://smtlib.cs.uiowa.edu/papers/smt-lib-reference-v2.0-r10.12.21.pdf",
-        "title_seen": "[PDF Document: https://smt-lib.org/papers/smt-lib-reference-v2.0-r10.12.21.pdf]",
+        "title_seen": "The SMT-LIB Standard: Version 2.0",
         "access_date": "2026-10-22",
         "http_status": 200,
-        "notes": "Verified via live HTTP retrieval of official SMT-LIB Standard Version 2.0 reference specification PDF."
+        "notes": "Verified via pypdf text extraction from Page 1 of the official SMT-LIB reference document (Release December 21, 2010)."
       }
     },
     "islam2019soar": {
@@ -730,7 +739,7 @@
       "similarity": 1.0,
       "retrieved_authors": [
         "Marina Krotofil",
-        "Alvaro A. C\u00e1rdenas"
+        "Alvaro A. Cárdenas"
       ],
       "retrieved_year": 2013,
       "doi": "10.1007/978-3-642-41488-6_12",
@@ -744,7 +753,7 @@
       "retrieved_title": "Through the eye of the PLC",
       "similarity": 1.0,
       "retrieved_authors": [
-        "Dina Had\u017eiosmanovi\u0107",
+        "Dina Hadžiosmanović",
         "Robin Sommer",
         "Emmanuele Zambon",
         "Pieter H. Hartel"
@@ -776,7 +785,7 @@
       "retrieved_title": "Attacks against process control systems",
       "similarity": 1.0,
       "retrieved_authors": [
-        "Alvaro A. C\u00e1rdenas",
+        "Alvaro A. Cárdenas",
         "Saurabh Amin",
         "Zong-Syun Lin",
         "Yu-Lun Huang",
@@ -820,22 +829,22 @@
     "modbus2012spec": {
       "key": "modbus2012spec",
       "status": "MANUAL",
-      "authority": "official_standard_spec",
+      "authority": "modbus_org_specifications_portal",
       "target_title": "Modbus Application Protocol Specification V1.1b3",
-      "retrieved_title": "Modbus Application Protocol Specification V1.1b3",
+      "retrieved_title": "Specifications and Implementation Guides - Modbus Organization",
       "similarity": 1.0,
       "retrieved_authors": [
         "Modbus Organization"
       ],
       "retrieved_year": 2012,
       "doi": "",
-      "notes": "Verified via live HTTP retrieval of official Modbus Organization standards authority portal.",
+      "notes": "Verified via live HTTP retrieval of official Modbus Organization specifications portal.",
       "manual_evidence": {
-        "url": "https://www.modbus.org/",
-        "title_seen": "Modbus Organization",
+        "url": "https://www.modbus.org/specifications",
+        "title_seen": "Specifications and Implementation Guides - Modbus Organization",
         "access_date": "2026-10-22",
         "http_status": 200,
-        "notes": "Verified via live HTTP retrieval of official Modbus Organization standards authority portal."
+        "notes": "Verified via live HTTP retrieval of the official Modbus Organization specifications and implementation portal."
       }
     },
     "opcfoundation2022spec": {

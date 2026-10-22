@@ -257,7 +257,7 @@
     "volume": "",
     "pages": "259-270",
     "doi": "10.5555/1267303.1267323",
-    "url": "https://www.usenix.org/legacy/publications/library/proceedings/sd93/mccanne.pdf",
+    "url": "https://www.usenix.org/legacy/publications/library/proceedings/sd93/",
     "accessed": "2026-10-22"
   },
   {
@@ -314,15 +314,15 @@
   },
   {
     "key": "kaloroumakis2021d3fend",
-    "type": "standard",
-    "authors": "P. Kaloroumakis and M. J. Smith",
-    "title": "D3FEND: A Knowledge Graph of Cybersecurity Countermeasures",
-    "venue": "Proc. IEEE Int. Conf. Big Data",
+    "type": "techreport",
+    "authors": "P. E. Kaloroumakis and M. J. Smith",
+    "title": "Toward a Knowledge Graph of Cybersecurity Countermeasures",
+    "venue": "The MITRE Corporation Technical Report",
     "year": 2021,
     "volume": "",
-    "pages": "2522-2531",
+    "pages": "1-11",
     "doi": "",
-    "url": "https://d3fend.mitre.org",
+    "url": "https://d3fend.mitre.org/resources/D3FEND.pdf",
     "accessed": "2026-10-22"
   },
   {
@@ -568,7 +568,7 @@
     "title": "Modbus Application Protocol Specification V1.1b3",
     "publisher": "Modbus Organization, Inc.",
     "year": 2012,
-    "url": "https://www.modbus.org/",
+    "url": "https://www.modbus.org/specifications",
     "accessed": "2026-10-22"
   },
   {
