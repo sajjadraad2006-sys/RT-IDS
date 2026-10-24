@@ -11,6 +11,7 @@ import collections
 import json
 import logging
 import math
+import os
 import queue
 import threading
 import time
@@ -218,6 +219,27 @@ class LiveFlowWorker:
             alert_dict["session_id"] = session_id
             generated_alerts.append(alert_dict)
 
+            executed_action = "none"
+            rollback_token = None
+            src_ip = str(flow_input.get("src_ip", "")).strip()
+
+            # Wire autonomous containment actuators to live high-confidence malicious detections
+            if src_ip and src_ip not in ("127.0.0.1", "0.0.0.0", "localhost") and alert.severity in ("high", "critical"):
+                try:
+                    from ..actuators.router import default_router
+                    exec_mode = os.getenv("CG_ACTIVE_DEFENSE_MODE", "simulation").lower()
+                    act_res = default_router.execute_action(
+                        action="block_ip",
+                        target=src_ip,
+                        params={"reason": f"Real-time autonomous containment for {alert.type} ({alert.confidence * 100:.1f}%)"},
+                        mode=exec_mode,
+                    )
+                    executed_action = act_res.action
+                    rollback_token = act_res.rollback_token
+                    logger.info("Autonomous containment enacted against %s: action=%s (token=%s)", src_ip, executed_action, rollback_token)
+                except Exception as act_exc:
+                    logger.debug("Autonomous containment dispatch skipped: %s", act_exc)
+
             evidence_payload = {
                 **alert.evidence,
                 "feature_evidence": alert.feature_evidence,
@@ -226,6 +248,8 @@ class LiveFlowWorker:
                 "feature_schema_version": FEATURE_SCHEMA_VERSION,
                 "is_interim": is_interim,
                 "session_id": session_id,
+                "executed_action": executed_action,
+                "rollback_token": rollback_token,
             }
 
             schema_payload = {
@@ -250,6 +274,12 @@ class LiveFlowWorker:
                 else:
                     cleaned_top_features.append(item)
 
+            explanation = (
+                f"Autonomous Active Defense: executed {executed_action} against {src_ip} (Rollback Token: {rollback_token})"
+                if executed_action != "none"
+                else ""
+            )
+
             record_kwargs: Dict[str, Any] = {
                 "created_at": now,
                 "severity": alert.severity,
@@ -262,6 +292,7 @@ class LiveFlowWorker:
                 "source_file": "live://sniffer",
                 "flow_json": "",
                 "top_features": json.dumps(cleaned_top_features),
+                "explanation": explanation,
             }
 
             for key, val in {

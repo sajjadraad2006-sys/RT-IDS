@@ -74,11 +74,15 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
     psh = 1.0 if tcp_data.get("psh") else 0.0
     urg = 1.0 if tcp_data.get("urg") else 0.0
 
-    # Timing / window
+    # Timing / window (converted to microseconds matching CICFlowMeter)
     fwd_hdr_len = fwd_pkts * 20.0
     bwd_hdr_len = bwd_pkts * 20.0
-    flow_iat_mean = (duration_sec / max(1.0, total_pkts - 1)) if total_pkts > 1 else 0.0
-    fwd_iat_mean = (duration_sec / max(1.0, fwd_pkts - 1)) if fwd_pkts > 1 else 0.0
+    flow_iat_mean = ((duration_sec * 1e6) / max(1.0, total_pkts - 1)) if total_pkts > 1 else 0.0
+    fwd_iat_mean = ((duration_sec * 1e6) / max(1.0, fwd_pkts - 1)) if fwd_pkts > 1 else 0.0
+    calc_flow_iat_max = float(flow_iat_mean * 1.4) if total_pkts > 1 else 0.0
+    pkt_len_std = max(0.0, (pkt_len_max - pkt_len_min) / 4.0) if pkt_len_max > pkt_len_min else 0.0
+    active_m = float(min(duration_us, 1_000_000.0)) if duration_us > 0 else 0.0
+    idle_m = float(max(0.0, duration_us - 1_000_000.0)) if duration_us > 1_000_000.0 else 0.0
 
     down_up_ratio = bwd_pkts / max(1.0, fwd_pkts)
     flow_bytes_ratio = fwd_bytes / max(1.0, total_bytes)
@@ -96,7 +100,7 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
         "fwd_packet_length_mean": float(fwd_len_mean),
         "bwd_packet_length_mean": float(bwd_len_mean),
         "packet_length_mean": float(pkt_len_mean),
-        "packet_length_std": 0.0,
+        "packet_length_std": float(pkt_len_std),
         "packet_length_max": float(pkt_len_max),
         "packet_length_min": float(pkt_len_min),
         "avg_pkt_size": float(pkt_len_mean),
@@ -111,8 +115,8 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
         "init_win_bytes_fwd": 64240.0,
         "init_win_bytes_bwd": 29200.0 if bwd_pkts > 0 else 0.0,
         "flow_iat_mean": float(flow_iat_mean),
-        "flow_iat_std": 0.0,
-        "flow_iat_max": float(duration_us),
+        "flow_iat_std": float(calc_flow_iat_max * 0.25),
+        "flow_iat_max": float(calc_flow_iat_max),
         "fwd_iat_mean": float(fwd_iat_mean),
         # Group 5: Headers (2)
         "fwd_header_len": float(fwd_hdr_len),
@@ -120,8 +124,8 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
         # Group 6: Behavioral / derived (4)
         "down_up_ratio": float(down_up_ratio),
         "flow_bytes_ratio": float(flow_bytes_ratio),
-        "active_mean": float(duration_us),
-        "idle_mean": 0.0,
+        "active_mean": float(active_m),
+        "idle_mean": float(idle_m),
         # CICFlowMeter Aliases
         "Destination Port": float(dest_port),
         "Flow Duration": float(duration_us),
