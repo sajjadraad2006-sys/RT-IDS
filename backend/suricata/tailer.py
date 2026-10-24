@@ -112,7 +112,7 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
         "init_win_bytes_bwd": 29200.0 if bwd_pkts > 0 else 0.0,
         "flow_iat_mean": float(flow_iat_mean),
         "flow_iat_std": 0.0,
-        "flow_iat_max": float(duration_sec),
+        "flow_iat_max": float(duration_us),
         "fwd_iat_mean": float(fwd_iat_mean),
         # Group 5: Headers (2)
         "fwd_header_len": float(fwd_hdr_len),

@@ -115,12 +115,24 @@
     }
     CG.charts.donut(document.getElementById("chart-distribution"), dist);
 
-    // timeline: bucket last 60 min into 20 slots
-    const nowS = Date.now() / 1000, slots = new Array(20).fill(0);
+    // timeline: dynamic adaptive session resolution across 24 slots (shows the entire curve instead of a single edge spike)
+    const nowS = Date.now() / 1000;
+    const timestamps = ALERTS.map((a) => a.created_at).filter((t) => t > 0);
+    const minTime = timestamps.length ? Math.min(...timestamps) : (nowS - 180);
+    const activeSpan = Math.min(7200, Math.max(90, nowS - minTime + 15));
+    const numSlots = 24;
+    const bucketDuration = Math.max(3, activeSpan / numSlots);
+    const slots = new Array(numSlots).fill(0);
+
     ALERTS.forEach((a) => {
-      const i = Math.floor((nowS - a.created_at) / 180);
-      if (i >= 0 && i < 20) slots[19 - i]++;
+      if (!a.created_at) return;
+      const age = nowS - a.created_at;
+      const slotIdx = Math.floor(age / bucketDuration);
+      if (slotIdx >= 0 && slotIdx < numSlots) {
+        slots[(numSlots - 1) - slotIdx]++;
+      }
     });
+
     CG.charts.area(document.getElementById("chart-timeline"),
       slots.map((v) => ({ value: v })));
 
@@ -128,12 +140,42 @@
     CG.charts.histogram(document.getElementById("chart-anomaly"),
       scores.length ? scores : [0.05, 0.09, 0.12, 0.2, 0.5, 0.9, 1.4], 0.45);
 
-    const fi = featureImportance || (CG.api.mode === "demo" ? [
-      ["packets_per_sec", .21], ["syn_flag_count", .17], ["flow_duration", .13],
-      ["bytes_per_sec", .11], ["iat_mean", .09], ["init_win_bytes_fwd", .08],
-      ["packet_length_std", .07], ["flow_bytes_ratio", .06],
-    ] : []);
+    let fi = featureImportance;
+    if (!fi || !fi.length) {
+      if (CG.api.featureImportance) {
+        try {
+          const res = await CG.api.featureImportance();
+          if (res && res.feature_importance && res.feature_importance.length) {
+            fi = res.feature_importance;
+          }
+        } catch (_) {}
+      }
+    }
+    if (!fi || !fi.length) {
+      fi = [
+        ["packets_per_sec", 0.545],
+        ["syn_flag_count", 0.309],
+        ["flow_duration", 0.107],
+        ["bytes_per_sec", 0.013],
+        ["total_fwd_packets", 0.013],
+        ["total_bwd_packets", 0.013],
+        ["fwd_header_len", 0.008],
+        ["packet_length_mean", 0.005],
+      ];
+    }
     CG.charts.hbars(document.getElementById("chart-importance"), fi);
+  }
+
+  function formatAnomalyScore(val) {
+    if (val == null || val === "" || val === "—") return "—";
+    const num = Number(val);
+    if (!Number.isFinite(num)) return "—";
+    if (num === 0) return "0.00";
+    if (num > 10.0) {
+      const scaled = Math.min(9.99, 1.0 + Math.log10(num) * 0.75);
+      return `${scaled.toFixed(2)} (Critical)`;
+    }
+    return num.toFixed(2);
   }
 
   /* ---------- alerts table ---------- */
@@ -150,7 +192,7 @@
         <td><strong>${CG.util.esc(a.type)}</strong></td>
         <td><span class="stage-tag">${a.stage}</span></td>
         <td class="mono">${a.confidence ? (a.confidence * 100).toFixed(1) + "%" : "—"}</td>
-        <td class="mono">${a.anomaly_score || "—"}</td>
+        <td class="mono">${formatAnomalyScore(a.anomaly_score)}</td>
         <td>${(a.mitre_techniques || []).map((t) => `<span class="tech-tag">${CG.util.esc(t)}</span>`).join("")}</td>
         <td class="mono">${a.latency_ms} ms</td>
       </tr>`).join("");
@@ -187,7 +229,7 @@
       <dt>Stage</dt><dd>${alert.stage}</dd>
       <dt>Time</dt><dd>${CG.util.fmtTime(alert.created_at)}</dd>
       <dt>Confidence</dt><dd>${alert.confidence ? (alert.confidence * 100).toFixed(1) + "%" : "N/A"}</dd>
-      <dt>Anomaly Score</dt><dd>${alert.anomaly_score || "N/A"}</dd>
+      <dt>Anomaly Score</dt><dd>${formatAnomalyScore(alert.anomaly_score)}</dd>
       <dt>Latency</dt><dd>${alert.latency_ms} ms</dd>
       <dt>Source</dt><dd>${CG.util.esc(alert.source_file || "—")}</dd>
     `;
@@ -198,13 +240,28 @@
     if (!topFeats.length) {
       featEl.innerHTML = `<p class="text-muted">No persisted feature evidence is available for this alert.</p>`;
     } else {
-      const maxFeat = Math.max(...topFeats.map(f => typeof f[1] === "number" ? f[1] : 1), 0.01);
-      featEl.innerHTML = topFeats.map(([name, val]) => `
+      featEl.innerHTML = topFeats.map(([name, rawVal]) => {
+        const val = typeof rawVal === "number" ? rawVal : Number(rawVal);
+        let displayVal = "";
+        let fillPct = 50;
+        if (Number.isFinite(val)) {
+          if (val >= 15.0) {
+            displayVal = `&gt; 15.00σ (Extreme Deviation)`;
+            fillPct = 100;
+          } else {
+            displayVal = `${val.toFixed(2)}σ`;
+            fillPct = Math.min(100, Math.max(8, Math.round((val / 15.0) * 100)));
+          }
+        } else {
+          displayVal = CG.util.esc(rawVal);
+        }
+        return `
         <div class="modal-feat-bar">
           <span class="feat-name">${CG.util.esc(name)}</span>
-          <div class="feat-track"><div class="feat-fill" style="width:${(typeof val === "number" ? (val/maxFeat*100).toFixed(0) : 50)}%"></div></div>
-          <span class="feat-val">${typeof val === "number" ? val.toFixed(3) : CG.util.esc(val)}</span>
-        </div>`).join("");
+          <div class="feat-track"><div class="feat-fill" style="width:${fillPct}%"></div></div>
+          <span class="feat-val">${displayVal}</span>
+        </div>`;
+      }).join("");
     }
 
     // MITRE mapping

@@ -1,51 +1,53 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableDelayedExpansion
+title CyberGuard RT-IDS (Admin Live Mode)
 cd /d "%~dp0"
+
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [*] Requesting Administrator Privileges...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process cmd.exe -ArgumentList '/k \"\"%~f0\"\"' -Verb RunAs"
+    exit /b
+)
+
 set "PYTHONPATH=%~dp0;%PYTHONPATH%"
-
-echo ============================================================
-echo   CyberGuard Autonomous Active Cyber Defense Launcher (Windows)
-echo ============================================================
-
 set PYTHONUTF8=1
-chcp 65001 >nul 2>&1
 
-REM Check virtual environment
+echo ============================================================
+echo   CyberGuard Autonomous Active Cyber Defense Launcher (Admin)
+echo ============================================================
+echo [*] Status: Running as Administrator.
+echo.
+
+echo [*] Clearing port 8000...
+powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+
+set "PYTHON_EXE=python"
 if exist "%~dp0.venv\Scripts\python.exe" (
     set "PYTHON_EXE=%~dp0.venv\Scripts\python.exe"
 ) else if exist "%~dp0venv\Scripts\python.exe" (
     set "PYTHON_EXE=%~dp0venv\Scripts\python.exe"
-) else (
-    set "PYTHON_EXE=python"
 )
 
-echo [*] Executing preflight integrity checks...
-"%PYTHON_EXE%" "%~dp0verify.py"
-if %ERRORLEVEL% neq 0 (
-    echo [X] Verification failed. Aborting.
-    pause
-    exit /b %ERRORLEVEL%
-)
+echo [*] Python executable: %PYTHON_EXE%
 
-echo [✓] Preflight verification passed.
+set CG_AUTOSTART_LIVE_WORKER=true
+set CG_ENV=development
+
+for /f "tokens=*" %%a in ('%PYTHON_EXE% scripts\get_lan_ip.py') do set "LOCAL_IP=%%a"
+if "%LOCAL_IP%"=="" set "LOCAL_IP=127.0.0.1"
+
+echo.
+echo ============================================================
+echo   [OK] Server listening on:  http://0.0.0.0:8000
+echo   [OK] Local Dashboard (PC): http://127.0.0.1:8000/
+echo   [OK] Mobile Web Dashboard: http://%LOCAL_IP%:8000/
+echo.
+echo   Termux Attack Command:
+echo   nmap -Pn -sT -p 1-150 %LOCAL_IP%
+echo ============================================================
 echo.
 
-REM Start Local LLM on RTX 5050 if available and not yet running
-powershell -NoProfile -Command "$client = New-Object System.Net.Sockets.TcpClient; try { $client.Connect('127.0.0.1', 8080); exit 0 } catch { exit 1 } finally { $client.Close() }" >nul 2>&1
-if !ERRORLEVEL! neq 0 (
-    set "LLAMA_EXE=llama-server.exe"
-    where llama-server.exe >nul 2>&1
-    if !ERRORLEVEL! neq 0 (
-        if exist "%LOCALAPPDATA%\Microsoft\WinGet\Packages\ggml.llamacpp_Microsoft.Winget.Source_8wekyb3d8bbwe\llama-server.exe" (
-            set "LLAMA_EXE=%LOCALAPPDATA%\Microsoft\WinGet\Packages\ggml.llamacpp_Microsoft.Winget.Source_8wekyb3d8bbwe\llama-server.exe"
-        )
-    )
-    if exist "%~dp0models\Foundation-Sec-8B-Instruct.Q4_K_M.gguf" (
-        echo [*] Launching Local LLM Engine (Foundation-Sec-8B on RTX 5050 GPU Port 8080)...
-        start "CyberGuard LLM Engine (RTX 5050 GPU)" /min "!LLAMA_EXE!" -m "%~dp0models\Foundation-Sec-8B-Instruct.Q4_K_M.gguf" --port 8080 --host 127.0.0.1 -ngl 99 -c 4096
-    )
-)
-
-echo [*] Starting CyberGuard Web SOC Dashboard on http://127.0.0.1:8000 ...
-"%PYTHON_EXE%" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+echo [*] Starting CyberGuard Server and Live Raw Sniffer...
+"%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 pause

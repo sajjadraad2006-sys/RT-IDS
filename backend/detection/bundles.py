@@ -24,6 +24,7 @@ def resolve_active_bundle_dir() -> Path:
     target = (BASE_DIR / relative).resolve()
     allowed_roots = [
         TRAINED_DIR.resolve(),
+        (MODELS_DIR / "candidate_cicids2017").resolve(),
         (MODELS_DIR / "candidates").resolve(),
         (MODELS_DIR / "releases").resolve(),
     ]

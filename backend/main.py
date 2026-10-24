@@ -39,9 +39,11 @@ async def _lifespan(app: FastAPI):
 
     if os.getenv("CG_AUTOSTART_LIVE_WORKER", "false").lower() in ("true", "1", "yes"):
         default_live_worker.start()
+        default_live_sniffer.start_capture()
 
     yield
 
+    default_live_sniffer.stop_capture()
     if default_live_worker.get_status()["is_running"]:
         default_live_worker.stop(drain=True)
     else:

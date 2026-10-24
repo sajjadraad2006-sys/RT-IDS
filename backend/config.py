@@ -81,15 +81,27 @@ SIMULATOR_ALLOWED_ASSETS = {
     asset.strip()[:128] for asset in os.getenv("CG_SIM_ASSETS", "lab-host").split(",")
     if asset.strip()
 }
-ALLOWED_HOSTS = [
-    h.strip() for h in os.getenv(
-        "CG_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver"
-    ).split(",") if h.strip()
-]
+def _get_allowed_hosts() -> list[str]:
+    raw = os.getenv("CG_ALLOWED_HOSTS")
+    if raw:
+        return [h.strip() for h in raw.split(",") if h.strip()]
+    hosts = ["127.0.0.1", "localhost", "testserver"]
+    try:
+        import socket, psutil
+        for iface, addrs in psutil.net_if_addrs().items():
+            for addr in addrs:
+                if addr.family == socket.AF_INET and addr.address:
+                    if addr.address not in hosts:
+                        hosts.append(addr.address)
+    except Exception:
+        pass
+    return hosts
+
+ALLOWED_HOSTS = _get_allowed_hosts()
 ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000", "http://localhost:8000",
     "http://127.0.0.1:5500", "http://localhost:5500",
-]
+] + [f"http://{h}:8000" for h in ALLOWED_HOSTS if not h.startswith("127.")]
 
 # SSRF allowlists. Local llama.cpp is intentionally restricted to loopback;
 # cloud API mode is restricted to known HTTPS providers unless the operator

@@ -95,8 +95,9 @@ window.CG = window.CG || {};
   }
 
   /* Area — alert timeline (per-minute counts) */
+  /* Area — alert timeline (adaptive session buckets) */
   function area(container, points) {
-    const W = 400, H = 170, padX = 8, padB = 20, padT = 12;
+    const W = 400, H = 170, padX = 14, padB = 22, padT = 24;
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img", "aria-label": "Alert timeline" });
     const max = Math.max(...points.map((p) => p.value), 1);
     const iw = W - padX * 2, ih = H - padT - padB;
@@ -115,11 +116,22 @@ window.CG = window.CG || {};
     const grad = el("linearGradient", { id: "cgGrad", x1: "0", y1: "0", x2: "0", y2: "1" }, defs);
     el("stop", { offset: "0%", "stop-color": "#E97366", "stop-opacity": "0.45" }, grad);
     el("stop", { offset: "100%", "stop-color": "#E97366", "stop-opacity": "0" }, grad);
-    el("polyline", { points: linePts, fill: "none", stroke: "#E97366", "stroke-width": "2", "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    el("polyline", { points: linePts, fill: "none", stroke: "#E97366", "stroke-width": "2.5", "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
     const last = points[points.length - 1];
-    el("circle", { cx: px(points.length - 1), cy: py(last.value), r: "3.5", fill: "#E97366" }, svg);
-    const lbl = el("text", { x: W - padX, y: py(last.value) - 8, "text-anchor": "end", class: "bar-value", "font-size": "10" }, svg);
-    lbl.textContent = `${last.value} now`;
+    el("circle", { cx: px(points.length - 1), cy: py(last.value), r: "4", fill: "#E97366" }, svg);
+    
+    // Position label with guaranteed clearance from top & right SVG boundaries
+    const labelY = Math.max(16, py(last.value) - 8);
+    const lbl = el("text", {
+      x: W - padX - 4,
+      y: labelY,
+      "text-anchor": "end",
+      class: "bar-value",
+      "font-size": "11",
+      "font-weight": "600",
+      fill: "#E97366"
+    }, svg);
+    lbl.textContent = `${last.value} recent`;
     mount(container, svg);
   }
 

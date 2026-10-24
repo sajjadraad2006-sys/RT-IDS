@@ -10,6 +10,7 @@ from __future__ import annotations
 import collections
 import json
 import logging
+import math
 import queue
 import threading
 import time
@@ -18,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional
 from ..db.models import AlertRecord, SessionLocal
 from ..detection.input_schema import FEATURE_SCHEMA_VERSION
 from .pipeline import PIPELINE_VERSION, Alert, DetectionPipeline
+from .scan_correlator import ScanCorrelator
 
 logger = logging.getLogger("cyberguard.detection.live_worker")
 
@@ -32,14 +34,16 @@ class LiveFlowWorker:
         flush_interval_sec: float = 0.5,
         pipeline_getter: Optional[Callable[[], DetectionPipeline]] = None,
         max_alerts_history: int = 200,
+        scan_correlator: Optional[ScanCorrelator] = None,
     ):
         self.max_queue_size = max_queue_size
         self.batch_size = batch_size
         self.flush_interval_sec = flush_interval_sec
         self.pipeline_getter = pipeline_getter
         self.max_alerts_history = max_alerts_history
+        self.scan_correlator = scan_correlator or ScanCorrelator()
 
-        self.queue: queue.Queue[Dict[str, float]] = queue.Queue(maxsize=max_queue_size)
+        self.queue: queue.Queue[Dict[str, Any]] = queue.Queue(maxsize=max_queue_size)
         self.recent_alerts: collections.deque[Dict[str, Any]] = collections.deque(
             maxlen=max_alerts_history
         )
@@ -186,6 +190,7 @@ class LiveFlowWorker:
         now = time.time()
 
         for alert, flow_input in zip(batch_results, batch):
+            alert = self.scan_correlator.correlate_alert(alert, flow_input, timestamp=now)
             if alert.route == "benign":
                 continue
 
@@ -228,18 +233,35 @@ class LiveFlowWorker:
                 "feature_coverage_percentage": 100.0,
             }
 
+            raw_anomaly = float(alert.anomaly_score or 0.0)
+            if math.isfinite(raw_anomaly) and raw_anomaly > 10.0:
+                calibrated_anomaly = round(min(9.99, 1.0 + math.log10(max(1.0, raw_anomaly)) * 0.75), 3)
+            else:
+                calibrated_anomaly = round(max(0.0, raw_anomaly), 3)
+
+            cleaned_top_features = []
+            for item in (alert.top_features or []):
+                if isinstance(item, (list, tuple)) and len(item) == 2:
+                    feat_name, feat_val = item
+                    if isinstance(feat_val, (int, float)) and math.isfinite(feat_val):
+                        cleaned_top_features.append([feat_name, min(15.0, max(0.0, float(feat_val)))])
+                    else:
+                        cleaned_top_features.append(list(item))
+                else:
+                    cleaned_top_features.append(item)
+
             record_kwargs: Dict[str, Any] = {
                 "created_at": now,
                 "severity": alert.severity,
                 "type": alert.type,
                 "confidence": alert.confidence,
-                "anomaly_score": alert.anomaly_score,
+                "anomaly_score": calibrated_anomaly,
                 "stage": alert.stage,
                 "mitre_techniques": json.dumps(alert.mitre_techniques),
                 "latency_ms": alert.latency_ms,
                 "source_file": "live://sniffer",
                 "flow_json": "",
-                "top_features": json.dumps(alert.top_features),
+                "top_features": json.dumps(cleaned_top_features),
             }
 
             for key, val in {

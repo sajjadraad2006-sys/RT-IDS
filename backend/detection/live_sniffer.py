@@ -152,7 +152,7 @@ class FlowRecord:
         if tcp_flags & 0x10: self.ack_count += 1
         if tcp_flags & 0x20: self.urg_count += 1
 
-    def to_feature_dict(self) -> Dict[str, float]:
+    def to_feature_dict(self) -> Dict[str, Any]:
         """Convert accumulated flow statistics to the 32 standard CICFlowMeter features."""
         duration_us = max(0.0, (self.last_time - self.start_time) * 1e6)
         total_packets = self.fwd_packets + self.bwd_packets
@@ -231,8 +231,13 @@ class FlowRecord:
             "bwd_header_len": bwd_hdr_len,
             "down_up_ratio": float(self.bwd_packets / max(1, self.fwd_packets)),
             "flow_bytes_ratio": fwd_bytes_ratio,
-            "active_mean": 0.0,
+            "active_mean": float(duration_us),
             "idle_mean": 0.0,
+            # Correlation & identification metadata
+            "src_ip": str(self.key[0]),
+            "dst_ip": str(self.key[1]),
+            "src_port": float(self.key[2]),
+            "dst_port": float(self.key[3]),
             # CICFlowMeter aliases for tabular compatibility
             "Destination Port": float(self.key[3]),
             "Flow Duration": float(duration_us),
@@ -520,17 +525,52 @@ class LiveFlowSniffer:
         self._running = True
         try:
             if platform.system().lower() == "windows":
-                # Windows raw IP socket
+                # Windows raw IP socket with intelligent adapter binding
                 s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
-                bind_host = host if host != "0.0.0.0" else "127.0.0.1"
-                s.bind((bind_host, 0))
+                candidates = []
+                if host and host != "0.0.0.0":
+                    candidates.append(host)
+                else:
+                    # Dynamically discover active local adapter IP before falling back to loopback
+                    try:
+                        cand_ip = socket.gethostbyname(socket.gethostname())
+                        if cand_ip and cand_ip != "127.0.0.1":
+                            candidates.append(cand_ip)
+                    except Exception:
+                        pass
+                    candidates.append("127.0.0.1")
+
+                bound_host = None
+                last_err = None
+                for cand in candidates:
+                    try:
+                        s.bind((cand, 0))
+                        bound_host = cand
+                        break
+                    except Exception as b_err:
+                        last_err = b_err
+                if bound_host is None:
+                    raise last_err or RuntimeError("Failed to bind Windows raw socket")
+
                 try:
                     s.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
                 except Exception as io_err:
-                    logger.warning("Could not set SIO_RCVALL promiscuous mode: %s", io_err)
+                    logger.warning("Could not set SIO_RCVALL promiscuous mode on %s: %s", bound_host, io_err)
             else:
-                # Linux AF_PACKET raw socket
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+                # Linux raw socket: prefer AF_PACKET (all link-layer traffic), fallback to AF_INET IPPROTO_TCP
+                if hasattr(socket, "AF_PACKET"):
+                    try:
+                        # ETH_P_ALL = 0x0003 captures all link-layer protocols (TCP, UDP, ICMP, etc.)
+                        s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0003))
+                        if host and host not in ("0.0.0.0", "127.0.0.1", ""):
+                            s.bind((host, 0))
+                    except PermissionError:
+                        raise
+                    except Exception as af_err:
+                        logger.warning("AF_PACKET socket creation failed (%s), falling back to AF_INET", af_err)
+                        s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+                else:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
 
             s.settimeout(1.0)
             self._raw_socket = s
@@ -562,7 +602,16 @@ class LiveFlowSniffer:
                         last_flush_check = now
                 except socket.timeout:
                     self.flush_expired_flows()
+                except OSError as os_err:
+                    if not self._running:
+                        # Clean shutdown while waiting in recvfrom
+                        break
+                    logger.error("Live packet sniffer worker socket error: %s", os_err)
+                    self._running = False
+                    break
                 except Exception as exc:
+                    if not self._running:
+                        break
                     logger.error("Live packet sniffer worker encountered fatal error: %s", exc)
                     self._running = False
                     break
@@ -575,12 +624,13 @@ class LiveFlowSniffer:
     def stop_capture(self) -> None:
         """Halt packet capture and flush all remaining in-flight flows."""
         self._running = False
-        if self._raw_socket:
+        sock = self._raw_socket
+        self._raw_socket = None
+        if sock:
             try:
-                self._raw_socket.close()
+                sock.close()
             except Exception:
                 pass
-            self._raw_socket = None
 
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)

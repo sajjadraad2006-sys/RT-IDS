@@ -833,6 +833,10 @@ Technique T1486 and T1105 identified.`;
             if (elGrd) elGrd.textContent = "100%";
             if (elLat) elLat.textContent = `${s.mean_containment_latency_ms} ms`;
           }
+
+          if (data.index % 10 === 0 || data.index + 1 === data.total) {
+            if (CG.dashboard?.refresh) CG.dashboard.refresh();
+          }
         },
         // onCompleted: finalize metrics
         (data) => {
@@ -917,14 +921,20 @@ Technique T1486 and T1105 identified.`;
   CG.onView.defense = refreshActiveDefense;
   CG.onView.simulation = () => {
     loadSimulationScenarios();
+    initBenchmarkSuite();
   };
   CG.onView.universal = () => {};
 
-  document.addEventListener("DOMContentLoaded", () => {
+  function bootSimulator() {
     initUniversalIngest();
     initBenchmarkSuite();
-    // Refresh button in active defense tab
     const btnRefDef = document.getElementById("btn-refresh-defense");
     if (btnRefDef) btnRefDef.addEventListener("click", refreshActiveDefense);
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootSimulator);
+  } else {
+    bootSimulator();
+  }
 })();

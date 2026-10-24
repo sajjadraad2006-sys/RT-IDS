@@ -1,7 +1,7 @@
 {
   "metadata": {
     "experiment": "P3.c_pipeline_benchmarks",
-    "timestamp": "2026-10-17T14:26:16.215689+00:00",
+    "timestamp": "2026-10-23T07:01:01.519164+00:00",
     "fixture_rows": 2000,
     "environment": {
       "os": "Windows",
@@ -16,78 +16,78 @@
     "routing_schema": "cyberguard-routing-legacy-v1",
     "supported_classes": [
       "DDoS",
+      "Benign",
       "PortScan",
-      "Bot",
-      "Benign"
+      "Bot"
     ]
   },
   "per_row_latency": {
     "sample_count": 1000,
-    "mean_ms": 3.38,
-    "std_ms": 0.61,
-    "min_ms": 2.364,
-    "p50_ms": 3.25,
-    "p90_ms": 4.027,
-    "p95_ms": 4.196,
-    "p99_ms": 5.911,
-    "max_ms": 8.104
+    "mean_ms": 2.284,
+    "std_ms": 0.504,
+    "min_ms": 1.48,
+    "p50_ms": 2.069,
+    "p90_ms": 3.089,
+    "p95_ms": 3.364,
+    "p99_ms": 3.68,
+    "max_ms": 4.366
   },
   "batch_scaling": [
     {
       "batch_size": 1,
-      "elapsed_seconds": 0.00611,
-      "throughput_flows_per_sec": 163.55,
-      "latency_per_item_ms": 6.1144,
+      "elapsed_seconds": 0.00551,
+      "throughput_flows_per_sec": 181.58,
+      "latency_per_item_ms": 5.5071,
       "peak_memory_kb": 18.27
     },
     {
       "batch_size": 10,
-      "elapsed_seconds": 0.01254,
-      "throughput_flows_per_sec": 797.56,
-      "latency_per_item_ms": 1.2538,
-      "peak_memory_kb": 50.62
+      "elapsed_seconds": 0.01159,
+      "throughput_flows_per_sec": 863.11,
+      "latency_per_item_ms": 1.1586,
+      "peak_memory_kb": 50.71
     },
     {
       "batch_size": 50,
-      "elapsed_seconds": 0.02782,
-      "throughput_flows_per_sec": 1797.22,
-      "latency_per_item_ms": 0.5564,
-      "peak_memory_kb": 246.16
+      "elapsed_seconds": 0.02554,
+      "throughput_flows_per_sec": 1957.94,
+      "latency_per_item_ms": 0.5107,
+      "peak_memory_kb": 246.25
     },
     {
       "batch_size": 100,
-      "elapsed_seconds": 0.04795,
-      "throughput_flows_per_sec": 2085.47,
-      "latency_per_item_ms": 0.4795,
-      "peak_memory_kb": 510.64
+      "elapsed_seconds": 0.04466,
+      "throughput_flows_per_sec": 2239.27,
+      "latency_per_item_ms": 0.4466,
+      "peak_memory_kb": 510.73
     },
     {
       "batch_size": 250,
-      "elapsed_seconds": 0.10868,
-      "throughput_flows_per_sec": 2300.31,
-      "latency_per_item_ms": 0.4347,
-      "peak_memory_kb": 1291.01
+      "elapsed_seconds": 0.10278,
+      "throughput_flows_per_sec": 2432.28,
+      "latency_per_item_ms": 0.4111,
+      "peak_memory_kb": 1291.19
     },
     {
       "batch_size": 500,
-      "elapsed_seconds": 0.20963,
-      "throughput_flows_per_sec": 2385.18,
-      "latency_per_item_ms": 0.4193,
-      "peak_memory_kb": 2594.46
+      "elapsed_seconds": 0.18592,
+      "throughput_flows_per_sec": 2689.29,
+      "latency_per_item_ms": 0.3718,
+      "peak_memory_kb": 2594.64
     },
     {
       "batch_size": 1000,
-      "elapsed_seconds": 0.36328,
-      "throughput_flows_per_sec": 2752.73,
-      "latency_per_item_ms": 0.3633,
-      "peak_memory_kb": 5188.15
+      "elapsed_seconds": 0.3115,
+      "throughput_flows_per_sec": 3210.32,
+      "latency_per_item_ms": 0.3115,
+      "peak_memory_kb": 5188.33
     },
     {
       "batch_size": 2000,
-      "elapsed_seconds": 0.64325,
-      "throughput_flows_per_sec": 3109.19,
-      "latency_per_item_ms": 0.3216,
-      "peak_memory_kb": 10414.59
+      "elapsed_seconds": 0.52228,
+      "throughput_flows_per_sec": 3829.39,
+      "latency_per_item_ms": 0.2611,
+      "peak_memory_kb": 10414.77
     }
   ],
   "routing_distribution": {

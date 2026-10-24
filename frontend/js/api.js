@@ -179,6 +179,20 @@ window.CG = window.CG || {};
   API.alerts = () =>
     API.mode === "live" ? tryFetch("/api/detect/alerts") : Promise.resolve(structuredClone(DEMO_ALERTS));
 
+  API.featureImportance = () =>
+    API.mode === "live"
+      ? tryFetch("/api/detect/feature-importance")
+      : Promise.resolve({
+          feature_importance: [
+            ["packets_per_sec", 0.545],
+            ["syn_flag_count", 0.309],
+            ["flow_duration", 0.107],
+            ["bytes_per_sec", 0.013],
+            ["total_fwd_packets", 0.013],
+            ["total_bwd_packets", 0.013],
+          ],
+        });
+
   API.upload = async (file) => {
     if (API.mode === "live") {
       const fd = new FormData();

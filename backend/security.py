@@ -111,11 +111,24 @@ def resolve_client_ip(request: Request) -> str:
     return peer_host
 
 
+_RFC1918_NETWORKS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+)
+
+
 def _is_loopback_client(host: str | None) -> bool:
     if host in (None, "testclient", "testserver"):
         return True
     try:
-        return ipaddress.ip_address(host).is_loopback
+        ip = ipaddress.ip_address(host)
+        if ip.is_loopback:
+            return True
+        from .config import CG_ENV
+        if CG_ENV != "production" and any(ip in net for net in _RFC1918_NETWORKS):
+            return True
+        return False
     except ValueError:
         return host.lower() == "localhost"
 
