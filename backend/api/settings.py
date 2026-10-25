@@ -75,6 +75,11 @@ def get_settings() -> dict:
 @router.post("")
 @limiter.limit("10/minute")
 def update_settings(request: Request, u: ProviderUpdate) -> dict:
+    from ..auth import get_current_user, Role
+    from fastapi import HTTPException
+    user = get_current_user(request)
+    if user.role != Role.ADMIN:
+        raise HTTPException(403, "Permission denied: modifying system settings requires ADMIN privileges")
     Setting.set("llm_provider", u.llm_provider)
     if u.llama_url is not None:
         Setting.set("llama_url", u.llama_url)

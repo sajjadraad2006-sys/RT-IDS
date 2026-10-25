@@ -47,8 +47,16 @@ async def _lifespan(app: FastAPI):
                 "Flow worker is active; run CyberGuard as Administrator to enable promiscuous raw capture."
             )
 
+    from .actuators.router import default_router
+    try:
+        default_router.sweep_expired_actions()
+        default_router.start_ttl_reaper()
+    except Exception:
+        pass
+
     yield
 
+    default_router.stop_ttl_reaper()
     default_live_sniffer.stop_capture()
     if default_live_worker.get_status()["is_running"]:
         default_live_worker.stop(drain=True)

@@ -252,6 +252,7 @@ class DetectionPipeline:
                 "role": "unknown_anomaly_signal_not_exploit_proof",
                 "calibration_status": self.calibration_status,
             },
+            "production_approved": self.production_approved,
             "artifact": {
                 "pipeline_version": self.artifact_pipeline_version,
                 "routing_schema_version": self.artifact_routing_schema_version,

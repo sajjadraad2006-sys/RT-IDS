@@ -83,9 +83,11 @@ def discover_protected_local_assets() -> Set[str]:
                     fields = line.strip().split()
                     if len(fields) >= 3 and fields[1] == "00000000":
                         gw_hex = fields[2]
-                        gw_bytes = bytes.fromhex(gw_hex)
-                        gw = socket.inet_ntoa(gw_bytes[::-1] if platform.byteorder == "big" else gw_bytes)
-                        protected.add(gw)
+                        if gw_hex and gw_hex != "00000000":
+                            import struct
+                            gw = socket.inet_ntoa(struct.pack("<I", int(gw_hex, 16)))
+                            if gw != "0.0.0.0":
+                                protected.add(gw)
     except Exception:
         pass
 

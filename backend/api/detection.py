@@ -480,8 +480,12 @@ def get_feature_importance(top: int = Query(default=8, ge=1, le=32)) -> dict:
 
 
 @router.delete("/alerts/clear")
-def clear_all_alerts() -> dict:
+def clear_all_alerts(request: Request) -> dict:
     """Clear all recorded alerts and hypotheses from SQLite to allow fresh testing."""
+    from ..auth import get_current_user, Role
+    user = get_current_user(request)
+    if user.role not in (Role.ADMIN, Role.ANALYST):
+        raise HTTPException(403, "Permission denied: clearing alert history requires ADMIN or ANALYST privileges")
     with SessionLocal() as s:
         deleted = s.query(AlertRecord).delete()
         s.commit()
@@ -732,6 +736,11 @@ def export_alerts_csv(limit: int = Query(default=5000, ge=1, le=5000)) -> Stream
 @router.post("/live/start")
 def start_live_capture(request: Request, port_filter: int | None = None) -> dict:
     """Start the live network packet sniffer daemon and detection pipeline worker."""
+    from ..auth import get_current_user, Role
+    user = get_current_user(request)
+    if user.role not in (Role.ADMIN, Role.ANALYST):
+        raise HTTPException(403, "Permission denied: starting live capture requires ADMIN or ANALYST privileges")
+
     from ..detection.live_sniffer import default_live_sniffer
     from ..detection.live_worker import default_live_worker
 
@@ -747,8 +756,13 @@ def start_live_capture(request: Request, port_filter: int | None = None) -> dict
 
 
 @router.post("/live/stop")
-def stop_live_capture() -> dict:
+def stop_live_capture(request: Request) -> dict:
     """Stop the live network packet sniffer daemon and flush remaining flows."""
+    from ..auth import get_current_user, Role
+    user = get_current_user(request)
+    if user.role not in (Role.ADMIN, Role.ANALYST):
+        raise HTTPException(403, "Permission denied: stopping live capture requires ADMIN or ANALYST privileges")
+
     from ..detection.live_sniffer import default_live_sniffer
     from ..detection.live_worker import default_live_worker
 

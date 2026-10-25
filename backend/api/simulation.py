@@ -12,11 +12,12 @@ import logging
 import random
 import time
 from typing import Any, Dict, List, Optional, Tuple
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..actuators.router import default_router
+from ..auth import require_role, Role, User
 from ..db.models import Setting, SessionLocal, AlertRecord
 from ..decision.engine import build_smart_log, decision_messages, parse_and_guard_ai_decision, policy_decision
 from ..decision.models import GuardedDecision, SmartLog
@@ -193,8 +194,12 @@ def get_simulation_scenarios(
 
 
 @router.post("/launch")
-async def launch_simulation(req: LaunchSimulationRequest) -> Dict[str, Any]:
+async def launch_simulation(
+    req: LaunchSimulationRequest,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
+) -> Dict[str, Any]:
     """Execute end-to-end attack simulation: RAG retrieval -> LLM inference -> Actuation."""
+
     all_s = get_all_scenarios()
     target_id = LEGACY_SCENARIO_ALIASES.get(req.scenario_id, req.scenario_id)
     scenario = next((s for s in all_s if s["id"] == target_id), None)
@@ -557,7 +562,10 @@ async def _execute_single_scenario(
 
 
 @router.post("/benchmark/run")
-async def run_batch_benchmark(req: BatchBenchmarkRequest) -> Dict[str, Any]:
+async def run_batch_benchmark(
+    req: BatchBenchmarkRequest,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
+) -> Dict[str, Any]:
     """Execute high-scale multi-vector attack stress test (up to 100+ attacks)."""
     all_s = get_all_scenarios()
     pool = _resolve_category_pool(all_s, req.category)
@@ -638,7 +646,10 @@ async def run_batch_benchmark(req: BatchBenchmarkRequest) -> Dict[str, Any]:
 
 
 @router.post("/benchmark/stream")
-async def stream_batch_benchmark(req: BatchBenchmarkRequest) -> StreamingResponse:
+async def stream_batch_benchmark(
+    req: BatchBenchmarkRequest,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
+) -> StreamingResponse:
     """Stream live benchmark results vector-by-vector as Foundation-Sec-8B makes decisions."""
     all_s = get_all_scenarios()
     pool = _resolve_category_pool(all_s, req.category)
@@ -760,7 +771,10 @@ def get_doctoral_benchmark_summary() -> Dict[str, Any]:
 
 
 @router.post("/doctoral-benchmark/run")
-def run_doctoral_benchmark(req: DoctoralBenchmarkRunRequest) -> Dict[str, Any]:
+def run_doctoral_benchmark(
+    req: DoctoralBenchmarkRunRequest,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
+) -> Dict[str, Any]:
     """Execute high-scale empirical doctoral benchmark across all 4 defense paradigms."""
     results = default_doctoral_benchmark.run_full_benchmark(
         max_scenarios=req.max_scenarios,

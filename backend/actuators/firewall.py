@@ -177,8 +177,12 @@ class FirewallActuator(BaseActuator):
                             rollback_args = ["iptables", "-D", "INPUT", "-s", rec.target, "-j", "DROP"]
                             rollback_cmd = " ".join(rollback_args)
 
-                        p_dict = json.loads(rec.params_json) if rec.params_json else {}
-                        executed_live = p_dict.get("mode") == "enforcement"
+                        executed_live = not bool(rec.is_simulated)
+                        if rec.rollback_command:
+                            rollback_cmd = rec.rollback_command
+                            if not self.is_windows:
+                                rollback_args = rec.rollback_command.split()
+
                         record = {
                             "rule_name": rule_name,
                             "target": rec.target,
@@ -196,8 +200,12 @@ class FirewallActuator(BaseActuator):
 
         if not record["executed_live"]:
             logger.info("[SIMULATION] Simulated rollback for %s succeeded", rollback_token)
-            del self._rollback_registry[rollback_token]
+            self._rollback_registry.pop(rollback_token, None)
             return True
+
+        if not self.is_elevated():
+            logger.error("Live firewall rollback rejected: Insufficient OS privileges (requires Administrator/root)")
+            return False
 
         rollback_args = record.get("rollback_args")
         try:
@@ -219,8 +227,11 @@ class FirewallActuator(BaseActuator):
                 )
             success = (proc.returncode == 0)
             if success:
-                del self._rollback_registry[rollback_token]
+                logger.info("Successfully executed live OS firewall rollback for %s", rollback_token)
+                self._rollback_registry.pop(rollback_token, None)
+            else:
+                logger.error("Live firewall rollback command failed (code %d): %s", proc.returncode, proc.stderr or proc.stdout)
             return success
         except Exception as exc:
-            logger.error("Failed to execute rollback for %s: %s", rollback_token, exc)
+            logger.error("Failed to execute live firewall rollback for %s: %s", rollback_token, exc)
             return False

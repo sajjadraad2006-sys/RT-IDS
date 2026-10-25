@@ -225,11 +225,23 @@ class ApiAccessMiddleware(BaseHTTPMiddleware):
 
         from .auth import decode_access_token
         is_token_valid = False
+        user_role = None
         if supplied:
             if API_TOKEN and hmac.compare_digest(supplied, API_TOKEN):
                 is_token_valid = True
-            elif decode_access_token(supplied) is not None:
-                is_token_valid = True
+                user_role = "admin"
+            else:
+                payload = decode_access_token(supplied)
+                if payload is not None:
+                    is_token_valid = True
+                    user_role = str(payload.get("role", "analyst")).lower()
+
+        # Strict RBAC boundary: Any client with VIEWER role is strictly forbidden from state mutation
+        if is_token_valid and user_role == "viewer" and request.method not in ("GET", "HEAD", "OPTIONS"):
+            return JSONResponse(
+                {"detail": "Permission denied: VIEWER role is restricted to read-only queries and cannot mutate state"},
+                status_code=403,
+            )
 
         from .config import CG_ENV
         is_production = CG_ENV == "production"

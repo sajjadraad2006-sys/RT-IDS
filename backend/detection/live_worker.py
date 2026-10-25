@@ -237,7 +237,8 @@ class LiveFlowWorker:
                 try:
                     from ..actuators.router import default_router
                     exec_mode = os.getenv("CG_ACTIVE_DEFENSE_MODE", "simulation").lower()
-                    is_model_approved = bool(alert.evidence.get("production_approved", False))
+                    art = alert.evidence.get("artifact", {}) if isinstance(alert.evidence.get("artifact"), dict) else {}
+                    is_model_approved = bool(alert.evidence.get("production_approved") or art.get("production_approved", False))
                     allow_eval_enforce = os.getenv("CG_ALLOW_EVALUATION_ENFORCEMENT", "false").lower() in ("true", "1")
 
                     # Gate enforcement mode strictly on production-approved models

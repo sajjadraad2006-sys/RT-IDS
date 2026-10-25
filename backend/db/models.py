@@ -336,6 +336,11 @@ class ActionReceiptRecord(Base):
     params_json = Column(Text, default="{}", nullable=False)
     receipt_json = Column(Text, default="{}", nullable=False)
     status = Column(String(32), default="active", nullable=False)  # "active" | "rolled_back"
+    is_simulated = Column(Boolean, default=True, nullable=False)
+    ttl_seconds = Column(Integer, nullable=True)
+    expires_at = Column(Float, nullable=True, index=True)
+    executed_command = Column(Text, default="", nullable=False)
+    rollback_command = Column(Text, default="", nullable=False)
     created_at = Column(Float, default=time.time, nullable=False)
     rolled_back_at = Column(Float, nullable=True)
 

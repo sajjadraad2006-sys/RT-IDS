@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 from typing import Any, Dict, List, Optional
 
 from .base import ActuatorResult
@@ -19,7 +20,6 @@ from .suricata_rules import SuricataActuator
 from ..safety.formal_verifier import (
     FormalSafetyVerifier,
     RollbackReceipt,
-    default_safety_verifier,
 )
 
 logger = logging.getLogger("cyberguard.actuators.router")
@@ -41,14 +41,27 @@ class ActuatorRouter:
         self.firewall = firewall or FirewallActuator()
         self.suricata = suricata or SuricataActuator()
         self.process = process or ProcessActuator()
-        self.safety_verifier = safety_verifier or default_safety_verifier
+        self._safety_verifier = safety_verifier
+
         if require_two_person is None:
-            self.require_two_person = os.getenv("CG_REQUIRE_TWO_PERSON_RULE", "true").lower() in ("true", "1", "yes")
+            env_two_person = os.getenv("CG_REQUIRE_TWO_PERSON") or os.getenv("CG_REQUIRE_TWO_PERSON_RULE", "true")
+            self.require_two_person = env_two_person.lower() in ("true", "1", "yes")
         else:
             self.require_two_person = bool(require_two_person)
         self._lock = threading.Lock()
         self._active_blocks: Dict[str, ActuatorResult] = {}
         self._receipt_map: Dict[str, Dict[str, Any]] = {}
+
+    @property
+    def safety_verifier(self) -> FormalSafetyVerifier:
+        if self._safety_verifier is None:
+            from ..safety.formal_verifier import default_safety_verifier
+            self._safety_verifier = default_safety_verifier
+        return self._safety_verifier
+
+    @safety_verifier.setter
+    def safety_verifier(self, val: FormalSafetyVerifier) -> None:
+        self._safety_verifier = val
 
     def execute_action(
         self,
@@ -214,6 +227,10 @@ class ActuatorRouter:
                 try:
                     import json
                     from ..db.models import ActionReceiptRecord, SessionLocal
+                    ttl_sec = int(params.get("ttl_seconds", 0) or 0)
+                    expires_at = (time.time() + ttl_sec) if ttl_sec > 0 else None
+                    rollback_cmd = result.metadata.get("rollback_cmd", "") if isinstance(result.metadata, dict) else ""
+
                     with SessionLocal() as db_session:
                         rec = ActionReceiptRecord(
                             token=proof_token,
@@ -232,6 +249,11 @@ class ActuatorRouter:
                                 "state_inversion_digest": active_receipt.state_inversion_digest,
                             }),
                             status="active",
+                            is_simulated=bool(result.simulated),
+                            ttl_seconds=ttl_sec if ttl_sec > 0 else None,
+                            expires_at=expires_at,
+                            executed_command=str(result.command_executed or ""),
+                            rollback_command=str(rollback_cmd or ""),
                         )
                         db_session.add(rec)
                         db_session.commit()
@@ -377,6 +399,56 @@ class ActuatorRouter:
         with self._lock:
             self._active_blocks.clear()
             self._receipt_map.clear()
+
+    def sweep_expired_actions(self) -> int:
+        """Scan active containment actions whose TTL has expired and execute atomic rollback."""
+        now = time.time()
+        expired_tokens: List[str] = []
+        try:
+            from ..db.models import ActionReceiptRecord, SessionLocal
+            with SessionLocal() as db_session:
+                records = db_session.query(ActionReceiptRecord).filter(
+                    ActionReceiptRecord.status == "active",
+                    ActionReceiptRecord.expires_at.isnot(None),
+                    ActionReceiptRecord.expires_at <= now,
+                ).all()
+                for rec in records:
+                    expired_tokens.append(rec.token)
+        except Exception as exc:
+            logger.debug("Error querying expired actions: %s", exc)
+            return 0
+
+        rolled_back_count = 0
+        for tok in expired_tokens:
+            try:
+                logger.info("Executing automated TTL expiration rollback for action receipt: %s", tok)
+                if self.rollback_action(tok):
+                    rolled_back_count += 1
+            except Exception as exc:
+                logger.error("Failed executing automated TTL expiration rollback for %s: %s", tok, exc)
+
+        return rolled_back_count
+
+    def start_ttl_reaper(self, interval_sec: float = 10.0) -> None:
+        """Start background daemon thread periodically sweeping expired containment actions."""
+        if hasattr(self, "_reaper_thread") and self._reaper_thread and self._reaper_thread.is_alive():
+            return
+
+        self._reaper_running = True
+        def _reaper_loop():
+            while self._reaper_running:
+                try:
+                    self.sweep_expired_actions()
+                except Exception as e:
+                    logger.debug("TTL reaper error: %s", e)
+                time.sleep(interval_sec)
+
+        self._reaper_thread = threading.Thread(target=_reaper_loop, daemon=True, name="cyberguard-ttl-reaper")
+        self._reaper_thread.start()
+        logger.info("Containment TTL background reaper started (interval=%ss).", interval_sec)
+
+    def stop_ttl_reaper(self) -> None:
+        self._reaper_running = False
 
 
 # Global singleton instance

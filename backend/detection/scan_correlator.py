@@ -18,6 +18,7 @@ This module provides thread-safe, bounded, zero-leak sliding-window correlation 
 from __future__ import annotations
 
 import collections
+import math
 import threading
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -110,11 +111,8 @@ class ScanCorrelator:
         if not src_ip or not dst_ip:
             return alert
 
-        # Ignore established bidirectional application flows with significant data payload
-        # (Legitimate web browsing, streaming, or database queries establish connections and transfer data)
-        bwd_pkts = float(flow_meta.get("bwd_pkts", 0.0) or flow_meta.get("Total Backward Packets", 0.0) or 0.0)
-        bwd_bytes = float(flow_meta.get("bwd_bytes", 0.0) or flow_meta.get("Total Length of Bwd Packets", 0.0) or 0.0)
-        if bwd_pkts >= 3 and bwd_bytes > 500:
+        # Exclude local loopback traffic originating on the host itself
+        if src_ip in ("127.0.0.1", "::1", "localhost", "0.0.0.0") or src_ip == dst_ip:
             return alert
 
         # Only track TCP SYN / probe flows or flows that showed scan indicators
@@ -135,11 +133,17 @@ class ScanCorrelator:
         is_vertical_scan = max_ports_target >= self.min_ports
         is_horizontal_sweep = max_hosts_port >= self.min_hosts
 
+        # Calibrated logistic probability confidence based on probe burst intensity
+        ports_factor = max(0, max_ports_target - self.min_ports)
+        hosts_factor = max(0, max_hosts_port - self.min_hosts)
+        intensity = ports_factor + hosts_factor
+        calibrated_conf = round(min(0.99, 0.88 + 0.11 * (1.0 - math.exp(-0.5 * intensity))), 3)
+
         # Case 1: Model classified as PortScan
         if alert.type == "PortScan":
             if is_vertical_scan or is_horizontal_sweep:
                 # Multi-flow correlation CONFIRMS the scan behavior on target
-                alert.confidence = max(alert.confidence, 0.99)
+                alert.confidence = max(float(alert.confidence or 0.0), 0.99)
                 alert.severity = "high"
                 alert.stage = "behavioral_correlation"
                 scan_type = "Vertical PortScan" if is_vertical_scan else "Horizontal Sweep"
@@ -156,7 +160,7 @@ class ScanCorrelator:
                     "window_sec": self.window_sec,
                     "scan_type": scan_type,
                 }
-            elif max_ports_target == 1 and max_hosts_port == 1 and alert.confidence < 0.90:
+            elif max_ports_target == 1 and max_hosts_port == 1 and float(alert.confidence or 0.0) < 0.90:
                 # Isolated single probe without surrounding scan clustering on destination
                 alert.severity = "low"
                 alert.route = "unknown_anomaly_review"
@@ -175,7 +179,7 @@ class ScanCorrelator:
             alert.severity = "high"
             alert.route = "known_attack"
             alert.stage = "behavioral_correlation"
-            alert.confidence = min(0.98, max(0.85, 0.70 + 0.05 * max_ports_target))
+            alert.confidence = calibrated_conf
             scan_type = "Vertical PortScan" if is_vertical_scan else "Horizontal Sweep"
             if is_vertical_scan and is_horizontal_sweep:
                 scan_type = "Strobe Network Scan"

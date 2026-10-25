@@ -167,16 +167,16 @@ def test_scan_correlator_eliminates_benign_multitarget_false_positives():
 
 
 def test_evaluation_only_model_blocks_enforcement(monkeypatch):
-    """Verify serving model with production_approved=False refuses live enforcement."""
+    """Verify serving model with nested artifact.production_approved=False refuses live enforcement."""
     worker = LiveFlowWorker()
 
-    # High severity attack, but evaluation_only model
+    # High severity attack, but evaluation_only model in real pipeline nested artifact structure
     alert = Alert(
         severity="high",
         type="PortScan",
         confidence=0.92,
         route="known_attack",
-        evidence={"production_approved": False},
+        evidence={"artifact": {"production_approved": False}},
     )
     class MockPipe:
         def detect_batch(self, batch):
@@ -192,3 +192,113 @@ def test_evaluation_only_model_blocks_enforcement(monkeypatch):
     assert len(alerts) == 1
     assert alerts[0]["executed_action"] == "blocked_by_policy:block_ip"
     assert "evaluation-only" in alerts[0]["explanation"]
+
+    # When model is production_approved: True
+    alert_approved = Alert(
+        severity="high",
+        type="PortScan",
+        confidence=0.95,
+        route="known_attack",
+        evidence={"artifact": {"production_approved": True}},
+    )
+    class MockApprovedPipe:
+        def detect_batch(self, batch):
+            return [alert_approved]
+
+    worker.set_pipeline_getter(lambda: MockApprovedPipe())
+    monkeypatch.setenv("CG_ACTIVE_DEFENSE_MODE", "simulation")
+    alerts_ok = worker.process_flows([{"src_ip": "203.0.113.78", "dst_ip": "10.0.0.1", "dst_port": 80}])
+    assert len(alerts_ok) == 1
+    assert alerts_ok[0]["executed_action"] == "simulated:block_ip"
+
+
+def test_containment_ttl_auto_expiration():
+    """Verify that an action with TTL automatically expires and rolls back via sweep."""
+    router = ActuatorRouter(require_two_person=False)
+    # Execute action with 1 second TTL
+    res = router.execute_action(
+        "block_ip",
+        "198.51.100.150",
+        params={"ttl_seconds": 1},
+        mode="simulation",
+    )
+    assert res.success is True
+    tok = res.rollback_token
+    assert tok is not None
+
+    # Wait for TTL to expire
+    time.sleep(1.1)
+
+    # Trigger TTL sweep
+    expired_count = router.sweep_expired_actions()
+    assert expired_count >= 1
+
+    # Second rollback must fail because it was already rolled back by TTL expiration
+    assert router.rollback_action(tok) is False
+
+
+def test_linux_proc_net_route_parsing():
+    """Verify Linux /proc/net/route little-endian hex parsing handles gateways correctly."""
+    import socket, struct
+    test_gateways = {
+        "0164A8C0": "192.168.100.1",
+        "0108A8C0": "192.168.8.1",
+        "8A00000A": "10.0.0.138",
+        "012BA8C0": "192.168.43.1",
+    }
+    for gw_hex, expected_ip in test_gateways.items():
+        parsed_ip = socket.inet_ntoa(struct.pack("<I", int(gw_hex, 16)))
+        assert parsed_ip == expected_ip
+
+
+def test_scan_correlator_detects_nmap_sv_banner_grab_and_ignores_loopback():
+    """Verify nmap -sV multi-port probe with server banner payloads >500B is detected."""
+    correlator = ScanCorrelator(window_sec=2.0, min_ports_for_vertical_scan=3)
+    target_ip = "192.168.1.150"
+    attacker_ip = "192.168.1.80"
+
+    # Attacker probes 4 distinct ports on target, server returns HTTP/SSH banners (>500B)
+    probes = [21, 22, 80, 443]
+    last_res = None
+    for p in probes:
+        alert = Alert(severity="none", type="Benign", confidence=0.90, route="benign")
+        meta = {
+            "src_ip": attacker_ip,
+            "dst_ip": target_ip,
+            "dst_port": p,
+            "syn_flag_count": 1.0,
+            "bwd_pkts": 4,
+            "bwd_bytes": 850,  # Banner grab response
+        }
+        last_res = correlator.correlate_alert(alert, meta, timestamp=time.time())
+
+    assert last_res is not None
+    assert last_res.type == "PortScan"
+    assert last_res.severity == "high"
+    assert last_res.route == "known_attack"
+    assert last_res.confidence >= 0.88
+
+    # Local loopback connection must never be flagged
+    loopback_meta = {"src_ip": "127.0.0.1", "dst_ip": "127.0.0.1", "dst_port": 8000, "syn_flag_count": 1.0}
+    res_lb = correlator.correlate_alert(Alert(severity="none", type="Benign"), loopback_meta)
+    assert res_lb.type == "Benign"
+
+
+def test_rbac_blocks_viewer_from_mutating_state():
+    """Verify user with VIEWER role is strictly forbidden (403) from state-changing endpoints."""
+    from backend.auth import create_access_token, User, Role
+    viewer_user = User(username="test-viewer", role=Role.VIEWER)
+    viewer_token = create_access_token(viewer_user)
+    headers = {"Authorization": f"Bearer {viewer_token}"}
+
+    # 1. DELETE /api/detect/alerts/clear
+    res_del = client.delete("/api/detect/alerts/clear", headers=headers)
+    assert res_del.status_code == 403
+
+    # 2. POST /api/detect/live/stop
+    res_stop = client.post("/api/detect/live/stop", headers=headers)
+    assert res_stop.status_code == 403
+
+    # 3. POST /api/settings
+    res_settings = client.post("/api/settings", json={"llm_provider": "local"}, headers=headers)
+    assert res_settings.status_code == 403
