@@ -139,10 +139,16 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
         "Init_Win_bytes_backward": 29200.0 if bwd_pkts > 0 else 0.0,
     }
 
-    # Flow session tracking
+    # Flow session tracking and IP identification
     src_ip = str(doc.get("src_ip", "0.0.0.0"))
     src_port = int(doc.get("src_port", 0) or 0)
     dest_ip = str(doc.get("dest_ip", "0.0.0.0"))
+    features["src_ip"] = src_ip
+    features["dst_ip"] = dest_ip
+    features["src_port"] = src_port
+    features["dst_port"] = int(dest_port)
+    features["Source IP"] = src_ip
+    features["Destination IP"] = dest_ip
     features["session_id"] = f"{src_ip}:{src_port}->{dest_ip}:{int(dest_port)}@{doc.get('timestamp')}"
     features["source"] = "suricata_eve"
     return features

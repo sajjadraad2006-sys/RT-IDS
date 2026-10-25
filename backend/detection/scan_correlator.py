@@ -101,6 +101,17 @@ class ScanCorrelator:
         if not src_ip:
             return alert
 
+        # Ignore outbound client traffic originating from local monitored host/gateway
+        # (prevents local admin/browsing sessions from triggering incoming port scan alarms)
+        try:
+            from ..actuators.guardrails import discover_protected_local_assets
+            local_protected = discover_protected_local_assets()
+            if src_ip in local_protected or src_ip in ("127.0.0.1", "0.0.0.0", "localhost"):
+                return alert
+        except Exception:
+            if src_ip in ("127.0.0.1", "0.0.0.0", "localhost"):
+                return alert
+
         # Only track TCP SYN / probe flows or flows that showed scan indicators
         syn_count = float(flow_meta.get("syn_flag_count", 0.0) or 0.0)
         is_candidate_probe = (

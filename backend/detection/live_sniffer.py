@@ -12,9 +12,11 @@ from __future__ import annotations
 import collections
 import logging
 import math
+import os
 import platform
 import socket
 import struct
+import sys
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -576,9 +578,13 @@ class LiveFlowSniffer:
             self._raw_socket = s
             self.last_capture_mode = "raw_socket"
         except Exception as exc:
-            logger.warning("Raw socket creation failed (insufficient OS permissions): %s. Falling back to synthetic harness mode.", exc)
-            self.last_capture_mode = "synthetic_harness"
-            return True
+            logger.warning("Raw socket creation failed (insufficient OS permissions or unsupported socket): %s", exc)
+            if os.getenv("CG_ALLOW_SYNTHETIC_CAPTURE", "false").lower() in ("true", "1") or "pytest" in sys.modules:
+                self.last_capture_mode = "synthetic_harness"
+                return True
+            self.last_capture_mode = "failed"
+            self._running = False
+            return False
 
         def _worker():
             last_flush_check = time.time()

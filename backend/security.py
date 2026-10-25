@@ -119,18 +119,25 @@ _RFC1918_NETWORKS = (
 
 
 def _is_loopback_client(host: str | None) -> bool:
+    """Strictly verify if client host is genuine local loopback."""
     if host in (None, "testclient", "testserver"):
         return True
     try:
         ip = ipaddress.ip_address(host)
-        if ip.is_loopback:
-            return True
-        from .config import CG_ENV
-        if CG_ENV != "production" and any(ip in net for net in _RFC1918_NETWORKS):
-            return True
-        return False
+        return ip.is_loopback
     except ValueError:
         return host.lower() == "localhost"
+
+
+def _is_lan_client(host: str | None) -> bool:
+    """Check if client host belongs to RFC1918 private LAN ranges."""
+    if host in (None, "testclient", "testserver"):
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+        return any(ip in net for net in _RFC1918_NETWORKS)
+    except ValueError:
+        return False
 
 
 
@@ -236,7 +243,7 @@ class ApiAccessMiddleware(BaseHTTPMiddleware):
         elif API_TOKEN:
             if not is_token_valid:
                 return JSONResponse({"detail": "valid API token required"}, status_code=401)
-        elif not _is_loopback_client(client_host) and not is_token_valid:
+        elif not _is_loopback_client(client_host) and not _is_lan_client(client_host) and not is_token_valid:
             return JSONResponse(
                 {"detail": "remote API access requires CG_API_TOKEN or valid authentication"},
                 status_code=403,

@@ -25,6 +25,46 @@ DEFAULT_PROTECTED_HOSTS: Set[str] = {
     "localhost", "127.0.0.1", "::1",
 }
 
+
+def discover_protected_local_assets() -> Set[str]:
+    """Auto-discover critical local host IPs, default gateways, and configured protected assets."""
+    import os
+    import socket
+    protected: Set[str] = set(DEFAULT_PROTECTED_HOSTS)
+
+    # 1. Discover local host IPs from network interfaces
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if ip and not ip.startswith("127."):
+                protected.add(ip)
+    except Exception:
+        pass
+
+    try:
+        import psutil
+        for iface, addrs in psutil.net_if_addrs().items():
+            for addr in addrs:
+                if addr.family == socket.AF_INET and addr.address:
+                    protected.add(addr.address)
+    except Exception:
+        pass
+
+    # 2. Add common default gateways for typical subnets to prevent Self-DoS
+    common_gateways = {"192.168.0.1", "192.168.1.1", "10.0.0.1", "172.16.0.1"}
+    protected.update(common_gateways)
+
+    # 3. Read custom allowlist from environment variable CG_PROTECTED_IPS
+    custom_env = os.getenv("CG_PROTECTED_IPS", "")
+    if custom_env:
+        for item in custom_env.split(","):
+            cleaned = item.strip()
+            if cleaned:
+                protected.add(cleaned)
+
+    return protected
+
+
 # Allowlisted actions that can be executed autonomously
 VALID_AUTONOMOUS_ACTIONS: Set[str] = {
     "block_ip",
@@ -50,7 +90,7 @@ class SafetyGuardrails:
         custom_allowlist: List[str] | None = None,
         max_actions_per_minute: int = 20,
     ):
-        self.protected_hosts = set(DEFAULT_PROTECTED_HOSTS)
+        self.protected_hosts = discover_protected_local_assets()
         self.protected_networks = list(DEFAULT_PROTECTED_NETWORKS)
         self.max_actions_per_minute = max_actions_per_minute
         self._action_timestamps: List[float] = []

@@ -28,7 +28,7 @@ from ..llm.provider import get_provider
 from ..llm.mitre_index import get_mitre_rag
 from ..security import safe_llm_url
 from ..actuators.router import default_router
-from ..auth import get_current_user
+from ..auth import Role, get_current_user, get_user_by_username
 from ..mitre.defense_rag import default_defense_rag
 from ..mitre.semantic_rag import default_semantic_rag
 
@@ -550,6 +550,8 @@ def actuate_alert(
     smart = _smart_log_for(alert_id)
     target = options.target or smart.source.get("src_ip") or smart.source.get("remote_ip") or "192.168.1.100"
     user = get_current_user(request)
+    if user.role not in (Role.ADMIN, Role.ANALYST):
+        raise HTTPException(403, "Actuation requires ADMIN or ANALYST privileges")
     actor_id = user.username
     params = dict(options.params or {})
     if options.initiator_id:
@@ -557,7 +559,12 @@ def actuate_alert(
     elif "initiator_id" not in params:
         params["initiator_id"] = actor_id
     if options.approver_id:
-        params["approver_id"] = options.approver_id
+        approver_user = get_user_by_username(options.approver_id)
+        if not approver_user:
+            raise HTTPException(400, f"Approver '{options.approver_id}' is not a recognized authorized identity")
+        if approver_user.role not in (Role.ADMIN, Role.ANALYST):
+            raise HTTPException(403, f"Approver '{options.approver_id}' lacks required security role for dual authorization")
+        params["approver_id"] = approver_user.username
 
     res = default_router.execute_action(
         action=options.action,

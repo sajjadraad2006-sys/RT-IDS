@@ -41,6 +41,7 @@ class Role(str, Enum):
     ADMIN = "admin"
     ANALYST = "analyst"
     AUDITOR = "auditor"
+    VIEWER = "viewer"
 
 
 class User(BaseModel):
@@ -315,6 +316,15 @@ def get_current_user(request: Request) -> User:
             username=ANALYST_ID or "local-analyst",
             role=Role.ADMIN,  # Local developer workstation defaults to Admin permissions
             full_name="Local SOC Operator",
+        )
+
+    # 4. If accessed from RFC1918 private LAN in development mode without token, grant read-only VIEWER
+    from .security import _is_lan_client
+    if not is_prod and _is_lan_client(client_ip):
+        return User(
+            username="lan-guest",
+            role=Role.VIEWER,  # Read-only dashboard view; cannot execute destructive containment
+            full_name="LAN Guest Monitor",
         )
 
     raise HTTPException(

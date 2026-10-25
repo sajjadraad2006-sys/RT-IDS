@@ -113,8 +113,17 @@ class FormalSafetyVerifier:
         custom_critical_assets: Optional[List[str]] = None,
         proportionality_alpha: float = 1.25,
     ):
-        self._secret = system_secret_key or secrets.token_bytes(32)
-        self._protected_hosts = set(DEFAULT_PROTECTED_HOSTS)
+        if system_secret_key is not None:
+            self._secret = system_secret_key
+        else:
+            import os
+            from ..config import SECRET_KEY
+            hmac_env = os.getenv("CG_HMAC_SECRET", "")
+            base = (hmac_env or SECRET_KEY or "cyberguard-formal-verifier-hmac-v2-fallback").encode("utf-8")
+            self._secret = hashlib.sha256(b"cyberguard-verifier-key:" + base).digest()
+
+        from ..actuators.guardrails import discover_protected_local_assets
+        self._protected_hosts = discover_protected_local_assets()
         self._protected_networks = list(DEFAULT_PROTECTED_NETWORKS)
         self._alpha = proportionality_alpha
 

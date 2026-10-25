@@ -221,22 +221,47 @@ class LiveFlowWorker:
 
             executed_action = "none"
             rollback_token = None
+            explanation = ""
             src_ip = str(flow_input.get("src_ip", "")).strip()
 
-            # Wire autonomous containment actuators to live high-confidence malicious detections
-            if src_ip and src_ip not in ("127.0.0.1", "0.0.0.0", "localhost") and alert.severity in ("high", "critical"):
+            # Wire autonomous containment actuators ONLY to confirmed known attacks with high confidence
+            should_auto_contain = (
+                src_ip
+                and src_ip not in ("127.0.0.1", "0.0.0.0", "localhost")
+                and alert.route == "known_attack"
+                and alert.severity in ("high", "critical")
+                and float(alert.confidence or 0.0) >= 0.85
+            )
+
+            if should_auto_contain:
                 try:
                     from ..actuators.router import default_router
                     exec_mode = os.getenv("CG_ACTIVE_DEFENSE_MODE", "simulation").lower()
                     act_res = default_router.execute_action(
                         action="block_ip",
                         target=src_ip,
-                        params={"reason": f"Real-time autonomous containment for {alert.type} ({alert.confidence * 100:.1f}%)"},
+                        params={
+                            "reason": f"Real-time autonomous containment for {alert.type} ({alert.confidence * 100:.1f}%)",
+                            "severity": alert.severity,
+                            "confidence": float(alert.confidence or 0.90),
+                            "initiator_id": "system:live_flow_worker",
+                            "approver_id": "policy:autonomous_active_defense",
+                        },
                         mode=exec_mode,
                     )
-                    executed_action = act_res.action
-                    rollback_token = act_res.rollback_token
-                    logger.info("Autonomous containment enacted against %s: action=%s (token=%s)", src_ip, executed_action, rollback_token)
+                    if act_res.success:
+                        if act_res.simulated:
+                            executed_action = f"simulated:{act_res.action}"
+                            explanation = f"Autonomous Active Defense: simulated {act_res.action} against {src_ip} (Verified Token: {act_res.rollback_token})"
+                        else:
+                            executed_action = f"executed:{act_res.action}"
+                            explanation = f"Autonomous Active Defense: executed live {act_res.action} against {src_ip} (Rollback Token: {act_res.rollback_token})"
+                        rollback_token = act_res.rollback_token
+                    else:
+                        executed_action = f"blocked_by_policy:{act_res.action}"
+                        rollback_token = None
+                        explanation = f"Autonomous Active Defense: containment rejected by policy for {src_ip} ({act_res.error})"
+                    logger.info("Autonomous containment disposition for %s: action=%s (success=%s, token=%s)", src_ip, executed_action, act_res.success, rollback_token)
                 except Exception as act_exc:
                     logger.debug("Autonomous containment dispatch skipped: %s", act_exc)
 
@@ -273,12 +298,6 @@ class LiveFlowWorker:
                         cleaned_top_features.append(list(item))
                 else:
                     cleaned_top_features.append(item)
-
-            explanation = (
-                f"Autonomous Active Defense: executed {executed_action} against {src_ip} (Rollback Token: {rollback_token})"
-                if executed_action != "none"
-                else ""
-            )
 
             record_kwargs: Dict[str, Any] = {
                 "created_at": now,

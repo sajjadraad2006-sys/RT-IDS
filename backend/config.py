@@ -75,6 +75,7 @@ CG_ADMIN_PASSWORD = os.getenv("CG_ADMIN_PASSWORD", "")
 CG_ANALYST_PASSWORD = os.getenv("CG_ANALYST_PASSWORD", "")
 CG_AUDITOR_PASSWORD = os.getenv("CG_AUDITOR_PASSWORD", "")
 
+SECRET_KEY = os.getenv("CG_SECRET_KEY", "cyberguard-doctoral-defense-hmac-sha256-secret-key-2026")
 API_TOKEN = os.getenv("CG_API_TOKEN", "")
 ANALYST_ID = os.getenv("CG_ANALYST_ID", "local-analyst")[:64]
 SIMULATOR_ALLOWED_ASSETS = {
