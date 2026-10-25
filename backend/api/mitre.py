@@ -1,7 +1,8 @@
 """MITRE ATT&CK browse + sync endpoints."""
 from __future__ import annotations
 import json
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
+from ..auth import require_role, Role, User
 from ..config import DB_PATH
 from ..mitre import attack_db, taxii_sync
 from ..mitre.d3fend import D3fendStore
@@ -74,7 +75,11 @@ def technique_detail(tid: str) -> dict:
 
 @router.post("/sync")
 @limiter.limit("2/minute")
-def sync(request: Request, force: bool = False) -> dict:
+def sync(
+    request: Request,
+    force: bool = False,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
+) -> dict:
     status = taxii_sync.sync_attack(force=force)
     if status.get("status") in ("synced", "cached"):
         provenance = status.get("provenance")

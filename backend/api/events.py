@@ -9,8 +9,10 @@ import time
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from sqlalchemy import desc, select
+
+from ..auth import require_role, Role, User
 
 from ..config import (
     ANALYST_ID,
@@ -660,6 +662,7 @@ def suricata_attack_status() -> dict:
 def start_suricata_stream(
     eve_path: str | None = None,
     from_end: bool = True,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
 ) -> dict:
     """Start the real-time background Suricata EVE log tailer and connect to RT-IDS pipeline."""
     from ..detection.live_worker import default_live_worker
@@ -684,7 +687,9 @@ def start_suricata_stream(
 
 
 @router.post("/stream/stop")
-def stop_suricata_stream() -> dict:
+def stop_suricata_stream(
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
+) -> dict:
     """Stop the background Suricata EVE stream tailer."""
     from ..suricata.tailer import default_suricata_tailer
     default_suricata_tailer.stop()
@@ -709,6 +714,7 @@ def get_suricata_stream_status() -> dict:
 def replay_synthetic_suricata_stream(
     flows_count: int = 5,
     alerts_count: int = 2,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
 ) -> dict:
     """Inject synthetic EVE flow and alert records directly into the live bridge for testing."""
     from ..suricata.tailer import SyntheticEveReplayer, default_suricata_tailer

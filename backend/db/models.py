@@ -345,3 +345,50 @@ class ActionReceiptRecord(Base):
     rolled_back_at = Column(Float, nullable=True)
 
 Base.metadata.create_all(bind=engine)
+
+
+def migrate_db():
+    """Ensure existing SQLite tables have all required columns without manual migrations."""
+    with engine.connect() as conn:
+        # 1. Migrate action_receipts table
+        try:
+            res = conn.exec_driver_sql("PRAGMA table_info(action_receipts)").fetchall()
+            existing_cols = {row[1] for row in res}
+            if existing_cols:
+                needed_cols = [
+                    ("is_simulated", "BOOLEAN DEFAULT 1 NOT NULL"),
+                    ("ttl_seconds", "INTEGER"),
+                    ("expires_at", "REAL"),
+                    ("executed_command", "TEXT DEFAULT '' NOT NULL"),
+                    ("rollback_command", "TEXT DEFAULT '' NOT NULL"),
+                ]
+                for col_name, col_type in needed_cols:
+                    if col_name not in existing_cols:
+                        conn.exec_driver_sql(f"ALTER TABLE action_receipts ADD COLUMN {col_name} {col_type};")
+                conn.exec_driver_sql(
+                    "CREATE INDEX IF NOT EXISTS ix_action_receipts_expires_at ON action_receipts (expires_at);"
+                )
+                conn.commit()
+        except Exception as exc:
+            import logging
+            logging.getLogger("cyberguard.db").warning("action_receipts migration note: %s", exc)
+
+        # 2. Migrate alerts table
+        try:
+            res = conn.exec_driver_sql("PRAGMA table_info(alerts)").fetchall()
+            existing_cols = {row[1] for row in res}
+            if existing_cols:
+                needed_cols = [
+                    ("evidence_json", "TEXT DEFAULT '{}'"),
+                    ("input_schema_json", "TEXT DEFAULT '{}'"),
+                ]
+                for col_name, col_type in needed_cols:
+                    if col_name not in existing_cols:
+                        conn.exec_driver_sql(f"ALTER TABLE alerts ADD COLUMN {col_name} {col_type};")
+                conn.commit()
+        except Exception:
+            pass
+
+
+migrate_db()
+

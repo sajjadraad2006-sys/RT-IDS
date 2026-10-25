@@ -228,6 +228,9 @@ class ActuatorRouter:
                     import json
                     from ..db.models import ActionReceiptRecord, SessionLocal
                     ttl_sec = int(params.get("ttl_seconds", 0) or 0)
+                    if ttl_sec <= 0 and action in ("block_ip", "isolate_port"):
+                        ttl_sec = int(os.getenv("CG_DEFAULT_BLOCK_TTL_SECONDS", "3600"))
+                        params["ttl_seconds"] = ttl_sec
                     expires_at = (time.time() + ttl_sec) if ttl_sec > 0 else None
                     rollback_cmd = result.metadata.get("rollback_cmd", "") if isinstance(result.metadata, dict) else ""
 
@@ -258,7 +261,10 @@ class ActuatorRouter:
                         db_session.add(rec)
                         db_session.commit()
                 except Exception as db_err:
-                    logger.debug("Could not persist rollback receipt to DB: %s", db_err)
+                    logger.warning(
+                        "Could not persist rollback receipt to DB for action %s on %s: %s",
+                        action, target, db_err, exc_info=True
+                    )
 
             if not dry_run:
                 self.guardrails.record_execution()

@@ -1,29 +1,103 @@
 """Multi-Flow Sliding-Window PortScan and Sweep Correlator.
 
-Single-flow inspection has an intrinsic limitation: an isolated failed TCP connection
-or network glitch cannot be reliably distinguished from an adversarial port probe based
-solely on isolated flow metrics (resulting in high false-alarm rates or low precision).
+Single-flow inspection has an intrinsic limitation: an isolated TCP connection or normal
+multi-host browsing cannot be reliably distinguished from an adversarial port probe based
+solely on isolated flow metrics without behavioral context across time.
 
 Real-world port scans and network sweeps exhibit distinct temporal and spatial clustering:
-- Vertical PortScan: A single source IP probes multiple distinct destination ports on a target.
-- Horizontal Network Sweep: A single source IP probes the same port across multiple target IPs.
+- Vertical PortScan: A single source IP probes multiple distinct destination ports on a target
+  using reconnaissance probes (SYN-only, RST-terminated, or rapid banner-grab probes).
+- Horizontal Network Sweep: A single source IP probes the same port across multiple target IPs
+  with non-interactive reconnaissance probes (differentiated from normal web browsing).
 - Strobe Scan: Multiple ports across multiple hosts within a short time window.
 
 This module provides thread-safe, bounded, zero-leak sliding-window correlation that:
 1. Tracks per-source IP connection targets within a configurable time window (default 2.0s).
-2. Boosts PortScan confidence and severity when multi-target probe thresholds are exceeded (precision > 95%).
-3. Mitigates false positives by downranking isolated single probes into benign or low-severity anomaly review.
-4. Detects stealthy sweeps even when individual flows produce marginal classifier scores.
+2. Distinguishes interactive established application flows (web browsing, admin sessions)
+   from reconnaissance probes (SYN, RST, rapid banner grabs).
+3. Computes calibrated heuristic confidence based on probe volume and probe-to-interactive ratio.
+4. Downranks isolated single probes and normal web browsing into benign traffic.
 """
 from __future__ import annotations
 
 import collections
-import math
 import threading
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .pipeline import Alert
+
+WEB_PORTS: Set[int] = {80, 443, 53, 8080, 8443}
+
+
+def is_flow_probe_like(flow_meta: Dict[str, Any]) -> bool:
+    """Classify whether a flow behaves as a reconnaissance probe vs. established interactive application session.
+    
+    Probe characteristics:
+    - SYN packets with zero response / filtered (bwd_pkts == 0)
+    - RST-terminated / rejected connections with minimal packet counts (pkts <= 3)
+    - Rapid banner grabbing (nmap -sV): small server response (< 350B), minimal client payload (< 100B), pkts <= 5
+    
+    Interactive application characteristics (browsing, SSH, database sessions):
+    - Bidirectional data transfer (fwd_bytes >= 100 and bwd_bytes >= 350, or total_bytes >= 800)
+    - Multiple packets in both directions (fwd_pkts >= 3, bwd_pkts >= 2)
+    - Multiple ACK flags established
+    """
+    fwd_pkts = float(flow_meta.get("total_fwd_packets", 0.0) or flow_meta.get("Total Fwd Packets", 0.0) or 0.0)
+    bwd_pkts = float(flow_meta.get("total_bwd_packets", 0.0) or flow_meta.get("Total Backward Packets", 0.0) or 0.0)
+    fwd_bytes = float(flow_meta.get("total_fwd_bytes", 0.0) or flow_meta.get("Total Length of Fwd Packets", 0.0) or 0.0)
+    bwd_bytes = float(flow_meta.get("total_bwd_bytes", 0.0) or flow_meta.get("Total Length of Bwd Packets", 0.0) or 0.0)
+    ack_flags = float(flow_meta.get("ack_flag_count", 0.0) or flow_meta.get("ACK Flag Count", 0.0) or 0.0)
+
+    # An established interactive application flow (HTTP/TLS, SSH, Postgres) has bidirectional data
+    is_interactive = (
+        ((bwd_bytes >= 350 and fwd_bytes >= 100) or (bwd_bytes + fwd_bytes >= 800))
+        and fwd_pkts >= 3
+        and bwd_pkts >= 2
+        and ack_flags >= 1
+    )
+    return not is_interactive
+
+
+class ProbeWindowMetrics(tuple):
+    """Dual-access window metric object: unpacks as (max_ports, max_hosts) or dict-like indexing."""
+
+    def __new__(
+        cls,
+        ports: int,
+        hosts: int,
+        probe_ports: int = 0,
+        interactive_ports: int = 0,
+        probe_hosts: int = 0,
+        interactive_hosts: int = 0,
+        is_web_browsing: bool = False,
+    ):
+        return super().__new__(cls, (ports, hosts))
+
+    def __init__(
+        self,
+        ports: int,
+        hosts: int,
+        probe_ports: int = 0,
+        interactive_ports: int = 0,
+        probe_hosts: int = 0,
+        interactive_hosts: int = 0,
+        is_web_browsing: bool = False,
+    ):
+        self.ports = ports
+        self.hosts = hosts
+        self.max_ports_target = ports
+        self.max_hosts_port = hosts
+        self.probe_ports_target = probe_ports
+        self.interactive_ports_target = interactive_ports
+        self.probe_hosts_port = probe_hosts
+        self.interactive_hosts_port = interactive_hosts
+        self.is_web_browsing = is_web_browsing
+
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return getattr(self, item)
+        return super().__getitem__(item)
 
 
 class ScanCorrelator:
@@ -41,8 +115,8 @@ class ScanCorrelator:
         self.min_hosts = int(min_hosts_for_horizontal_sweep)
         self.max_tracked_sources = int(max_tracked_sources)
 
-        # src_ip -> collections.deque of (timestamp, dst_ip, dst_port)
-        self._history: Dict[str, collections.deque[Tuple[float, str, int]]] = {}
+        # src_ip -> collections.deque of (timestamp, dst_ip, dst_port, is_probe_like, is_web_port)
+        self._history: Dict[str, collections.deque[Tuple[float, str, int, bool, bool]]] = {}
         self._lock = threading.Lock()
 
     def record_probe(
@@ -50,14 +124,16 @@ class ScanCorrelator:
         src_ip: str,
         dst_ip: str,
         dst_port: int,
+        is_probe: bool = True,
         timestamp: Optional[float] = None,
-    ) -> Tuple[int, int]:
-        """Record an observed probe and return (distinct_ports_in_window, distinct_hosts_in_window)."""
+    ) -> ProbeWindowMetrics:
+        """Record an observed probe and return detailed window metrics."""
         if not src_ip or not dst_ip:
-            return 1, 1
+            return ProbeWindowMetrics(1, 1, probe_ports=1 if is_probe else 0)
 
         now = timestamp if timestamp is not None else time.time()
         cutoff = now - self.window_sec
+        is_web = dst_port in WEB_PORTS
 
         with self._lock:
             # Capacity guard: prune oldest if table exceeds bound
@@ -70,7 +146,7 @@ class ScanCorrelator:
                 self._history[src_ip] = collections.deque()
 
             dq = self._history[src_ip]
-            dq.append((now, dst_ip, int(dst_port)))
+            dq.append((now, dst_ip, int(dst_port), bool(is_probe), is_web))
 
             # Prune expired entries for this source
             while dq and dq[0][0] < cutoff:
@@ -78,20 +154,51 @@ class ScanCorrelator:
 
             if not dq:
                 self._history.pop(src_ip, None)
-                return 0, 0
+                return ProbeWindowMetrics(0, 0)
 
-            targets: Dict[str, Set[int]] = collections.defaultdict(set)
-            ports: Dict[int, Set[str]] = collections.defaultdict(set)
-            for _, h, p in dq:
-                targets[h].add(p)
-                ports[p].add(h)
+            # Per target IP metrics
+            target_all_ports: Dict[str, Set[int]] = collections.defaultdict(set)
+            target_probe_ports: Dict[str, Set[int]] = collections.defaultdict(set)
+            target_interactive_ports: Dict[str, Set[int]] = collections.defaultdict(set)
 
-            # A vertical port scan targets multiple distinct ports on the SAME destination host
-            max_ports_single_target = max(len(p_set) for p_set in targets.values()) if targets else 0
-            # A horizontal sweep probes the SAME port across multiple destination hosts
-            max_hosts_single_port = max(len(h_set) for h_set in ports.values()) if ports else 0
+            # Per port metrics
+            port_all_hosts: Dict[int, Set[str]] = collections.defaultdict(set)
+            port_probe_hosts: Dict[int, Set[str]] = collections.defaultdict(set)
+            port_interactive_hosts: Dict[int, Set[str]] = collections.defaultdict(set)
 
-            return max_ports_single_target, max_hosts_single_port
+            for _, h, p, p_probe, p_web in dq:
+                target_all_ports[h].add(p)
+                if p_probe:
+                    target_probe_ports[h].add(p)
+                else:
+                    target_interactive_ports[h].add(p)
+
+                port_all_hosts[p].add(h)
+                if p_probe:
+                    port_probe_hosts[p].add(h)
+                else:
+                    port_interactive_hosts[p].add(h)
+
+            curr_target_probe_ports = len(target_probe_ports.get(dst_ip, set()))
+            curr_target_interactive_ports = len(target_interactive_ports.get(dst_ip, set()))
+            curr_target_all_ports = len(target_all_ports.get(dst_ip, set()))
+
+            curr_port_probe_hosts = len(port_probe_hosts.get(dst_port, set()))
+            curr_port_interactive_hosts = len(port_interactive_hosts.get(dst_port, set()))
+            curr_port_all_hosts = len(port_all_hosts.get(dst_port, set()))
+
+            # Normal web browsing: multiple hosts contacted on web ports (80/443), but with interactive application data
+            is_web_browsing = is_web and (curr_port_interactive_hosts >= 2) and (curr_port_probe_hosts == 0)
+
+            return ProbeWindowMetrics(
+                ports=curr_target_all_ports,
+                hosts=curr_port_all_hosts,
+                probe_ports=curr_target_probe_ports,
+                interactive_ports=curr_target_interactive_ports,
+                probe_hosts=curr_port_probe_hosts,
+                interactive_hosts=curr_port_interactive_hosts,
+                is_web_browsing=is_web_browsing,
+            )
 
     def correlate_alert(
         self,
@@ -115,10 +222,11 @@ class ScanCorrelator:
         if src_ip in ("127.0.0.1", "::1", "localhost", "0.0.0.0") or src_ip == dst_ip:
             return alert
 
-        # Only track TCP SYN / probe flows or flows that showed scan indicators
+        is_probe = is_flow_probe_like(flow_meta)
         syn_count = float(flow_meta.get("syn_flag_count", 0.0) or 0.0)
         is_candidate_probe = (
             syn_count > 0.0
+            or is_probe
             or alert.type in ("PortScan", "unknown-anomaly")
             or alert.route in ("known_attack", "unknown_anomaly_review")
         )
@@ -126,22 +234,52 @@ class ScanCorrelator:
         if not is_candidate_probe:
             return alert
 
-        max_ports_target, max_hosts_port = self.record_probe(
-            src_ip, dst_ip, dst_port, timestamp=timestamp
+        metrics = self.record_probe(
+            src_ip, dst_ip, dst_port, is_probe=is_probe, timestamp=timestamp
         )
 
-        is_vertical_scan = max_ports_target >= self.min_ports
-        is_horizontal_sweep = max_hosts_port >= self.min_hosts
+        probe_ports = metrics.probe_ports_target
+        interactive_ports = metrics.interactive_ports_target
+        probe_hosts = metrics.probe_hosts_port
+        is_web_browsing = metrics.is_web_browsing
 
-        # Calibrated logistic probability confidence based on probe burst intensity
-        ports_factor = max(0, max_ports_target - self.min_ports)
-        hosts_factor = max(0, max_hosts_port - self.min_hosts)
-        intensity = ports_factor + hosts_factor
-        calibrated_conf = round(min(0.99, 0.88 + 0.11 * (1.0 - math.exp(-0.5 * intensity))), 3)
+        # Vertical scan requires distinct target ports hit with reconnaissance probes
+        is_vertical_scan = probe_ports >= self.min_ports
+        # Horizontal sweep requires distinct hosts probed with reconnaissance probes
+        is_horizontal_sweep = (probe_hosts >= self.min_hosts) and not is_web_browsing
 
-        # Case 1: Model classified as PortScan
+        # Calibrated heuristic confidence based on probe volume and probe-to-interactive ratio
+        heuristic_conf = 0.0
+        if is_vertical_scan or is_horizontal_sweep:
+            probe_volume = max(probe_ports, probe_hosts)
+            total_activity = max(metrics.max_ports_target, metrics.max_hosts_port)
+            probe_ratio = probe_volume / max(1, total_activity)
+
+            if probe_volume >= 10:
+                heuristic_conf = 0.98
+            elif probe_volume >= 5:
+                heuristic_conf = 0.92
+            elif probe_volume >= 3:
+                heuristic_conf = 0.88 if probe_ratio >= 0.8 else 0.65
+            else:
+                heuristic_conf = 0.50
+
+        # Case 1: Model classified flow as PortScan
         if alert.type == "PortScan":
-            if is_vertical_scan or is_horizontal_sweep:
+            if not is_probe or is_web_browsing or (probe_ports == 0 and interactive_ports >= 2):
+                # Legitimate web browsing or administrative multi-service session falsely flagged by classifier
+                alert.type = "Benign"
+                alert.severity = "low"
+                alert.route = "benign"
+                alert.confidence = 0.05
+                alert.note = "Classifier PortScan false positive downgraded: verified established interactive session"
+                alert.evidence["scan_correlation"] = {
+                    "confirmed": False,
+                    "downgraded_false_alarm_mitigation": True,
+                    "is_web_browsing": is_web_browsing,
+                    "heuristic_confidence": 0.05,
+                }
+            elif is_vertical_scan or is_horizontal_sweep:
                 # Multi-flow correlation CONFIRMS the scan behavior on target
                 alert.confidence = max(float(alert.confidence or 0.0), 0.99)
                 alert.severity = "high"
@@ -150,17 +288,20 @@ class ScanCorrelator:
                 if is_vertical_scan and is_horizontal_sweep:
                     scan_type = "Strobe Network Scan"
                 alert.note = (
-                    f"Confirmed {scan_type}: {max_ports_target} distinct ports on target, "
-                    f"{max_hosts_port} hosts on port probed by {src_ip} within {self.window_sec}s window"
+                    f"Confirmed {scan_type}: {probe_ports} probe ports on target, "
+                    f"{probe_hosts} probe hosts on port from {src_ip} within {self.window_sec}s window"
                 )
                 alert.evidence["scan_correlation"] = {
                     "confirmed": True,
-                    "distinct_ports": max_ports_target,
-                    "distinct_hosts": max_hosts_port,
-                    "window_sec": self.window_sec,
                     "scan_type": scan_type,
+                    "distinct_ports": probe_ports,
+                    "distinct_hosts": probe_hosts,
+                    "probe_ports": probe_ports,
+                    "probe_hosts": probe_hosts,
+                    "heuristic_confidence": heuristic_conf,
+                    "window_sec": self.window_sec,
                 }
-            elif max_ports_target == 1 and max_hosts_port == 1 and float(alert.confidence or 0.0) < 0.90:
+            elif probe_ports <= 1 and probe_hosts <= 1 and float(alert.confidence or 0.0) < 0.90:
                 # Isolated single probe without surrounding scan clustering on destination
                 alert.severity = "low"
                 alert.route = "unknown_anomaly_review"
@@ -171,6 +312,7 @@ class ScanCorrelator:
                     "distinct_hosts": 1,
                     "window_sec": self.window_sec,
                     "downgraded_false_alarm_mitigation": True,
+                    "heuristic_confidence": 0.35,
                 }
 
         # Case 2: Classifier thought it was Benign or Unknown, BUT strong multi-target probe burst occurred
@@ -179,20 +321,23 @@ class ScanCorrelator:
             alert.severity = "high"
             alert.route = "known_attack"
             alert.stage = "behavioral_correlation"
-            alert.confidence = calibrated_conf
+            alert.confidence = heuristic_conf
             scan_type = "Vertical PortScan" if is_vertical_scan else "Horizontal Sweep"
             if is_vertical_scan and is_horizontal_sweep:
                 scan_type = "Strobe Network Scan"
             alert.note = (
                 f"Stealth {scan_type} detected by behavioral correlation: "
-                f"{max_ports_target} ports / {max_hosts_port} hosts from {src_ip} within {self.window_sec}s"
+                f"{probe_ports} probe ports / {probe_hosts} probe hosts from {src_ip} within {self.window_sec}s"
             )
             alert.mitre_techniques = ["T1046", "T1595.001"]
             alert.evidence["scan_correlation"] = {
                 "confirmed": True,
                 "stealth_scan_detected": True,
-                "distinct_ports": max_ports_target,
-                "distinct_hosts": max_hosts_port,
+                "distinct_ports": probe_ports,
+                "distinct_hosts": probe_hosts,
+                "probe_ports": probe_ports,
+                "probe_hosts": probe_hosts,
+                "heuristic_confidence": heuristic_conf,
                 "window_sec": self.window_sec,
             }
 

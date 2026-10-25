@@ -236,10 +236,10 @@ class ApiAccessMiddleware(BaseHTTPMiddleware):
                     is_token_valid = True
                     user_role = str(payload.get("role", "analyst")).lower()
 
-        # Strict RBAC boundary: Any client with VIEWER role is strictly forbidden from state mutation
-        if is_token_valid and user_role == "viewer" and request.method not in ("GET", "HEAD", "OPTIONS"):
+        # Strict RBAC boundary: Any client with VIEWER or AUDITOR role is strictly forbidden from state mutation
+        if is_token_valid and user_role in ("viewer", "auditor") and request.method not in ("GET", "HEAD", "OPTIONS"):
             return JSONResponse(
-                {"detail": "Permission denied: VIEWER role is restricted to read-only queries and cannot mutate state"},
+                {"detail": f"Permission denied: {user_role.upper()} role is restricted to read-only queries and cannot mutate state"},
                 status_code=403,
             )
 

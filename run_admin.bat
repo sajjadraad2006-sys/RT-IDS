@@ -37,11 +37,16 @@ set CG_ENV=development
 for /f "tokens=*" %%a in ('%PYTHON_EXE% scripts\get_lan_ip.py') do set "LOCAL_IP=%%a"
 if "%LOCAL_IP%"=="" set "LOCAL_IP=127.0.0.1"
 
+if "%CG_HOST%"=="" set "CG_HOST=127.0.0.1"
+if "%CG_PORT%"=="" set "CG_PORT=8000"
+
 echo.
 echo ============================================================
-echo   [OK] Server listening on:  http://0.0.0.0:8000
-echo   [OK] Local Dashboard (PC): http://127.0.0.1:8000/
-echo   [OK] Mobile Web Dashboard: http://%LOCAL_IP%:8000/
+echo   [OK] Server listening on:  http://%CG_HOST%:%CG_PORT%
+echo   [OK] Local Dashboard (PC): http://127.0.0.1:%CG_PORT%/
+if "%CG_HOST%"=="0.0.0.0" (
+echo   [OK] Mobile Web Dashboard: http://%LOCAL_IP%:%CG_PORT%/
+)
 echo.
 echo   Termux Attack Command:
 echo   nmap -Pn -sT -p 1-150 %LOCAL_IP%
@@ -49,5 +54,5 @@ echo ============================================================
 echo.
 
 echo [*] Starting CyberGuard Server and Live Raw Sniffer...
-"%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+"%PYTHON_EXE%" -m uvicorn backend.main:app --host %CG_HOST% --port %CG_PORT% --reload
 pause

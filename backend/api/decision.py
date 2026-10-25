@@ -316,6 +316,9 @@ def simulate_response(
     options: ResponseSimulationRequest,
 ) -> dict:
     """Create an allowlisted response *plan*. No firewall/EDR call exists here."""
+    user = get_current_user(request)
+    if user.role not in (Role.ADMIN, Role.ANALYST):
+        raise HTTPException(403, "Response simulation requires ADMIN or ANALYST privileges")
     asset = re.sub(r"[^A-Za-z0-9_.:@/-]", "", options.asset_ref).strip()[:128]
     key = re.sub(r"[^A-Za-z0-9_.:-]", "", options.idempotency_key).strip()[:64]
     if not asset or asset not in SIMULATOR_ALLOWED_ASSETS:
@@ -415,10 +418,11 @@ def submit_feedback(
     This endpoint deliberately does not retrain or promote a model. Automated
     online learning from attacker-influenced uploads would enable data poisoning.
     """
+    user = get_current_user(request)
+    if user.role not in (Role.ADMIN, Role.ANALYST):
+        raise HTTPException(403, "Submitting analyst feedback requires ADMIN or ANALYST privileges")
     notes = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", " ", feedback.notes).strip()
-    # Identity comes from server configuration. Remote use is already guarded
-    # by CG_API_TOKEN; an untrusted body cannot claim another analyst identity.
-    reviewer = re.sub(r"[^A-Za-z0-9_.@ -]", "", ANALYST_ID).strip() or "local-analyst"
+    reviewer = user.username or re.sub(r"[^A-Za-z0-9_.@ -]", "", ANALYST_ID).strip() or "local-analyst"
     if len(notes) > 2000:
         raise HTTPException(422, "Feedback fields exceed allowed length")
 
@@ -606,6 +610,8 @@ def rollback_action(
 ) -> dict:
     """Roll back a previously executed or simulated mitigation by token."""
     user = get_current_user(request)
+    if user.role not in (Role.ADMIN, Role.ANALYST):
+        raise HTTPException(403, "Rollback requires ADMIN or ANALYST privileges")
     actor_id = user.username
     success = default_router.rollback_action(options.rollback_token)
     with SessionLocal() as session:

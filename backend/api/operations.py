@@ -4,9 +4,11 @@ from __future__ import annotations
 import json
 import time
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import desc
+
+from ..auth import require_role, Role, User
 
 from ..config import ANALYST_ID, DB_PATH
 from ..db.models import AlertRecord, DecisionCase, SecurityEventRecord, SessionLocal
@@ -328,12 +330,15 @@ def incident_detail(incident_id: str) -> dict:
 @router.post("/incidents/{incident_id}/resolve")
 @limiter.limit("10/minute")
 def resolve_incident(
-    request: Request, incident_id: str, resolution: IncidentResolution
+    request: Request,
+    incident_id: str,
+    resolution: IncidentResolution,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
 ) -> dict:
     try:
         return IncidentStore(DB_PATH).resolve_by_analyst(
             incident_id,
-            actor=ANALYST_ID,
+            actor=user.username,
             verdict=resolution.verdict,
             notes=resolution.notes,
         )

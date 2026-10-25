@@ -51,8 +51,8 @@ async def _lifespan(app: FastAPI):
     try:
         default_router.sweep_expired_actions()
         default_router.start_ttl_reaper()
-    except Exception:
-        pass
+    except Exception as reaper_err:
+        logging.getLogger("cyberguard.main").error("Failed to start TTL reaper or sweep expired actions: %s", reaper_err, exc_info=True)
 
     yield
 

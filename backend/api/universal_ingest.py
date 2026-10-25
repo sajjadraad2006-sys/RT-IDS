@@ -9,11 +9,12 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any, Dict, Optional
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from typing import Any, Dict, Optional, Tuple
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from ..actuators.router import default_router
+from ..auth import require_role, Role, User
 from ..db.models import Setting
 from ..decision.engine import build_smart_log, decision_messages, parse_and_guard_ai_decision
 from ..decision.models import GuardedDecision, SmartLog
@@ -235,6 +236,7 @@ async def ingest_universal_document(
     filename: Optional[str] = Form(None),
     auto_triage: bool = Form(True),
     enforce_live: bool = Form(False),
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
 ) -> Dict[str, Any]:
     """Ingest arbitrary documents (PDF, DOCX, EVTX, XML, JSON, logs) and run autonomous cyber triage."""
     if file and file.filename:
@@ -253,7 +255,10 @@ async def ingest_universal_document(
 
 
 @router.post("/universal-ingest/raw")
-async def ingest_raw_telemetry(req: RawTextIngestRequest) -> Dict[str, Any]:
+async def ingest_raw_telemetry(
+    req: RawTextIngestRequest,
+    user: User = Depends(require_role([Role.ADMIN, Role.ANALYST])),
+) -> Dict[str, Any]:
     """JSON-based endpoint for raw text/log dumps or scripts."""
     content_bytes = req.raw_text.encode("utf-8", errors="replace")
     target_name = req.filename or "raw_telemetry.log"
