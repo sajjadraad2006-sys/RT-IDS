@@ -240,10 +240,15 @@ class ApiAccessMiddleware(BaseHTTPMiddleware):
                     {"detail": "production mode requires valid X-CyberGuard-Token or Bearer authentication"},
                     status_code=401,
                 )
-        elif API_TOKEN:
-            if not is_token_valid:
-                return JSONResponse({"detail": "valid API token required"}, status_code=401)
-        elif not _is_loopback_client(client_host) and not _is_lan_client(client_host) and not is_token_valid:
+        elif API_TOKEN and not is_token_valid:
+            return JSONResponse({"detail": "valid API token required"}, status_code=401)
+        elif _is_lan_client(client_host) and not is_token_valid:
+            if request.method not in ("GET", "HEAD", "OPTIONS"):
+                return JSONResponse(
+                    {"detail": "State-changing operations require authenticated API token or login credentials"},
+                    status_code=401,
+                )
+        elif not _is_loopback_client(client_host) and not is_token_valid:
             return JSONResponse(
                 {"detail": "remote API access requires CG_API_TOKEN or valid authentication"},
                 status_code=403,

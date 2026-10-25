@@ -321,3 +321,22 @@ class SecurityEventTechniqueMapping(Base):
     snapshot_source = Column(String(256), nullable=True)
     snapshot_indexed_time = Column(Float, nullable=True)
     created_at = Column(Float, default=time.time, nullable=False)
+
+
+class ActionReceiptRecord(Base):
+    """Persistent storage for mitigation actions and cryptographic rollback tokens."""
+    __tablename__ = "action_receipts"
+
+    id = Column(Integer, primary_key=True)
+    token = Column(String(128), unique=True, index=True, nullable=False)
+    underlying_token = Column(String(128), index=True, nullable=True)
+    actuator_type = Column(String(64), nullable=False)
+    action = Column(String(64), nullable=False)
+    target = Column(String(256), nullable=False)
+    params_json = Column(Text, default="{}", nullable=False)
+    receipt_json = Column(Text, default="{}", nullable=False)
+    status = Column(String(32), default="active", nullable=False)  # "active" | "rolled_back"
+    created_at = Column(Float, default=time.time, nullable=False)
+    rolled_back_at = Column(Float, nullable=True)
+
+Base.metadata.create_all(bind=engine)

@@ -39,7 +39,13 @@ async def _lifespan(app: FastAPI):
 
     if os.getenv("CG_AUTOSTART_LIVE_WORKER", "false").lower() in ("true", "1", "yes"):
         default_live_worker.start()
-        default_live_sniffer.start_capture()
+        capture_ok = default_live_sniffer.start_capture()
+        if not capture_ok:
+            import logging
+            logging.getLogger("cyberguard.main").warning(
+                "Autostart live sniffer could not bind raw socket (requires administrator/root elevation). "
+                "Flow worker is active; run CyberGuard as Administrator to enable promiscuous raw capture."
+            )
 
     yield
 
@@ -61,8 +67,8 @@ app = FastAPI(
     description=(
         "Autonomous Real-Time Intrusion Detection & Active Cyber Defense System (RT-IDS). "
         "Pipeline v2 executes high-throughput ML inference (mean 2.3ms/flow, p99 3.7ms) with "
-        "sliding-window multi-port scan correlation, live raw-packet sniffing (AF_PACKET / WinRaw), "
-        "and formally verified autonomous containment actuators with cryptographic HMAC-SHA256 rollback receipts."
+        "sliding-window multi-target scan correlation, live raw-packet sniffing (AF_PACKET / WinRaw), "
+        "and guarded autonomous containment actuators with cryptographic HMAC-SHA256 rollback receipts."
     ),
     lifespan=_lifespan,
 )

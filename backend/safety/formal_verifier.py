@@ -127,18 +127,23 @@ class FormalSafetyVerifier:
         self._protected_networks = list(DEFAULT_PROTECTED_NETWORKS)
         self._alpha = proportionality_alpha
 
-        if custom_critical_assets:
-            for item in custom_critical_assets:
-                cleaned = item.strip().lower()
-                if not cleaned:
-                    continue
-                try:
-                    if "/" in cleaned:
-                        self._protected_networks.append(ipaddress.ip_network(cleaned, strict=False))
-                    else:
-                        self._protected_hosts.add(cleaned)
-                except ValueError:
+        import os
+        combined_assets = list(custom_critical_assets or [])
+        env_assets = os.getenv("CG_PROTECTED_IPS", "")
+        if env_assets:
+            combined_assets.extend([x.strip().lower() for x in env_assets.split(",") if x.strip()])
+
+        for item in combined_assets:
+            cleaned = item.strip().lower()
+            if not cleaned:
+                continue
+            try:
+                if "/" in cleaned:
+                    self._protected_networks.append(ipaddress.ip_network(cleaned, strict=False))
+                else:
                     self._protected_hosts.add(cleaned)
+            except ValueError:
+                self._protected_hosts.add(cleaned)
 
     def verify_and_sign(
         self,

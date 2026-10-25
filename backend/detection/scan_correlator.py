@@ -79,9 +79,18 @@ class ScanCorrelator:
                 self._history.pop(src_ip, None)
                 return 0, 0
 
-            distinct_ports = len({item[2] for item in dq})
-            distinct_hosts = len({item[1] for item in dq})
-            return distinct_ports, distinct_hosts
+            targets: Dict[str, Set[int]] = collections.defaultdict(set)
+            ports: Dict[int, Set[str]] = collections.defaultdict(set)
+            for _, h, p in dq:
+                targets[h].add(p)
+                ports[p].add(h)
+
+            # A vertical port scan targets multiple distinct ports on the SAME destination host
+            max_ports_single_target = max(len(p_set) for p_set in targets.values()) if targets else 0
+            # A horizontal sweep probes the SAME port across multiple destination hosts
+            max_hosts_single_port = max(len(h_set) for h_set in ports.values()) if ports else 0
+
+            return max_ports_single_target, max_hosts_single_port
 
     def correlate_alert(
         self,
@@ -98,19 +107,15 @@ class ScanCorrelator:
         except (ValueError, TypeError):
             dst_port = 0
 
-        if not src_ip:
+        if not src_ip or not dst_ip:
             return alert
 
-        # Ignore outbound client traffic originating from local monitored host/gateway
-        # (prevents local admin/browsing sessions from triggering incoming port scan alarms)
-        try:
-            from ..actuators.guardrails import discover_protected_local_assets
-            local_protected = discover_protected_local_assets()
-            if src_ip in local_protected or src_ip in ("127.0.0.1", "0.0.0.0", "localhost"):
-                return alert
-        except Exception:
-            if src_ip in ("127.0.0.1", "0.0.0.0", "localhost"):
-                return alert
+        # Ignore established bidirectional application flows with significant data payload
+        # (Legitimate web browsing, streaming, or database queries establish connections and transfer data)
+        bwd_pkts = float(flow_meta.get("bwd_pkts", 0.0) or flow_meta.get("Total Backward Packets", 0.0) or 0.0)
+        bwd_bytes = float(flow_meta.get("bwd_bytes", 0.0) or flow_meta.get("Total Length of Bwd Packets", 0.0) or 0.0)
+        if bwd_pkts >= 3 and bwd_bytes > 500:
+            return alert
 
         # Only track TCP SYN / probe flows or flows that showed scan indicators
         syn_count = float(flow_meta.get("syn_flag_count", 0.0) or 0.0)
@@ -123,17 +128,17 @@ class ScanCorrelator:
         if not is_candidate_probe:
             return alert
 
-        distinct_ports, distinct_hosts = self.record_probe(
+        max_ports_target, max_hosts_port = self.record_probe(
             src_ip, dst_ip, dst_port, timestamp=timestamp
         )
 
-        is_vertical_scan = distinct_ports >= self.min_ports
-        is_horizontal_sweep = distinct_hosts >= self.min_hosts
+        is_vertical_scan = max_ports_target >= self.min_ports
+        is_horizontal_sweep = max_hosts_port >= self.min_hosts
 
         # Case 1: Model classified as PortScan
         if alert.type == "PortScan":
             if is_vertical_scan or is_horizontal_sweep:
-                # Multi-flow correlation CONFIRMS the scan behavior
+                # Multi-flow correlation CONFIRMS the scan behavior on target
                 alert.confidence = max(alert.confidence, 0.99)
                 alert.severity = "high"
                 alert.stage = "behavioral_correlation"
@@ -141,19 +146,18 @@ class ScanCorrelator:
                 if is_vertical_scan and is_horizontal_sweep:
                     scan_type = "Strobe Network Scan"
                 alert.note = (
-                    f"Confirmed {scan_type}: {distinct_ports} distinct ports, "
-                    f"{distinct_hosts} distinct hosts probed by {src_ip} within {self.window_sec}s window"
+                    f"Confirmed {scan_type}: {max_ports_target} distinct ports on target, "
+                    f"{max_hosts_port} hosts on port probed by {src_ip} within {self.window_sec}s window"
                 )
                 alert.evidence["scan_correlation"] = {
                     "confirmed": True,
-                    "distinct_ports": distinct_ports,
-                    "distinct_hosts": distinct_hosts,
+                    "distinct_ports": max_ports_target,
+                    "distinct_hosts": max_hosts_port,
                     "window_sec": self.window_sec,
                     "scan_type": scan_type,
                 }
-            elif distinct_ports == 1 and distinct_hosts == 1 and alert.confidence < 0.90:
-                # Isolated single flow without surrounding probe activity
-                # Suppress false alarm: downgrade to low-severity review
+            elif max_ports_target == 1 and max_hosts_port == 1 and alert.confidence < 0.90:
+                # Isolated single probe without surrounding scan clustering on destination
                 alert.severity = "low"
                 alert.route = "unknown_anomaly_review"
                 alert.note = f"Single isolated probe to port {dst_port}; no multi-port scan detected in {self.window_sec}s window"
@@ -165,26 +169,26 @@ class ScanCorrelator:
                     "downgraded_false_alarm_mitigation": True,
                 }
 
-        # Case 2: Classifier thought it was Benign or Unknown, BUT strong multi-target sweep occurred
+        # Case 2: Classifier thought it was Benign or Unknown, BUT strong multi-target probe burst occurred
         elif (is_vertical_scan or is_horizontal_sweep) and alert.route != "known_attack":
             alert.type = "PortScan"
             alert.severity = "high"
             alert.route = "known_attack"
             alert.stage = "behavioral_correlation"
-            alert.confidence = 0.98
+            alert.confidence = min(0.98, max(0.85, 0.70 + 0.05 * max_ports_target))
             scan_type = "Vertical PortScan" if is_vertical_scan else "Horizontal Sweep"
             if is_vertical_scan and is_horizontal_sweep:
                 scan_type = "Strobe Network Scan"
             alert.note = (
                 f"Stealth {scan_type} detected by behavioral correlation: "
-                f"{distinct_ports} ports / {distinct_hosts} hosts from {src_ip} within {self.window_sec}s"
+                f"{max_ports_target} ports / {max_hosts_port} hosts from {src_ip} within {self.window_sec}s"
             )
             alert.mitre_techniques = ["T1046", "T1595.001"]
             alert.evidence["scan_correlation"] = {
                 "confirmed": True,
                 "stealth_scan_detected": True,
-                "distinct_ports": distinct_ports,
-                "distinct_hosts": distinct_hosts,
+                "distinct_ports": max_ports_target,
+                "distinct_hosts": max_hosts_port,
                 "window_sec": self.window_sec,
             }
 

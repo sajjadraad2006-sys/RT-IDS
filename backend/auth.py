@@ -24,14 +24,22 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from .config import ANALYST_ID, API_TOKEN, CG_ENV
+from .config import ANALYST_ID, API_TOKEN, CG_ENV, SECRET_KEY
 
 logger = logging.getLogger("cyberguard.auth")
 
-AUTH_SECRET_KEY = os.getenv(
-    "CG_AUTH_SECRET_KEY",
-    "cyberguard-doctoral-defense-jwt-hmac-sha256-secret-key-2026-v2"
-).encode("utf-8")
+_raw_jwt_secret = os.getenv("CG_AUTH_SECRET_KEY", "").strip()
+insecure_jwt_defaults = {
+    "cyberguard-doctoral-defense-jwt-hmac-sha256-secret-key-2026-v2",
+    "secret", "changeme", "default"
+}
+if _raw_jwt_secret:
+    if CG_ENV == "production" and _raw_jwt_secret in insecure_jwt_defaults:
+        raise RuntimeError("CRITICAL SECURITY ERROR: CG_AUTH_SECRET_KEY cannot use public default in production mode!")
+    AUTH_SECRET_KEY = _raw_jwt_secret.encode("utf-8")
+else:
+    # Deterministically derive dedicated JWT signing key from unique persistent installation secret
+    AUTH_SECRET_KEY = hashlib.sha256(b"cyberguard-jwt-auth-key-v2:" + SECRET_KEY.encode("utf-8")).digest()
 
 TOKEN_EXPIRATION_SECONDS = int(os.getenv("CG_AUTH_TOKEN_EXPIRE_SECONDS", "28800"))  # 8 hours
 ENFORCE_STRICT_AUTH = os.getenv("CG_ENFORCE_AUTH", "false").lower() in ("true", "1", "yes")

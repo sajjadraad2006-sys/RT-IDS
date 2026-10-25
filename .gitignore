@@ -85,6 +85,8 @@ logs/
 *.db-shm
 *.db-wal
 .secret_key
+.cg_secret*
+data/.cg_secret*
 
 # Testing & Coverage
 .pytest_cache/

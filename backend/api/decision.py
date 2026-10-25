@@ -6,7 +6,7 @@ import json
 import re
 import time
 import logging
-from typing import Literal
+from typing import Any, Dict, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ValidationError
@@ -554,16 +554,19 @@ def actuate_alert(
         raise HTTPException(403, "Actuation requires ADMIN or ANALYST privileges")
     actor_id = user.username
     params = dict(options.params or {})
-    if options.initiator_id:
-        params["initiator_id"] = options.initiator_id
-    elif "initiator_id" not in params:
-        params["initiator_id"] = actor_id
+    # Strictly strip any client-injected authorization identities from raw params
+    params.pop("initiator_id", None)
+    params.pop("approver_id", None)
+
+    params["initiator_id"] = actor_id
     if options.approver_id:
         approver_user = get_user_by_username(options.approver_id)
         if not approver_user:
             raise HTTPException(400, f"Approver '{options.approver_id}' is not a recognized authorized identity")
         if approver_user.role not in (Role.ADMIN, Role.ANALYST):
             raise HTTPException(403, f"Approver '{options.approver_id}' lacks required security role for dual authorization")
+        if approver_user.username.lower() == actor_id.lower():
+            raise HTTPException(400, "Two-Person Rule violation: Initiator cannot self-approve their own containment action")
         params["approver_id"] = approver_user.username
 
     res = default_router.execute_action(

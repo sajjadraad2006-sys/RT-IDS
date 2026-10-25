@@ -75,7 +75,40 @@ CG_ADMIN_PASSWORD = os.getenv("CG_ADMIN_PASSWORD", "")
 CG_ANALYST_PASSWORD = os.getenv("CG_ANALYST_PASSWORD", "")
 CG_AUDITOR_PASSWORD = os.getenv("CG_AUDITOR_PASSWORD", "")
 
-SECRET_KEY = os.getenv("CG_SECRET_KEY", "cyberguard-doctoral-defense-hmac-sha256-secret-key-2026")
+def _get_or_create_persistent_secret() -> str:
+    """Retrieve persistent installation secret key or generate a unique cryptographically random one."""
+    env_secret = os.getenv("CG_SECRET_KEY")
+    insecure_defaults = {
+        "cyberguard-doctoral-defense-hmac-sha256-secret-key-2026",
+        "cyberguard-doctoral-defense-jwt-hmac-sha256-secret-key-2026-v2",
+        "secret", "changeme", "default"
+    }
+    if env_secret and env_secret.strip():
+        if CG_ENV == "production" and env_secret.strip() in insecure_defaults:
+            raise RuntimeError(
+                "CRITICAL SECURITY ERROR: CG_SECRET_KEY must be changed from public default in production mode!"
+            )
+        return env_secret.strip()
+
+    secret_file = DATA_DIR / ".cg_secret"
+    try:
+        if secret_file.is_file():
+            val = secret_file.read_text(encoding="utf-8").strip()
+            if len(val) >= 32:
+                return val
+        import secrets
+        generated = secrets.token_hex(32)
+        secret_file.write_text(generated, encoding="utf-8")
+        try:
+            os.chmod(secret_file, 0o600)
+        except Exception:
+            pass
+        return generated
+    except Exception:
+        import secrets
+        return secrets.token_hex(32)
+
+SECRET_KEY = _get_or_create_persistent_secret()
 API_TOKEN = os.getenv("CG_API_TOKEN", "")
 ANALYST_ID = os.getenv("CG_ANALYST_ID", "local-analyst")[:64]
 SIMULATOR_ALLOWED_ASSETS = {

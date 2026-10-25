@@ -237,33 +237,52 @@ class LiveFlowWorker:
                 try:
                     from ..actuators.router import default_router
                     exec_mode = os.getenv("CG_ACTIVE_DEFENSE_MODE", "simulation").lower()
-                    act_res = default_router.execute_action(
-                        action="block_ip",
-                        target=src_ip,
-                        params={
-                            "reason": f"Real-time autonomous containment for {alert.type} ({alert.confidence * 100:.1f}%)",
-                            "severity": alert.severity,
-                            "confidence": float(alert.confidence or 0.90),
-                            "initiator_id": "system:live_flow_worker",
-                            "approver_id": "policy:autonomous_active_defense",
-                        },
-                        mode=exec_mode,
-                    )
-                    if act_res.success:
-                        if act_res.simulated:
-                            executed_action = f"simulated:{act_res.action}"
-                            explanation = f"Autonomous Active Defense: simulated {act_res.action} against {src_ip} (Verified Token: {act_res.rollback_token})"
-                        else:
-                            executed_action = f"executed:{act_res.action}"
-                            explanation = f"Autonomous Active Defense: executed live {act_res.action} against {src_ip} (Rollback Token: {act_res.rollback_token})"
-                        rollback_token = act_res.rollback_token
-                    else:
-                        executed_action = f"blocked_by_policy:{act_res.action}"
+                    is_model_approved = bool(alert.evidence.get("production_approved", False))
+                    allow_eval_enforce = os.getenv("CG_ALLOW_EVALUATION_ENFORCEMENT", "false").lower() in ("true", "1")
+
+                    # Gate enforcement mode strictly on production-approved models
+                    if exec_mode == "enforcement" and not is_model_approved and not allow_eval_enforce:
+                        executed_action = "blocked_by_policy:block_ip"
                         rollback_token = None
-                        explanation = f"Autonomous Active Defense: containment rejected by policy for {src_ip} ({act_res.error})"
-                    logger.info("Autonomous containment disposition for %s: action=%s (success=%s, token=%s)", src_ip, executed_action, act_res.success, rollback_token)
+                        explanation = (
+                            f"Autonomous Active Defense: live containment refused because active serving model "
+                            f"is evaluation-only (production_approved: false)"
+                        )
+                        logger.warning(explanation)
+                    else:
+                        ttl_sec = int(os.getenv("CG_CONTAINMENT_TTL_SECONDS", "3600"))
+                        act_res = default_router.execute_action(
+                            action="block_ip",
+                            target=src_ip,
+                            params={
+                                "reason": f"Real-time autonomous containment for {alert.type} ({alert.confidence * 100:.1f}%)",
+                                "severity": alert.severity,
+                                "confidence": float(alert.confidence or 0.90),
+                                "ttl_seconds": ttl_sec,
+                                "initiator_id": "system:live_flow_worker",
+                                "approver_id": "policy:autonomous_active_defense",
+                            },
+                            mode=exec_mode,
+                        )
+                        if act_res.success:
+                            if act_res.simulated:
+                                executed_action = f"simulated:{act_res.action}"
+                                explanation = f"Autonomous Active Defense: simulated {act_res.action} against {src_ip} (Verified Token: {act_res.rollback_token})"
+                            else:
+                                executed_action = f"executed:{act_res.action}"
+                                explanation = f"Autonomous Active Defense: executed live {act_res.action} against {src_ip} (Rollback Token: {act_res.rollback_token}, TTL: {ttl_sec}s)"
+                            rollback_token = act_res.rollback_token
+                        else:
+                            executed_action = f"blocked_by_policy:{act_res.action}"
+                            rollback_token = None
+                            explanation = f"Autonomous Active Defense: containment rejected by policy for {src_ip} ({act_res.error})"
+                        logger.info("Autonomous containment disposition for %s: action=%s (success=%s, token=%s)", src_ip, executed_action, act_res.success, rollback_token)
                 except Exception as act_exc:
                     logger.debug("Autonomous containment dispatch skipped: %s", act_exc)
+
+            alert_dict["executed_action"] = executed_action
+            alert_dict["rollback_token"] = rollback_token
+            alert_dict["explanation"] = explanation
 
             evidence_payload = {
                 **alert.evidence,
@@ -361,6 +380,21 @@ class LiveFlowWorker:
         with self._lock:
             alerts = list(self.recent_alerts)
         return alerts[-limit:][::-1]
+
+    def process_flows(self, flows: List[Dict[str, float]], pipe: Optional[Any] = None) -> List[Dict[str, Any]]:
+        """Synchronously process flows through the detection pipeline and autonomous response loop."""
+        if not flows:
+            return []
+        pipeline = pipe
+        if pipeline is None and self.pipeline_getter:
+            try:
+                pipeline = self.pipeline_getter()
+            except Exception:
+                pipeline = None
+        if pipeline is None:
+            logger.warning("No detection pipeline provided to process_flows.")
+            return []
+        return self._process_batch_with_pipeline(pipeline, flows)
 
 
 # Default global instance

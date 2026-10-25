@@ -579,7 +579,7 @@ class LiveFlowSniffer:
             self.last_capture_mode = "raw_socket"
         except Exception as exc:
             logger.warning("Raw socket creation failed (insufficient OS permissions or unsupported socket): %s", exc)
-            if os.getenv("CG_ALLOW_SYNTHETIC_CAPTURE", "false").lower() in ("true", "1") or "pytest" in sys.modules:
+            if os.getenv("CG_ALLOW_SYNTHETIC_CAPTURE", "false").lower() in ("true", "1"):
                 self.last_capture_mode = "synthetic_harness"
                 return True
             self.last_capture_mode = "failed"

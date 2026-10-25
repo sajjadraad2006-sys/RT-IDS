@@ -210,6 +210,34 @@ class ActuatorRouter:
                     "target": target,
                 }
 
+                # Persist to SQLite for cross-process rollback durability across restarts
+                try:
+                    import json
+                    from ..db.models import ActionReceiptRecord, SessionLocal
+                    with SessionLocal() as db_session:
+                        rec = ActionReceiptRecord(
+                            token=proof_token,
+                            underlying_token=underlying_token,
+                            actuator_type=actuator_type,
+                            action=action,
+                            target=target,
+                            params_json=json.dumps(params),
+                            receipt_json=json.dumps({
+                                "token": active_receipt.token,
+                                "action_type": active_receipt.action_type,
+                                "target": active_receipt.target,
+                                "parameters_json": active_receipt.parameters_json,
+                                "timestamp": active_receipt.timestamp,
+                                "signature_hmac": active_receipt.signature_hmac,
+                                "state_inversion_digest": active_receipt.state_inversion_digest,
+                            }),
+                            status="active",
+                        )
+                        db_session.add(rec)
+                        db_session.commit()
+                except Exception as db_err:
+                    logger.debug("Could not persist rollback receipt to DB: %s", db_err)
+
             if not dry_run:
                 self.guardrails.record_execution()
 
@@ -218,14 +246,47 @@ class ActuatorRouter:
     def rollback_action(self, rollback_token: str) -> bool:
         """Roll back an action by its cryptographic proof token or actuator token.
 
-        Guarantees Invariant I_3 (Atomic Invertibility).
+        Guarantees Invariant I_3 (Atomic Invertibility) across process restarts.
         """
         with self._lock:
             # 1. Cryptographic HMAC Proof Token Rollback
-            if rollback_token.startswith("cg-proof-"):
+            if rollback_token.startswith("cg-proof-") or rollback_token.startswith("cg-fw-"):
                 mapping = self._receipt_map.get(rollback_token)
+                db_record_id = None
                 if not mapping:
-                    logger.warning("Proof rollback token %s not found in registry", rollback_token)
+                    # Query persistent database storage across process restarts
+                    try:
+                        import json
+                        from ..db.models import ActionReceiptRecord, SessionLocal
+                        with SessionLocal() as db_session:
+                            rec = db_session.query(ActionReceiptRecord).filter(
+                                (ActionReceiptRecord.token == rollback_token) |
+                                (ActionReceiptRecord.underlying_token == rollback_token)
+                            ).first()
+                            if rec and rec.status == "active":
+                                rec_data = json.loads(rec.receipt_json)
+                                reconstructed_receipt = RollbackReceipt(
+                                    token=rec_data["token"],
+                                    action_type=rec_data["action_type"],
+                                    target=rec_data["target"],
+                                    parameters_json=rec_data["parameters_json"],
+                                    timestamp=float(rec_data["timestamp"]),
+                                    signature_hmac=rec_data["signature_hmac"],
+                                    state_inversion_digest=rec_data["state_inversion_digest"],
+                                )
+                                mapping = {
+                                    "receipt": reconstructed_receipt,
+                                    "underlying_token": rec.underlying_token,
+                                    "actuator_type": rec.actuator_type,
+                                    "action": rec.action,
+                                    "target": rec.target,
+                                }
+                                db_record_id = rec.id
+                    except Exception as db_lookup_err:
+                        logger.debug("Database receipt lookup failed: %s", db_lookup_err)
+
+                if not mapping:
+                    logger.warning("Proof rollback token %s not found in memory or persistent store", rollback_token)
                     return False
 
                 receipt: RollbackReceipt = mapping["receipt"]
@@ -249,6 +310,24 @@ class ActuatorRouter:
                     if underlying_token:
                         self._active_blocks.pop(underlying_token, None)
                     self._receipt_map.pop(rollback_token, None)
+                    try:
+                        import time
+                        from ..db.models import ActionReceiptRecord, SessionLocal
+                        with SessionLocal() as db_session:
+                            d_rec = None
+                            if db_record_id:
+                                d_rec = db_session.get(ActionReceiptRecord, db_record_id)
+                            if not d_rec:
+                                d_rec = db_session.query(ActionReceiptRecord).filter(
+                                    (ActionReceiptRecord.token == rollback_token) |
+                                    (ActionReceiptRecord.underlying_token == rollback_token)
+                                ).first()
+                            if d_rec:
+                                d_rec.status = "rolled_back"
+                                d_rec.rolled_back_at = time.time()
+                                db_session.commit()
+                    except Exception as db_err:
+                        logger.debug("Failed updating ActionReceiptRecord to rolled_back: %s", db_err)
                     logger.info("Successfully executed atomic state rollback for token %s", rollback_token)
                 return rolled_back
 

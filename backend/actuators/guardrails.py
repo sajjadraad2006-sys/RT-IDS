@@ -27,12 +27,14 @@ DEFAULT_PROTECTED_HOSTS: Set[str] = {
 
 
 def discover_protected_local_assets() -> Set[str]:
-    """Auto-discover critical local host IPs, default gateways, and configured protected assets."""
+    """Auto-discover critical local host IPs, default gateways from OS routing table, and configured protected assets."""
     import os
     import socket
+    import subprocess
+    import platform
     protected: Set[str] = set(DEFAULT_PROTECTED_HOSTS)
 
-    # 1. Discover local host IPs from network interfaces
+    # 1. Discover local host IPs and active subnet gateways (.1 and .254)
     try:
         hostname = socket.gethostname()
         for ip in socket.gethostbyname_ex(hostname)[2]:
@@ -47,19 +49,52 @@ def discover_protected_local_assets() -> Set[str]:
             for addr in addrs:
                 if addr.family == socket.AF_INET and addr.address:
                     protected.add(addr.address)
+                    if addr.netmask:
+                        try:
+                            net = ipaddress.ip_network(f"{addr.address}/{addr.netmask}", strict=False)
+                            if net.num_addresses >= 4:
+                                protected.add(str(net.network_address + 1))
+                                protected.add(str(net.broadcast_address - 1))
+                        except Exception:
+                            pass
     except Exception:
         pass
 
-    # 2. Add common default gateways for typical subnets to prevent Self-DoS
-    common_gateways = {"192.168.0.1", "192.168.1.1", "10.0.0.1", "172.16.0.1"}
-    protected.update(common_gateways)
+    # 2. Query active default gateway directly from OS routing table
+    try:
+        sys_plat = platform.system().lower()
+        if sys_plat == "windows":
+            out = subprocess.check_output(
+                ["route", "print", "0.0.0.0"],
+                text=True, stderr=subprocess.DEVNULL, timeout=2.0
+            )
+            for line in out.splitlines():
+                parts = line.split()
+                if len(parts) >= 4 and parts[0] == "0.0.0.0" and parts[1] == "0.0.0.0":
+                    gw = parts[2]
+                    try:
+                        ipaddress.ip_address(gw)
+                        protected.add(gw)
+                    except ValueError:
+                        pass
+        elif sys_plat == "linux":
+            with open("/proc/net/route", "r") as f:
+                for line in f.readlines()[1:]:
+                    fields = line.strip().split()
+                    if len(fields) >= 3 and fields[1] == "00000000":
+                        gw_hex = fields[2]
+                        gw_bytes = bytes.fromhex(gw_hex)
+                        gw = socket.inet_ntoa(gw_bytes[::-1] if platform.byteorder == "big" else gw_bytes)
+                        protected.add(gw)
+    except Exception:
+        pass
 
-    # 3. Read custom allowlist from environment variable CG_PROTECTED_IPS
+    # 3. Read custom host allowlist from environment variable CG_PROTECTED_IPS
     custom_env = os.getenv("CG_PROTECTED_IPS", "")
     if custom_env:
         for item in custom_env.split(","):
             cleaned = item.strip()
-            if cleaned:
+            if cleaned and "/" not in cleaned:
                 protected.add(cleaned)
 
     return protected
@@ -90,23 +125,28 @@ class SafetyGuardrails:
         custom_allowlist: List[str] | None = None,
         max_actions_per_minute: int = 20,
     ):
+        import os
         self.protected_hosts = discover_protected_local_assets()
         self.protected_networks = list(DEFAULT_PROTECTED_NETWORKS)
         self.max_actions_per_minute = max_actions_per_minute
         self._action_timestamps: List[float] = []
 
-        if custom_allowlist:
-            for item in custom_allowlist:
-                item = item.strip()
-                if not item:
-                    continue
-                try:
-                    if "/" in item:
-                        self.protected_networks.append(ipaddress.ip_network(item, strict=False))
-                    else:
-                        self.protected_hosts.add(item)
-                except ValueError:
+        combined_allowlist = list(custom_allowlist or [])
+        env_ips = os.getenv("CG_PROTECTED_IPS", "")
+        if env_ips:
+            combined_allowlist.extend([x.strip() for x in env_ips.split(",") if x.strip()])
+
+        for item in combined_allowlist:
+            item = item.strip()
+            if not item:
+                continue
+            try:
+                if "/" in item:
+                    self.protected_networks.append(ipaddress.ip_network(item, strict=False))
+                else:
                     self.protected_hosts.add(item)
+            except ValueError:
+                self.protected_hosts.add(item)
 
     def validate_action(
         self,

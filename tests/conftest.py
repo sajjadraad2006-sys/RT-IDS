@@ -10,6 +10,7 @@ import tempfile
 # database therefore backs the entire run; data/cyberguard.db is never required.
 _TEST_STATE = tempfile.TemporaryDirectory(prefix="cyberguard-pytest-")
 os.environ["CG_DB_PATH"] = str(Path(_TEST_STATE.name) / "cyberguard-test.sqlite")
+os.environ["CG_ALLOW_SYNTHETIC_CAPTURE"] = "true"
 
 from backend.db.init_db import init_all  # noqa: E402  (environment must be first)
 

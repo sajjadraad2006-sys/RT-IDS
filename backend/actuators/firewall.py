@@ -158,6 +158,39 @@ class FirewallActuator(BaseActuator):
     def rollback(self, rollback_token: str) -> bool:
         record = self._rollback_registry.get(rollback_token)
         if not record:
+            try:
+                import json
+                from ..db.models import ActionReceiptRecord, SessionLocal
+                with SessionLocal() as db_session:
+                    rec = db_session.query(ActionReceiptRecord).filter(
+                        (ActionReceiptRecord.underlying_token == rollback_token) |
+                        (ActionReceiptRecord.token == rollback_token)
+                    ).first()
+                    if rec:
+                        clean_name_target = rec.target.replace(":", "-").replace("/", "-")
+                        rule_name = f"CyberGuard-Block-{clean_name_target}-{rec.underlying_token or rollback_token}"
+                        if self.is_windows:
+                            rollback_ps = f'Remove-NetFirewallRule -DisplayName "{rule_name}"'
+                            rollback_args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", rollback_ps]
+                            rollback_cmd = f'powershell.exe -NoProfile -Command "{rollback_ps}"'
+                        else:
+                            rollback_args = ["iptables", "-D", "INPUT", "-s", rec.target, "-j", "DROP"]
+                            rollback_cmd = " ".join(rollback_args)
+
+                        p_dict = json.loads(rec.params_json) if rec.params_json else {}
+                        executed_live = p_dict.get("mode") == "enforcement"
+                        record = {
+                            "rule_name": rule_name,
+                            "target": rec.target,
+                            "rollback_cmd": rollback_cmd,
+                            "rollback_args": rollback_args,
+                            "executed_live": executed_live,
+                        }
+                        self._rollback_registry[rollback_token] = record
+            except Exception as e:
+                logger.debug("Persistent firewall rule lookup error: %s", e)
+
+        if not record:
             logger.warning("Rollback token %s not found in registry", rollback_token)
             return False
 
