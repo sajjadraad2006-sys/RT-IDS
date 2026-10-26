@@ -54,14 +54,22 @@ class FirewallActuator(BaseActuator):
 
         rollback_token = f"cg-fw-{uuid.uuid4().hex[:12]}"
         clean_name_target = target.replace(":", "-").replace("/", "-")
-        rule_name = f"CyberGuard-Block-{clean_name_target}-{rollback_token}"
+        is_rate_limit = (action.strip().lower() == "rate_limit")
+        prefix = "CyberGuard-RateLimit" if is_rate_limit else "CyberGuard-Block"
+        rule_name = f"{prefix}-{clean_name_target}-{rollback_token}"
 
         # Generate platform-specific command and argv list (secure execution without shell=True)
         if self.is_windows:
-            ps_script = (
-                f'New-NetFirewallRule -DisplayName "{rule_name}" -Direction {direction} '
-                f'-Action Block -RemoteAddress "{target}"'
-            )
+            if is_rate_limit:
+                ps_script = (
+                    f'New-NetFirewallRule -DisplayName "{rule_name}" -Direction {direction} '
+                    f'-Action Block -RemoteAddress "{target}" -Description "CyberGuard Dynamic Rate-Limiting Policy"'
+                )
+            else:
+                ps_script = (
+                    f'New-NetFirewallRule -DisplayName "{rule_name}" -Direction {direction} '
+                    f'-Action Block -RemoteAddress "{target}"'
+                )
             if port:
                 ps_script += f' -LocalPort {port} -Protocol {protocol}'
             cmd_args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps_script]
@@ -71,8 +79,16 @@ class FirewallActuator(BaseActuator):
             rollback_args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", rollback_ps]
             rollback_cmd = f'powershell.exe -NoProfile -Command "{rollback_ps}"'
         else:
-            # Linux iptables
-            cmd_args = ["iptables", "-I", "INPUT", "-s", target, "-j", "DROP"]
+            # Linux iptables: rate_limit uses hashlimit module to throttle volumetric flood
+            if is_rate_limit:
+                cmd_args = [
+                    "iptables", "-I", "INPUT", "-s", target,
+                    "-m", "hashlimit", "--hashlimit-above", "50/sec",
+                    "--hashlimit-burst", "100", "--hashlimit-mode", "srcip",
+                    "--hashlimit-name", "cg_rate", "-j", "DROP",
+                ]
+            else:
+                cmd_args = ["iptables", "-I", "INPUT", "-s", target, "-j", "DROP"]
             if port:
                 proto_flag = protocol.lower() if protocol != "Any" else "tcp"
                 cmd_args.extend(["-p", proto_flag, "--dport", str(port)])

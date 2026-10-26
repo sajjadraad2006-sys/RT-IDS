@@ -29,10 +29,10 @@ def current_artifact_context() -> dict:
         "feature_schema_version": "unknown",
         "supported_classes": [],
         "evaluated_classes": [],
-        "telemetry_profile": "uploaded_precomputed_flow_records",
+        "telemetry_profile": "hybrid_live_and_flow_records",
         "limitations": [
             "Detection artifacts are unavailable or have not passed integrity validation.",
-            "The application analyzes uploaded flow records; live packet ingestion is not implemented.",
+            "The application analyzes network flows via live packet sniffer, Suricata EVE stream, and uploaded telemetry.",
         ],
     }
     try:
@@ -73,7 +73,7 @@ def current_artifact_context() -> dict:
         metadata.get("schema_version"),
     )
     limitations = [
-        "The application analyzes uploaded precomputed flow records, not live packets or payloads.",
+        "The application processes both live network flow streams and uploaded flow records.",
         "ATT&CK links derived from a classifier label are heuristic candidate mappings, not observed behavior.",
         "An autoencoder reconstruction error is an unknown-anomaly signal, not proof of an exploit.",
     ]

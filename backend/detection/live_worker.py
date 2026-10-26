@@ -19,7 +19,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from ..db.models import AlertRecord, SessionLocal
 from ..detection.input_schema import FEATURE_SCHEMA_VERSION
-from .pipeline import PIPELINE_VERSION, Alert, DetectionPipeline
+from .pipeline import PIPELINE_VERSION, Alert, DetectionPipeline, PipelineStats
 from .scan_correlator import ScanCorrelator
 
 logger = logging.getLogger("cyberguard.detection.live_worker")
@@ -185,6 +185,15 @@ class LiveFlowWorker:
         except Exception as exc:
             logger.error("Pipeline inference failed on live flow batch: %s", exc)
             return []
+
+        try:
+            if hasattr(pipe, "commit_stats"):
+                batch_stats = PipelineStats()
+                for res_alert in batch_results:
+                    batch_stats.record(res_alert)
+                pipe.commit_stats(batch_stats)
+        except Exception as exc:
+            logger.debug("Failed to commit live worker batch stats to pipeline: %s", exc)
 
         generated_alerts: List[Dict[str, Any]] = []
         persist_records: List[AlertRecord] = []

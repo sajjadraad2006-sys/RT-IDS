@@ -2,32 +2,34 @@
 
 <div class="title-page">
   <div class="thesis-header">
-    <h2>[UNIVERSITY / FACULTY / INSTITUTION - TO BE FILLED]</h2>
-    <h3>[DEPARTMENT OF MECHATRONICS ENGINEERING / COMPUTER ENGINEERING - TO BE FILLED]</h3>
+    <h2>UNIVERSITY OF BASRAH</h2>
+    <h3>COLLEGE OF ENGINEERING</h3>
+    <h3>DEPARTMENT OF MECHATRONICS ENGINEERING</h3>
   </div>
 
   <div class="thesis-title-block">
-    <h1 class="thesis-main-title">AN EMPIRICAL AUDIT, BENCHMARKING, AND ARCHITECTURAL ANALYSIS OF A HYBRID REAL-TIME INTRUSION DETECTION AND AUTONOMOUS CONTAINMENT SYSTEM (CYBERGUARD)</h1>
-    <h3 class="thesis-subtitle">Forensic Code Inspection, Train/Serve Skew Analysis, Formal Verification Guarantees, and Mechatronic Industrial Network Adaptation</h3>
+    <h1 class="thesis-main-title">RT-IDS: REAL-TIME NETWORK INTRUSION DETECTION &amp; GUARDED AUTONOMOUS CONTAINMENT SYSTEM</h1>
+    <h3 class="thesis-subtitle">Empirical Software Forensics, Train/Serve Skew Analysis, Deterministic Policy Verification, and Mechatronic Industrial Network Adaptation</h3>
   </div>
 
   <div class="thesis-metadata-block">
-<p>A Thesis Submitted in Partial Fulfillment of the Requirements for the Degree of<br>
-    <strong>Master of Science in Mechatronics / Cybersecurity Engineering</strong></p>
+<p>A Capstone Engineering Project Report Submitted in Partial Fulfillment of the Requirements for the Third-Year Mechatronics Engineering Degree (2026–2027)<br>
+    <strong>Department of Mechatronics Engineering — University of Basrah</strong></p>
 <div class="authorship-grid">
 <div class="author-col">
-<p><strong>Candidate:</strong></p>
-<p class="placeholder-text">[STUDENT NAME - TO BE FILLED]</p>
-<p class="placeholder-sub">[STUDENT IDENTIFIER / REGISTRATION NUMBER]</p>
+<p><strong>Student Project Team:</strong></p>
+<p><strong>1. Haidar Dhafir Talib</strong> (حيدر ظافر طالب)</p>
+<p><strong>2. Sajjad Raad Abdul-Sahib</strong> (سجاد رعد عبد الصاحب)</p>
+<p><strong>3. Sajjad Laith Abdul-Amir</strong> (سجاد ليث عبد الامير)</p>
 </div>
 <div class="supervisor-col">
-<p><strong>Principal Supervisor:</strong></p>
-<p class="placeholder-text">[SUPERVISOR - TO BE FILLED]</p>
-<p class="placeholder-sub">[ACADEMIC TITLE / AFFILIATION]</p>
+<p><strong>Project Supervisor:</strong></p>
+<p><strong>Prof. Dr. Ali Ahmed</strong> (أ.د. علي احمد)</p>
+<p class="placeholder-sub">Department of Mechatronics Engineering<br>College of Engineering, University of Basrah</p>
 </div>
 </div>
 <div class="submission-date">
-<p>October 2026</p>
+<p>Academic Year: 2026–2027</p>
 </div>
   </div>
 </div>
@@ -36,26 +38,29 @@
 
 ## DECLARATION OF AUTHORSHIP
 
-I, [STUDENT NAME - TO BE FILLED], declare that this thesis titled *"An Empirical Audit, Benchmarking, and Architectural Analysis of a Hybrid Real-Time Intrusion Detection and Autonomous Containment System (CyberGuard)"* and the work presented in it are my own. I confirm that:
+We, **Haidar Dhafir Talib**, **Sajjad Raad Abdul-Sahib**, and **Sajjad Laith Abdul-Amir**, declare that this capstone project report titled *"RT-IDS: Real-Time Network Intrusion Detection & Guarded Autonomous Containment System"* and the engineering work presented in it are our own collaborative effort under the supervision of **Prof. Dr. Ali Ahmed**. We confirm that:
 
-1. This work was done wholly while in candidature for a Master of Science degree at [UNIVERSITY / INSTITUTION - TO BE FILLED].
-2. Where any part of this thesis has previously been submitted for a degree or any other qualification at this University or any other institution, this has been clearly stated.
-3. Where I have consulted the published work of others, the source is always clearly attributed in accordance with IEEE citation standards.
-4. Where the thesis is based on work done by myself jointly with others, I have made clear exactly what was done by others and what I have contributed myself.
-5. All empirical figures, benchmarks, line counts, and vulnerability analyses presented in this document were directly measured or audited against the target codebase and verified execution environments; no metrics or citations have been fabricated.
+1. This work was conducted as part of the engineering curriculum at the **University of Basrah, College of Engineering, Department of Mechatronics Engineering**.
+2. Where any part of this project has previously been submitted for an academic qualification at this University or any other institution, this has been clearly stated.
+3. Where we have consulted the published work or open-source software of others, all sources and libraries are explicitly attributed in accordance with IEEE citation standards.
+4. The division of technical contributions across our engineering team is documented transparently in this report.
+5. All empirical figures, benchmarks, line counts, train/serve skew experiments, and vulnerability analyses presented in this document were directly measured or audited against the target codebase and verified execution environments; no metrics or citations have been fabricated.
 
 <br><br>
 <div class="signature-line">
-  <p>Candidate Signature: _____________________________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date: ___________________</p>
+  <p>Student Signatures:</p>
+  <p>1. Haidar Dhafir Talib: _____________________________________ &nbsp;&nbsp;&nbsp;&nbsp; Date: ___________________</p>
+  <p>2. Sajjad Raad Abdul-Sahib: _________________________________ &nbsp;&nbsp;&nbsp;&nbsp; Date: ___________________</p>
+  <p>3. Sajjad Laith Abdul-Amir: _________________________________ &nbsp;&nbsp;&nbsp;&nbsp; Date: ___________________</p>
 </div>
 
 <div class="page-break"></div>
 
 ## ACKNOWLEDGMENTS
 
-[STUDENT ACKNOWLEDGMENTS - TO BE FILLED]
+We express our deepest gratitude and appreciation to our respected supervisor, **Prof. Dr. Ali Ahmed** (أ.د. علي احمد), for his continuous academic guidance, rigorous technical direction, and constructive insights throughout the architecture, auditing, and implementation stages of this project.
 
-*The author wishes to express sincere gratitude to [SUPERVISOR], the faculty of [DEPARTMENT], and colleagues for their invaluable guidance, constructive criticism, and technical insights throughout the course of this research.*
+We also extend our sincere appreciation to the faculty members, laboratory engineers, and administrative staff of the **Department of Mechatronics Engineering** and the **College of Engineering at the University of Basrah** for providing the academic foundation, computational facilities, and continuous encouragement necessary to execute this engineering capstone. Finally, we thank our families and colleagues for their unwavering patience and support.
 
 <div class="page-break"></div>
 

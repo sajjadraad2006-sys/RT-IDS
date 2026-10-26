@@ -50,9 +50,24 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
     total_pkts = max(1.0, fwd_pkts + bwd_pkts)
     total_bytes = max(1.0, fwd_bytes + bwd_bytes)
 
-    # Duration
-    age_sec = float(flow_data.get("age", 1.0) or 1.0)
-    duration_us = max(100.0, age_sec * 1e6)
+    # Duration (parse microsecond ISO timestamps when available, fallback to age)
+    duration_us = None
+    start_str = flow_data.get("start")
+    end_str = flow_data.get("end")
+    if start_str and end_str:
+        try:
+            from datetime import datetime
+            t0_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+            t1_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+            diff_us = (t1_dt.timestamp() - t0_dt.timestamp()) * 1e6
+            if diff_us > 0:
+                duration_us = max(100.0, diff_us)
+        except Exception:
+            duration_us = None
+
+    if duration_us is None:
+        age_sec = float(flow_data.get("age", 1.0) or 1.0)
+        duration_us = max(100.0, age_sec * 1e6)
     duration_sec = max(0.001, duration_us / 1e6)
 
     # Rates
@@ -112,8 +127,8 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
         "psh_flag_count": float(psh),
         "urg_flag_count": float(urg),
         # Group 4: Window and timing (6)
-        "init_win_bytes_fwd": 64240.0,
-        "init_win_bytes_bwd": 29200.0 if bwd_pkts > 0 else 0.0,
+        "init_win_bytes_fwd": float(tcp_data.get("window", 0) or tcp_data.get("src_window", 0) or 64240.0),
+        "init_win_bytes_bwd": float(tcp_data.get("window_bwd", 0) or tcp_data.get("dst_window", 0) or (29200.0 if bwd_pkts > 0 else 0.0)),
         "flow_iat_mean": float(flow_iat_mean),
         "flow_iat_std": float(calc_flow_iat_max * 0.25),
         "flow_iat_max": float(calc_flow_iat_max),
@@ -135,8 +150,8 @@ def eve_to_flow_features(doc: Dict[str, Any]) -> Dict[str, float]:
         "Total Length of Bwd Packets": float(bwd_bytes),
         "Flow Packets/s": float(pkts_per_sec),
         "Flow Bytes/s": float(bytes_per_sec),
-        "Init_Win_bytes_forward": 64240.0,
-        "Init_Win_bytes_backward": 29200.0 if bwd_pkts > 0 else 0.0,
+        "Init_Win_bytes_forward": float(tcp_data.get("window", 0) or tcp_data.get("src_window", 0) or 64240.0),
+        "Init_Win_bytes_backward": float(tcp_data.get("window_bwd", 0) or tcp_data.get("dst_window", 0) or (29200.0 if bwd_pkts > 0 else 0.0)),
     }
 
     # Flow session tracking and IP identification

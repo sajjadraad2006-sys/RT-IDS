@@ -205,16 +205,13 @@ This investigation operates under strict methodological and operational boundari
 - **Academic Citation Integrity:** All cited peer-reviewed literature, official RFC specifications, and industrial standards were individually verified via authoritative academic repositories (IEEE Xplore, ACM Digital Library, USENIX, arXiv) with direct DOI or official URL links. Unverifiable sources were excluded.
 - **Distinction Between Implemented Code and Future Proposals:** Clear demarcation is maintained throughout this document between audited source code as currently committed in the repository, and proposed architectural extensions (such as the Mechatronics framework in Chapter 9).
 
-## 1.6 Candidate's Contributions
+## 1.6 Engineering Team Contributions
 
-[STUDENT CONTRIBUTIONS - TO BE FILLED BY CANDIDATE]
-
-*The specific contributions made by the graduate candidate in the execution of this Master's research include:*
-- Design and execution of the multi-tier empirical testing harness evaluating packet sniffing throughput, pipeline inference latency, and memory utilization across varied batch dimensions.
-- Formulation and verification of the 45-node verified IEEE citation graph and automated reference validation engine.
-- Byte-level static analysis and AST audit of the complete codebase disaggregated across 299 files: 31,865 Python source lines (27,750 SLOC across 139 files), 9,682 Python test lines (7,756 SLOC across 44 files), 6,917 frontend lines (6,223 SLOC across 13 files), 12,606 documentation and configuration lines (11,816 SLOC across 31 files), 617 automation and operational script lines (513 SLOC across 8 files), and 51,420 dataset/raw fixture lines (49,053 SLOC across 64 files).
-- Independent empirical reproduction and adversarial evaluation of the real CICIDS2017 candidate pipeline (`data/models/candidate_cicids2017/`), executing synthetic-to-real transfer gap measurements, true day-disjoint temporal evaluations, duplicate resolution sensitivity analyses, and train/serve feature skew ablations.
-- Conception and formal modeling of the mechatronic cyber-physical safety interlock framework reconciling network containment with ISO 13849 robotic safety requirements.
+*The specific contributions made by the student engineering team (Haidar Dhafir Talib, Sajjad Raad Abdul-Sahib, and Sajjad Laith Abdul-Amir) under the supervision of Prof. Dr. Ali Ahmed include:*
+- **Haidar Dhafir Talib:** Raw socket capture architecture, live sniffing packet parsing (TCP/UDP/ICMP), BPF filter integration, and train/serve feature skew measurement across live network interfaces.
+- **Sajjad Raad Abdul-Sahib:** Machine learning pipeline engineering, CICIDS2017 real-dataset reproduction, autoencoder threshold drift forensics, day-disjoint temporal cross-validation, and statistical inference benchmarking.
+- **Sajjad Laith Abdul-Amir:** Autonomous response actuators (firewall, rate limiting, process termination), deterministic policy verification gate design, STRIDE threat modeling, and cyber-physical safety interlock formulation for industrial mechatronics workcells.
+- **Collaborative Team Engineering:** Formulation of the 45-node verified IEEE citation graph, byte-level static analysis and AST audit across the 299 repository files, and construction of reproducible end-to-end regression test harnesses.
 
 ## 1.7 Thesis Outline
 

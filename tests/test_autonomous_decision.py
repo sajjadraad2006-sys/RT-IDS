@@ -126,3 +126,32 @@ def test_parse_and_guard_two_person_rule_blocks_unauthorized_enforcement():
     assert decision.executed_action == "none"
     assert any("two-person rule" in lim.lower() for lim in decision.limitations)
     assert decision.actuator_result is None
+
+
+def test_parse_and_guard_rejects_empty_target_safely():
+    # Test path when neither target nor smart_log.source has any target IP
+    smart_log = _make_dummy_smart_log()
+    smart_log.source.clear()
+    llm_payload = json.dumps({
+        "verdict": "malicious",
+        "confidence": 0.95,
+        "recommended_action": "block_ip",
+        "rationale": "High confidence attack with missing telemetry IP",
+        "evidence": [],
+        "containment": [],
+        "limitations": [],
+    })
+
+    decision = parse_and_guard_ai_decision(
+        llm_payload,
+        smart_log,
+        provider="test-provider",
+        autonomous_actuate=True,
+        execution_mode="simulation",
+        target="",
+    )
+
+    assert decision.requires_human is True
+    assert decision.executed_action == "none"
+    assert any("no target ip" in lim.lower() for lim in decision.limitations)
+

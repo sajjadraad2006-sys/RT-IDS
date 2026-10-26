@@ -62,6 +62,22 @@ def test_firewall_actuator_linux_syntax():
     assert "--dport 80" in res.command_executed
 
 
+def test_firewall_actuator_rate_limit_differentiation():
+    # Linux rate limiting uses hashlimit
+    fw_linux = FirewallActuator(is_windows=False)
+    res_linux = fw_linux.execute("rate_limit", "198.51.100.42", dry_run=True)
+    assert res_linux.success is True
+    assert "hashlimit" in res_linux.command_executed
+    assert "RateLimit" in res_linux.command_executed or "hashlimit" in res_linux.command_executed
+
+    # Windows rate limiting rule naming
+    fw_win = FirewallActuator(is_windows=True)
+    res_win = fw_win.execute("rate_limit", "198.51.100.42", dry_run=True)
+    assert res_win.success is True
+    assert "CyberGuard-RateLimit" in res_win.command_executed
+
+
+
 def test_firewall_actuator_elevation_check(monkeypatch):
     fw = FirewallActuator(is_windows=True)
     # Simulate unprivileged execution

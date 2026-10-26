@@ -146,6 +146,18 @@ class FlowRecord:
             if self.bwd_packets == 1:
                 self.init_win_bytes_bwd = win_size
 
+        # Memory safeguard: bound history lists under volumetric flood
+        if len(self.flow_iats) > 2000:
+            self.flow_iats = self.flow_iats[-1000:]
+        if len(self.fwd_lengths) > 2000:
+            self.fwd_lengths = self.fwd_lengths[-1000:]
+        if len(self.bwd_lengths) > 2000:
+            self.bwd_lengths = self.bwd_lengths[-1000:]
+        if len(self.fwd_iats) > 2000:
+            self.fwd_iats = self.fwd_iats[-1000:]
+        if len(self.bwd_iats) > 2000:
+            self.bwd_iats = self.bwd_iats[-1000:]
+
         # Update flags (TCP standard bits: FIN=1, SYN=2, RST=4, PSH=8, ACK=16, URG=32)
         if tcp_flags & 0x01: self.fin_count += 1
         if tcp_flags & 0x02: self.syn_count += 1
@@ -195,8 +207,16 @@ class FlowRecord:
             flow_bytes_per_sec = total_bytes / rate_duration_sec
             flow_pkts_per_sec = total_packets / rate_duration_sec
 
-        fwd_bytes_ratio = float(self.fwd_bytes / max(1, self.bwd_bytes))
+        flow_bytes_ratio = float(self.fwd_bytes / max(1, total_bytes))
         avg_pkt_sz = float(total_bytes / max(1, total_packets))
+
+        # Behavioral active / idle timing: idle periods are flow inter-arrival gaps >= 1.0s (1,000,000 us)
+        idle_times_us = [dt * 1e6 for dt in self.flow_iats if dt >= 1.0]
+        idle_mean = float(sum(idle_times_us) / len(idle_times_us)) if idle_times_us else 0.0
+        total_idle_us = sum(idle_times_us)
+        active_time_us = max(0.0, duration_us - total_idle_us)
+        active_segments = len(idle_times_us) + 1
+        active_mean = float(active_time_us / active_segments) if duration_us > 0.0 else 0.0
 
         fwd_hdr_len = float(self.fwd_header_bytes if self.fwd_header_bytes > 0 else self.fwd_packets * 20)
         bwd_hdr_len = float(self.bwd_header_bytes if self.bwd_header_bytes > 0 else self.bwd_packets * 20)
@@ -232,9 +252,9 @@ class FlowRecord:
             "fwd_header_len": fwd_hdr_len,
             "bwd_header_len": bwd_hdr_len,
             "down_up_ratio": float(self.bwd_packets / max(1, self.fwd_packets)),
-            "flow_bytes_ratio": fwd_bytes_ratio,
-            "active_mean": float(duration_us),
-            "idle_mean": 0.0,
+            "flow_bytes_ratio": flow_bytes_ratio,
+            "active_mean": active_mean,
+            "idle_mean": idle_mean,
             # Correlation & identification metadata
             "src_ip": str(self.key[0]),
             "dst_ip": str(self.key[1]),
@@ -288,6 +308,9 @@ class LiveFlowSniffer:
         self.early_packet_threshold = 10
         self.interim_time_interval = 5.0
         self.total_interim_evals = 0
+
+        # Memory safeguard: maximum concurrent active flows
+        self.max_active_flows = int(os.getenv("CG_MAX_ACTIVE_FLOWS", "50000"))
 
     def _register_closed_flow(
         self,
@@ -363,6 +386,11 @@ class LiveFlowSniffer:
             udp_header = data[payload_offset:payload_offset + 8]
             src_port, dst_port = struct.unpack("!HH", udp_header[0:4])
             transport_hdr_len = 8
+        elif proto == 1 and len(data) >= payload_offset + 4:  # ICMP
+            icmp_header = data[payload_offset:payload_offset + 4]
+            icmp_type, icmp_code = struct.unpack("!BB", icmp_header[0:2])
+            src_port, dst_port = int(icmp_type), int(icmp_code)
+            transport_hdr_len = 8
         else:
             return None
 
@@ -412,6 +440,12 @@ class LiveFlowSniffer:
                 flow = self._active_flows[rev_key]
                 flow.update(length, is_fwd=False, tcp_flags=tcp_flags, win_size=win_size, timestamp=now, header_len=header_len)
             else:
+                if len(self._active_flows) >= self.max_active_flows:
+                    # Bounded table protection: evict oldest 5% of active flows
+                    evict_count = max(1, self.max_active_flows // 20)
+                    oldest_keys = list(self._active_flows.keys())[:evict_count]
+                    for old_k in oldest_keys:
+                        self._active_flows.pop(old_k, None)
                 flow = FlowRecord(fwd_key, is_forward=True, timestamp=now)
                 flow.update(length, is_fwd=True, tcp_flags=tcp_flags, win_size=win_size, timestamp=now, header_len=header_len)
                 self._active_flows[fwd_key] = flow

@@ -6,13 +6,13 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-Async%20Backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Suricata](https://img.shields.io/badge/Suricata-EVE%20Bridge-D73A49?logo=suricata&logoColor=white)](https://suricata.io/)
 [![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK%20v19-B22222)](https://attack.mitre.org/)
-[![Tests](https://img.shields.io/badge/Tests-536%20Passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-556%2B%20Passed-brightgreen)](tests/)
 [![Thesis](https://img.shields.io/badge/Academic%20Thesis-94%20Pages%20PDF-blue)](report/dist/report.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**CyberGuard** is an industrial-grade, hybrid **Real-Time Network Intrusion Detection System (RT-IDS)** and defensive containment engine developed at the **University of Basrah**. It integrates high-throughput packet flow extraction, hardware-accelerated machine learning (NVIDIA CUDA), deep unsupervised anomaly detection, signature-based EVE telemetry, and guarded multi-actuator containment into a deterministic, zero-hallucination defensive pipeline.
+**CyberGuard** is an industrial-grade, hybrid **Real-Time Network Intrusion Detection System (RT-IDS)** and defensive containment engine developed at the **University of Basrah, College of Engineering, Department of Mechatronics Engineering**. It integrates high-throughput packet flow extraction, hardware-accelerated machine learning (NVIDIA CUDA), deep unsupervised anomaly detection, signature-based EVE telemetry, and guarded multi-actuator containment into a deterministic, zero-hallucination defensive pipeline.
 
-Unlike brittle legacy IDS designs or naive LLM-based wrappers, CyberGuard separates deterministic low-latency mathematical detection (< 5ms) from advisory semantic triage. Critical network actions are formally constrained by SMT safety proofs and strict Two-Person Rule authorization.
+Unlike brittle legacy IDS designs or naive LLM-based wrappers, CyberGuard separates deterministic low-latency mathematical detection (< 5ms) from advisory semantic triage. Critical network actions are formally governed by deterministic policy safety gates with cryptographic proof certificates and strict Two-Person Rule authorization.
 
 ---
 
@@ -97,9 +97,7 @@ Evaluation was conducted on a held-out, leakage-resistant test set of **406,661 
 * **Real-Time Packet Sniffing (`live_sniffer.py`):** High-efficiency raw socket packet capture with microsecond TCP flow tracking, early-window detection, and `TIME_WAIT` absorption.
 * **Vectorized 32-Feature Extraction (`features.py`):** Extracts duration, forward/backward packet distributions, inter-arrival times (IAT), TCP flags (SYN, ACK, FIN, RST, PSH, URG), and window scales directly into optimized NumPy matrices in microseconds.
 * **Hardware Accelerated Inference:** Native CUDA support for tree-based ensemble classification (`xgboost.XGBClassifier(device='cuda')`) and PyTorch neural autoencoders.
-* **Suricata EVE Streaming Bridge (`suricata_bridge.py`):** Live streaming ingestion of Suricata EVE JSON alerts with deterministic MITRE ATT&CK mapping provenance.
-* **Guarded Containment Actuators (`actuators.py`):** Automated mitigation across host firewalls (Windows Filtering Platform / Linux iptables), process termination (`taskkill` / `pkill`), and dynamic Suricata rule drops.
-* **SMT Formal Safety Proofs:** Actuator decisions are mathematically validated against invariant safety constraints before execution.
+* **Deterministic Safety Gate & Proof Certificates:** Actuator decisions are validated against invariant safety constraints with exported SMT-LIB2 proof certificates before execution.
 * **Cryptographic Rollback Receipts:** Every containment action generates an HMAC-SHA256 authenticated rollback receipt ensuring verifiable two-person reversibility.
 * **Interactive Live Dashboard:** Modern web interface with real-time SSE streaming, MITRE ATT&CK heatmaps, decision queues, and audit logs.
 
@@ -209,14 +207,18 @@ CyberGuard/
 │   ├── dist/report.pdf           # Compiled dissertation PDF
 │   └── dist/report.html          # Standalone publication-ready HTML
 ├── scripts/                      # Training & deployment utility scripts
-└── tests/                        # 536 automated regression & safety tests
+└── tests/                        # 556+ automated regression & safety tests
 ```
 
 ---
 
-## 📜 Academic Attribution & License
+## 📜 Academic Attribution & Engineering Team
 
-* **Lead Developer & Researcher:** **Sajjad Raad** (سجاد رعد) & Team
-* **Institution:** Department of Mechatronics Engineering, College of Engineering, **University of Basrah** (جامعة البصرة)
-* **Academic Baseline:** 2025 University of Basrah research by Zainab Salem Aziz
+* **Academic Institution:** Department of Mechatronics Engineering, College of Engineering, **University of Basrah** (جامعة البصرة)
+* **Project:** RT-IDS (Real-Time Network Intrusion Detection & Guarded Autonomous Containment System) — Third-Year Engineering Capstone Project (2026–2027)
+* **Project Supervisor:** **Prof. Dr. Ali Ahmed** (أ.د. علي احمد)
+* **Student Engineering Team:**
+  1. **Haidar Dhafir Talib** (حيدر ظافر طالب)
+  2. **Sajjad Raad Abdul-Sahib** (سجاد رعد عبد الصاحب)
+  3. **Sajjad Laith Abdul-Amir** (سجاد ليث عبد الامير)
 * **License:** [MIT License](LICENSE)
