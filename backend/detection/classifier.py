@@ -155,6 +155,11 @@ class AttackClassifier:
             self._le = LabelEncoder()
             self._le.classes_ = np.array(CLASSES)
             self.classes_ = CLASSES
+        if hasattr(self.model, "set_params"):
+            try:
+                self.model.set_params(device="cpu")
+            except Exception:
+                pass
         self.fitted = True
         log.info("Classifier loaded from %s (classes: %s)", path, self.classes_)
         return self
