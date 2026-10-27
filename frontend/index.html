@@ -133,18 +133,19 @@
       </div>
       <div class="panel reveal">
         <div class="panel-head">
-          <h2 class="panel-title">Alert Feed</h2>
+          <h2 class="panel-title">Real-Time Threat &amp; Flow Feed</h2>
           <div class="chip-row">
             <button class="chip sev-filter is-active" data-sev="all">All</button>
             <button class="chip sev-filter" data-sev="critical">Critical</button>
             <button class="chip sev-filter" data-sev="high">High</button>
             <button class="chip sev-filter" data-sev="medium">Medium</button>
             <button class="chip sev-filter" data-sev="low">Low</button>
+            <button class="chip sev-filter" data-sev="none">Benign / Permitted</button>
           </div>
         </div>
         <div class="table-wrap">
           <table class="alerts-table"><thead><tr>
-            <th>Time</th><th>Severity</th><th>Type</th><th>Stage</th><th>Confidence</th><th>Anomaly</th><th>MITRE</th><th>Latency</th>
+            <th>Time</th><th>Severity</th><th>Type</th><th>Network (Src → Dst)</th><th>Defense Action</th><th>Stage</th><th>Confidence</th><th>Anomaly</th><th>MITRE</th><th>Latency</th>
           </tr></thead><tbody id="alerts-body"></tbody></table>
         </div>
       </div>

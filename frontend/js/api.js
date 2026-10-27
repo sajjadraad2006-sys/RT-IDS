@@ -104,6 +104,10 @@ window.CG = window.CG || {};
     const type = unknownSignal ? "unknown-anomaly" : pick(CLASSES);
     const conf = unknownSignal ? 0 : rand(0.86, 0.999);
     const sev = unknownSignal ? "high" : conf > 0.98 ? "critical" : conf > 0.9 ? "high" : "medium";
+    const srcIp = `192.168.0.${Math.floor(rand(10, 240))}`;
+    const dstIp = "192.168.0.213";
+    const srcPort = Math.floor(rand(1024, 65535));
+    const dstPort = pick([80, 443, 22, 8080, 53, 3389]);
     return {
       id: 1000 + i,
       created_at: now - Math.floor(rand(20, 3400)),
@@ -116,6 +120,13 @@ window.CG = window.CG || {};
       mitre_techniques: LABEL_TECH[type] || [],
       latency_ms: +rand(0.4, 3.2).toFixed(2),
       source_file: "demo-flow-records.csv",
+      src_ip: srcIp,
+      dst_ip: dstIp,
+      src_port: srcPort,
+      dst_port: dstPort,
+      proto: "TCP",
+      executed_action: sev === "critical" ? "simulated:block_ip" : "none",
+      rollback_token: sev === "critical" ? `CG-ACT-DEMO-${1000 + i}` : null,
     };
   }).sort((a, b) => b.created_at - a.created_at);
 

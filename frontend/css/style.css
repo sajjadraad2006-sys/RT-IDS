@@ -421,6 +421,20 @@ svg { width: 20px; height: 20px; display: block; }
 }
 .stage-tag { font-family: var(--mono); font-size: .72rem; color: var(--text-2); }
 
+.action-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 6px;
+  font-size: .72rem; font-weight: 600; font-family: var(--mono);
+  white-space: nowrap;
+}
+.action-block { color: #f87171; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); }
+.action-sim { color: #60a5fa; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.35); }
+.action-permit { color: #34d399; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); }
+.action-policy { color: #fbbf24; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); }
+
+.net-flow { font-family: var(--mono); font-size: .75rem; color: var(--text-1); white-space: nowrap; }
+.net-arrow { color: var(--cyan); margin: 0 4px; font-weight: bold; }
+
 /* row entrance */
 @keyframes rowin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 tr.row-in { animation: rowin var(--d-base) var(--ease-out) both; }

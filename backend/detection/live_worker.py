@@ -222,16 +222,30 @@ class LiveFlowWorker:
                         for k in oldest:
                             self._session_alert_cache.pop(k, None)
 
+            src_ip = str(flow_input.get("src_ip", "")).strip()
+            dst_ip = str(flow_input.get("dst_ip", "")).strip()
+            src_port = flow_input.get("src_port")
+            dst_port = flow_input.get("dst_port")
+            proto_val = flow_input.get("proto") or flow_input.get("protocol") or "TCP"
+
+            alert_id = int(now * 1000) + len(generated_alerts)
             alert_dict = alert.to_dict()
+            alert_dict["id"] = alert_id
+            alert_dict["created_at"] = now
             alert_dict["source"] = "live_stream"
+            alert_dict["source_file"] = "live://sniffer"
             alert_dict["is_interim"] = is_interim
             alert_dict["session_id"] = session_id
+            alert_dict["src_ip"] = src_ip
+            alert_dict["dst_ip"] = dst_ip
+            alert_dict["src_port"] = int(src_port) if src_port is not None else None
+            alert_dict["dst_port"] = int(dst_port) if dst_port is not None else None
+            alert_dict["proto"] = str(proto_val)
             generated_alerts.append(alert_dict)
 
             executed_action = "none"
             rollback_token = None
             explanation = ""
-            src_ip = str(flow_input.get("src_ip", "")).strip()
 
             # Wire autonomous containment actuators ONLY to confirmed known attacks with high confidence
             should_auto_contain = (
@@ -302,6 +316,11 @@ class LiveFlowWorker:
                 "feature_schema_version": FEATURE_SCHEMA_VERSION,
                 "is_interim": is_interim,
                 "session_id": session_id,
+                "src_ip": src_ip,
+                "dst_ip": dst_ip,
+                "src_port": src_port,
+                "dst_port": dst_port,
+                "proto": proto_val,
                 "executed_action": executed_action,
                 "rollback_token": rollback_token,
             }
@@ -328,6 +347,16 @@ class LiveFlowWorker:
                 else:
                     cleaned_top_features.append(item)
 
+            flow_summary = {
+                "src_ip": src_ip,
+                "dst_ip": dst_ip,
+                "src_port": src_port,
+                "dst_port": dst_port,
+                "proto": proto_val,
+                "executed_action": executed_action,
+                "rollback_token": rollback_token,
+            }
+
             record_kwargs: Dict[str, Any] = {
                 "created_at": now,
                 "severity": alert.severity,
@@ -338,7 +367,7 @@ class LiveFlowWorker:
                 "mitre_techniques": json.dumps(alert.mitre_techniques),
                 "latency_ms": alert.latency_ms,
                 "source_file": "live://sniffer",
-                "flow_json": "",
+                "flow_json": json.dumps(flow_summary),
                 "top_features": json.dumps(cleaned_top_features),
                 "explanation": explanation,
             }
@@ -359,6 +388,9 @@ class LiveFlowWorker:
                 with SessionLocal() as db_session:
                     db_session.add_all(persist_records)
                     db_session.commit()
+                    for rec, ad in zip(persist_records, generated_alerts):
+                        if getattr(rec, "id", None):
+                            ad["id"] = rec.id
             except Exception as exc:
                 logger.error("Failed to commit live alert records to database: %s", exc)
 

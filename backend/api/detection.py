@@ -418,6 +418,21 @@ def list_alerts(
                 except Exception:
                     evid = {}
 
+            flow_meta = {}
+            if getattr(r, "flow_json", None):
+                try:
+                    flow_meta = json.loads(r.flow_json)
+                except Exception:
+                    flow_meta = {}
+
+            src_ip = flow_meta.get("src_ip") or evid.get("src_ip") or ""
+            dst_ip = flow_meta.get("dst_ip") or evid.get("dst_ip") or ""
+            src_port = flow_meta.get("src_port") or evid.get("src_port")
+            dst_port = flow_meta.get("dst_port") or evid.get("dst_port")
+            proto = flow_meta.get("proto") or evid.get("proto") or ""
+            executed_action = flow_meta.get("executed_action") or evid.get("executed_action") or "none"
+            rollback_token = flow_meta.get("rollback_token") or evid.get("rollback_token") or None
+
             result.append({
                 "id": r.id,
                 "created_at": r.created_at,
@@ -434,6 +449,13 @@ def list_alerts(
                 "latency_ms": r.latency_ms,
                 "source_file": r.source_file,
                 "evidence": evid,
+                "src_ip": src_ip,
+                "dst_ip": dst_ip,
+                "src_port": src_port,
+                "dst_port": dst_port,
+                "proto": proto,
+                "executed_action": executed_action,
+                "rollback_token": rollback_token,
             })
         return result
 

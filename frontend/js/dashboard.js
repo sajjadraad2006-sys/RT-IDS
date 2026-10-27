@@ -42,7 +42,7 @@
     const threats = ALERTS.filter((a) => a.severity === "high" || a.severity === "critical" || a.route === "known_attack" || a.route === "autonomous_containment").length;
     const unknown = ALERTS.filter((a) =>
       a.route === "unknown_anomaly_review" || a.type === "unknown-anomaly" || a.severity === "medium").length;
-    flowsTotal = Math.max(flowsTotal, ALERTS.length * 150, 150);
+    flowsTotal = Math.max(flowsTotal, ALERTS.length);
     animateNum(document.getElementById("kpi-flows"), flowsTotal);
     animateNum(document.getElementById("kpi-threats"), threats);
     animateNum(document.getElementById("kpi-unknown"), unknown);
@@ -182,23 +182,50 @@
   function paintAlerts() {
     const body = document.getElementById("alerts-body");
     const rows = ALERTS
-      .filter((a) => sevFilter === "all" || a.severity === sevFilter)
-      .sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || b.created_at - a.created_at)
-      .slice(0, 50);
-    body.innerHTML = rows.map((a, i) => `
+      .filter((a) => {
+        if (sevFilter === "all") return true;
+        if (sevFilter === "none") return a.severity === "none" || String(a.type || "").toLowerCase() === "benign";
+        return a.severity === sevFilter;
+      })
+      .sort((a, b) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0))
+      .slice(0, 100);
+
+    body.innerHTML = rows.map((a, i) => {
+      const net = (a.src_ip && a.dst_ip)
+        ? `<span class="net-flow mono">${CG.util.esc(a.src_ip)}${a.src_port ? ':' + a.src_port : ''}<span class="net-arrow">→</span>${CG.util.esc(a.dst_ip)}${a.dst_port ? ':' + a.dst_port : ''}</span>`
+        : `<span class="text-muted mono">${CG.util.esc(a.source_file || "local / flow")}</span>`;
+
+      let actionBadge = `<span class="action-badge action-permit">✓ Permitted</span>`;
+      const act = String(a.executed_action || "").toLowerCase();
+      if (act.includes("blocked_by_policy") || act.includes("refused")) {
+        actionBadge = `<span class="action-badge action-policy" title="${CG.util.esc(a.explanation || act)}">⚠️ Policy Refused</span>`;
+      } else if (act.includes("executed:block_ip") || act === "block_ip") {
+        actionBadge = `<span class="action-badge action-block" title="Token: ${a.rollback_token || ''}">🛡️ Blocked</span>`;
+      } else if (act.includes("simulated:block_ip") || act.includes("simulat")) {
+        actionBadge = `<span class="action-badge action-sim" title="Simulated Rule">⚡ Simulated Block</span>`;
+      } else if (a.severity === "critical" || a.severity === "high") {
+        actionBadge = `<span class="action-badge action-block">🛡️ Contained</span>`;
+      } else if (a.severity === "medium" || a.route === "unknown_anomaly_review") {
+        actionBadge = `<span class="action-badge action-policy">🔍 Under Review</span>`;
+      }
+
+      return `
       <tr class="row-in" data-alert-idx="${i}">
         <td class="mono" title="${CG.util.timeAgo(a.created_at)}">${CG.util.fmtTime(a.created_at)}</td>
         <td><span class="sev-badge sev-${a.severity}">${a.severity}</span></td>
         <td><strong>${CG.util.esc(a.type)}</strong></td>
+        <td>${net}</td>
+        <td>${actionBadge}</td>
         <td><span class="stage-tag">${a.stage}</span></td>
         <td class="mono">${a.confidence ? (a.confidence * 100).toFixed(1) + "%" : "—"}</td>
         <td class="mono">${formatAnomalyScore(a.anomaly_score)}</td>
         <td>${(a.mitre_techniques || []).map((t) => `<span class="tech-tag">${CG.util.esc(t)}</span>`).join("")}</td>
         <td class="mono">${a.latency_ms} ms</td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
 
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:32px">No alerts at this severity — the pipeline is quiet.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:32px">No alerts at this severity — the pipeline is quiet.</td></tr>`;
       return;
     }
 
@@ -226,8 +253,10 @@
     document.getElementById("modal-verdict").innerHTML = `
       <dt>Type</dt><dd><strong>${CG.util.esc(alert.type)}</strong></dd>
       <dt>Severity</dt><dd><span class="sev-badge sev-${alert.severity}">${alert.severity}</span></dd>
+      <dt>Network Flow</dt><dd class="mono">${alert.src_ip ? `${CG.util.esc(alert.src_ip)}:${alert.src_port || ''} → ${CG.util.esc(alert.dst_ip)}:${alert.dst_port || ''} (${alert.proto || 'TCP'})` : 'Local / Uploaded Telemetry'}</dd>
+      <dt>Defense Action</dt><dd>${CG.util.esc(alert.executed_action || 'none')}${alert.rollback_token ? ` (Token: <code class="mono">${CG.util.esc(alert.rollback_token)}</code>)` : ''}</dd>
       <dt>Stage</dt><dd>${alert.stage}</dd>
-      <dt>Time</dt><dd>${CG.util.fmtTime(alert.created_at)}</dd>
+      <dt>Time</dt><dd>${CG.util.fmtTime(alert.created_at)} (${CG.util.timeAgo(alert.created_at)})</dd>
       <dt>Confidence</dt><dd>${alert.confidence ? (alert.confidence * 100).toFixed(1) + "%" : "N/A"}</dd>
       <dt>Anomaly Score</dt><dd>${formatAnomalyScore(alert.anomaly_score)}</dd>
       <dt>Latency</dt><dd>${alert.latency_ms} ms</dd>
@@ -524,19 +553,22 @@
   let lastSnifferFlushed = 0;
 
   async function pollLiveSniffer() {
-    if (!snifferActive && !suricataActive) return;
     try {
       if (snifferActive) {
         const st = await CG.api.liveSnifferStatus();
-        if (st && st.active) {
+        if (st && (st.active || (st.worker && st.worker.is_running))) {
           const note = document.getElementById("pipeline-note");
           if (note && !suricataActive) {
-            note.textContent = `● Live network capture active (${st.packets_captured} pkts, ${st.flows_aggregated} flows)`;
+            const pkts = st.total_packets_captured ?? st.packets_captured ?? 0;
+            const flws = st.total_flows_flushed ?? st.flows_aggregated ?? 0;
+            note.textContent = `● Live network capture active (${pkts} pkts, ${flws} flows)`;
+            note.style.color = "var(--green)";
           }
-          const delta = Math.max(0, (st.flows_aggregated || 0) - lastSnifferFlushed);
+          const flws = st.total_flows_flushed ?? st.flows_aggregated ?? 0;
+          const delta = Math.max(0, flws - lastSnifferFlushed);
           if (delta > 0) {
             flowsTotal += delta;
-            lastSnifferFlushed = st.flows_aggregated;
+            lastSnifferFlushed = flws;
             paintKpis();
           }
         } else {
@@ -567,26 +599,28 @@
         } catch { /* ignore suricata poll error */ }
       }
 
-        // Live alert ingestion stream
-        try {
-          const alertData = await CG.api.liveSnifferAlerts(20);
-          if (alertData && alertData.alerts && alertData.alerts.length) {
-            const existingIds = new Set(ALERTS.map(a => a.id));
-            let added = false;
-            for (const a of alertData.alerts) {
-              if (!existingIds.has(a.id)) {
-                ALERTS.unshift(a);
-                existingIds.add(a.id);
-                added = true;
-              }
-            }
-            if (added) {
-              paintKpis();
-              paintAlerts();
-              paintCharts();
+      // Live alert ingestion stream
+      try {
+        const alertData = await CG.api.liveSnifferAlerts(50);
+        if (alertData && alertData.alerts && alertData.alerts.length) {
+          const alertKey = (a) => String(a.id || `${a.created_at}:${a.src_ip}:${a.dst_ip}:${a.type}`);
+          const existingIds = new Set(ALERTS.map(alertKey));
+          let added = false;
+          for (const a of alertData.alerts) {
+            const key = alertKey(a);
+            if (!existingIds.has(key)) {
+              ALERTS.unshift(a);
+              existingIds.add(key);
+              added = true;
             }
           }
-        } catch { /* ignore alert fetch errors */ }
+          if (added) {
+            paintKpis();
+            paintAlerts();
+            paintCharts();
+          }
+        }
+      } catch { /* ignore alert fetch errors */ }
     } catch { /* ignore network error during polling */ }
   }
 
@@ -753,6 +787,14 @@
   };
 
   /* ---------- view lifecycle ---------- */
+  let dashboardPollTimer = null;
+
+  async function pollDashboardLive() {
+    await checkSnifferStatus();
+    await checkSuricataStatus();
+    await pollLiveSniffer();
+  }
+
   CG.onView.dashboard = async function () {
     ALERTS = await CG.api.alerts();
     await CG.util.paintOperationalState();
@@ -762,5 +804,16 @@
     paintPipeline();
     await paintCharts();
     paintAlerts();
+
+    if (!dashboardPollTimer) {
+      dashboardPollTimer = setInterval(pollDashboardLive, 2500);
+    }
+  };
+
+  CG.onLeave.dashboard = function () {
+    if (dashboardPollTimer) {
+      clearInterval(dashboardPollTimer);
+      dashboardPollTimer = null;
+    }
   };
 })();
