@@ -1,3 +1,0 @@
-# Compatibility entry point for the legacy ``cyberguard/setup.sh`` helper.
-# The single authoritative, exact-pinned runtime set is at repository root.
--r ../requirements.txt

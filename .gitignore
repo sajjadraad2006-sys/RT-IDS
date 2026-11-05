@@ -43,6 +43,7 @@ run_window*.bat
 # Reports & Documentation
 report/
 docs/
+CyberGuard_Hybrid_RAG_Academic_Package/
 *.pdf
 *.docx
 benchmark_results.json
