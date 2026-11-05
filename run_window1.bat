@@ -21,21 +21,21 @@ if exist "%~dp0.venv\Scripts\activate.bat" (
     call "%~dp0venv\Scripts\activate.bat"
 )
 
-REM Locate llama-server.exe
-set "LLAMA_EXE=llama-server.exe"
-where llama-server.exe >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    if exist "%LOCALAPPDATA%\Microsoft\WinGet\Packages\ggml.llamacpp_Microsoft.Winget.Source_8wekyb3d8bbwe\llama-server.exe" (
-        set "LLAMA_EXE=%LOCALAPPDATA%\Microsoft\WinGet\Packages\ggml.llamacpp_Microsoft.Winget.Source_8wekyb3d8bbwe\llama-server.exe"
-    )
+set "PYTHON_EXE=python"
+if exist "%~dp0.venv\Scripts\python.exe" (
+    set "PYTHON_EXE=%~dp0.venv\Scripts\python.exe"
+) else if exist "%~dp0venv\Scripts\python.exe" (
+    set "PYTHON_EXE=%~dp0venv\Scripts\python.exe"
 )
 
 REM Check if llama-server is already running on port 8080
-powershell -NoProfile -Command "$client = New-Object System.Net.Sockets.TcpClient; try { $client.Connect('127.0.0.1', 8080); exit 0 } catch { exit 1 } finally { $client.Close() }" >nul 2>&1
-if %ERRORLEVEL% equ 0 goto LLM_ALREADY_ACTIVE
+"%PYTHON_EXE%" scripts\run_local_llama.py --check-only && goto LLM_ALREADY_ACTIVE
 
-echo [1/2] Launching Local LLM Engine on Port 8080...
-start "CyberGuard LLM Engine RTX 5050" cmd /c ""!LLAMA_EXE!" -m "%~dp0models\Foundation-Sec-8B-Instruct.Q4_K_M.gguf" --port 8080 --host 127.0.0.1 -ngl 99 -c 4096"
+echo [1/2] Launching Local LLM Engine on Port 8080 (RTX 5050 GPU)...
+start "CyberGuard LLM Engine RTX 5050" "%PYTHON_EXE%" scripts\run_local_llama.py --port 8080 --ngl 99 --ctx 4096
+
+echo [*] Waiting for LLM model weights to load into VRAM...
+"%PYTHON_EXE%" scripts\run_local_llama.py --wait-ready
 goto PROCEED_SERVER
 
 :LLM_ALREADY_ACTIVE
@@ -47,5 +47,5 @@ echo.
 echo [2/2] Launching CyberGuard FastAPI Web Server (Port 8000)...
 echo Website UI will be accessible at: http://127.0.0.1:8000
 echo.
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+"%PYTHON_EXE%" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 pause

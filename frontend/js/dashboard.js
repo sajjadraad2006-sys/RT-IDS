@@ -181,6 +181,9 @@
   /* ---------- alerts table ---------- */
   function paintAlerts() {
     const body = document.getElementById("alerts-body");
+    if (!body) return;
+    const panel = body.closest(".panel");
+    if (panel) panel.classList.add("is-in");
     const rows = ALERTS
       .filter((a) => {
         if (sevFilter === "all") return true;
@@ -219,7 +222,7 @@
         <td><span class="stage-tag">${a.stage}</span></td>
         <td class="mono">${a.confidence ? (a.confidence * 100).toFixed(1) + "%" : "—"}</td>
         <td class="mono">${formatAnomalyScore(a.anomaly_score)}</td>
-        <td>${(a.mitre_techniques || []).map((t) => `<span class="tech-tag">${CG.util.esc(t)}</span>`).join("")}</td>
+        <td>${(Array.isArray(a.mitre_techniques) ? a.mitre_techniques : []).map((t) => `<span class="tech-tag">${CG.util.esc(t)}</span>`).join("")}</td>
         <td class="mono">${a.latency_ms} ms</td>
       </tr>`;
     }).join("");

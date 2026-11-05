@@ -43,7 +43,7 @@ CLASSES = ["Benign", "DDoS", "DoS", "PortScan", "BruteForce",
 # ── LLM provider ─────────────────────────────────────────────────────────────
 LLM_PROVIDER = os.getenv("CG_LLM_PROVIDER", "local")      # "local" | "api"
 LLAMA_SERVER_URL = os.getenv("CG_LLAMA_URL", "http://127.0.0.1:8080")
-LOCAL_MODEL = os.getenv("CG_LOCAL_MODEL", "foundation-sec-8b-reasoning-q4_k_m.gguf")
+LOCAL_MODEL = os.getenv("CG_LOCAL_MODEL", "Foundation-Sec-8B-Instruct.Q4_K_M.gguf")
 API_BASE_URL = os.getenv("CG_API_BASE", "https://api.deepseek.com/v1")
 API_MODEL = os.getenv("CG_API_MODEL", "deepseek-chat")
 

@@ -11,13 +11,28 @@
   "dataset_hashes": {
     "synthetic-cicids-shape-fixture-large-v1": "4193bbaddda808df3587f5fe0cb2a8d5b5792b7e1caff286a660bef2142c4193"
   },
-  "classes": ["Benign", "Bot", "DDoS", "PortScan"],
+  "classes": [
+    "Benign",
+    "Bot",
+    "DDoS",
+    "PortScan"
+  ],
   "coverage_contract": {
     "schema_version": "cyberguard-coverage-contract-v1",
-    "trained_supported_labels": ["Benign", "Bot", "DDoS", "PortScan"],
+    "trained_supported_labels": [
+      "Benign",
+      "Bot",
+      "DDoS",
+      "PortScan"
+    ],
     "evaluated_labels": [],
     "ood_only_labels": [],
-    "unsupported_labels": ["BruteForce", "DoS", "Infiltration", "WebAttack"],
+    "unsupported_labels": [
+      "BruteForce",
+      "DoS",
+      "Infiltration",
+      "WebAttack"
+    ],
     "telemetry_profile": "synthetic-fixture-shape-evaluation-only"
   },
   "classifier": {
@@ -34,9 +49,21 @@
     "independent_test_split": false
   },
   "artifacts": {
-    "autoencoder.pt": {"sha256": "c53afcb167d00efcee52468147a6f931a6275225074729376d8fc9ded7d2bf71", "bytes": 51675},
-    "classifier.pkl": {"sha256": "6e469215aa3ad428630011146c18f7ed8e5dd434b594438b97adc1e5fd57cff1", "bytes": 4751368},
-    "normalizer.pkl": {"sha256": "65d9b51b83dc012e5eeac02e98b3d64c7b1a9bc717eba8d341d7c81756db9893", "bytes": 1047},
-    "statistical.pkl": {"sha256": "f8fba28f3cfb1c2ba1f2be0c98b2dbfb999998e73dc2e3485883481429aa51ff", "bytes": 848}
+    "autoencoder.pt": {
+      "sha256": "c53afcb167d00efcee52468147a6f931a6275225074729376d8fc9ded7d2bf71",
+      "bytes": 51675
+    },
+    "classifier.pkl": {
+      "sha256": "6e469215aa3ad428630011146c18f7ed8e5dd434b594438b97adc1e5fd57cff1",
+      "bytes": 4751368
+    },
+    "normalizer.pkl": {
+      "sha256": "524dfe6be442b0cba97ac08f05e2119ffc47e69a76568cf586919926935389b3",
+      "bytes": 1047
+    },
+    "statistical.pkl": {
+      "sha256": "770d6d03d65ce02c908c9b92a00eebdeaadfae481eb42ca2f4995fbaaad488f3",
+      "bytes": 848
+    }
   }
 }

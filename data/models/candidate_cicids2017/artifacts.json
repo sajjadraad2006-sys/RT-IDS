@@ -10,11 +10,11 @@
     },
     "normalizer.pkl": {
       "bytes": 975,
-      "sha256": "733d8f7fbc6eca6d560f887f623832ca1c3e358f85fa431d8cfe871932d5efec"
+      "sha256": "846669eece82d4c73586e8fd2ead22764b6d6c08fae1d685566551cf4c6dd74e"
     },
     "statistical.pkl": {
       "bytes": 592,
-      "sha256": "9469cfa15bcd250a21d23cdf5f83f11e0cc8d36bd07160639e97e409436ebf93"
+      "sha256": "bacc48e9c0b69713640dc947310cacb787409061b9a7a79acee8a39e41f851b5"
     }
   },
   "autoencoder": {

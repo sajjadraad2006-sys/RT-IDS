@@ -204,6 +204,20 @@ class LiveFlowWorker:
             if alert.route == "benign":
                 continue
 
+            # Suppress unknown_anomaly_review alerts on confident benign live flows
+            if alert.route == "unknown_anomaly_review":
+                clf_ev = alert.evidence.get("classifier", {}) if isinstance(alert.evidence, dict) else {}
+                clf_lbl = str(clf_ev.get("label", "")).lower()
+                clf_conf = float(alert.confidence or clf_ev.get("confidence", 0.0) or 0.0)
+                raw_dp = flow_input.get("dst_port") or flow_input.get("Destination Port") or 0
+                try:
+                    dp = int(float(raw_dp))
+                except (ValueError, TypeError):
+                    dp = 0
+                if clf_lbl == "benign" and (clf_conf >= 0.80 or dp in (80, 443, 53, 8080, 8443)):
+                    logger.debug("Suppressed benign live unknown_anomaly_review (port=%d, conf=%.3f)", dp, clf_conf)
+                    continue
+
             session_id = str(flow_input.get("session_id", ""))
             is_interim = bool(flow_input.get("is_interim", 0.0))
 

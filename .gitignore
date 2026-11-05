@@ -28,8 +28,23 @@ wheels/
 venv/
 .venv/
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
+# Antigravity Agent & Skills
+.agent/
+.agent
+
+# Obsolete / Generated Reports & Benchmarks
+report/
+*.pdf
+*.docx
+benchmark_results.json
+benchmark_doctoral_results.json
+MASSIVE_STRESS_TEST_RESULTS.json
+HARD_BENCHMARK_200_RESULTS.json
+
+# Scratch & Temporary Scripts
+*.tmp
+*.bak
+standalone_cyber_rag.py
 
 # Datasets and Large Files
 datasets/
@@ -55,11 +70,8 @@ data/*.csv
 data/*.json
 data/*.rules
 data/*.jsonl
-*.pdf
-!docs/*.pdf
 *.zip
 *.tar.gz
-
 
 # Models & Weights
 models/*.pt
@@ -92,7 +104,6 @@ data/.cg_secret*
 .pytest_cache/
 .coverage
 htmlcov/
-benchmark_results.json
 
 # IDE & OS files
 .DS_Store

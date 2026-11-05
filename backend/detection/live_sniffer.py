@@ -413,6 +413,17 @@ class LiveFlowSniffer:
         header_len: int = 20,
     ) -> None:
         """Process a parsed packet into the flow aggregation table."""
+        # Filter LAN multicast, broadcast, and device discovery noise (mDNS, SSDP, LLMNR, NetBIOS)
+        if (
+            dst_ip.startswith(("224.", "225.", "226.", "227.", "228.", "229.", "230.", "231.",
+                               "232.", "233.", "234.", "235.", "236.", "237.", "238.", "239."))
+            or dst_ip == "255.255.255.255"
+            or dst_ip.endswith(".255")
+            or dst_port in (5353, 1900, 5355, 3702, 137, 138)
+            or src_port in (5353, 1900, 5355, 3702, 137, 138)
+        ):
+            return
+
         now = timestamp or time.time()
         # Canonical directional key
         fwd_key = (src_ip, dst_ip, src_port, dst_port, proto)

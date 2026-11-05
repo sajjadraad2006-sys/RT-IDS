@@ -54,6 +54,13 @@ async def _lifespan(app: FastAPI):
     except Exception as reaper_err:
         logging.getLogger("cyberguard.main").error("Failed to start TTL reaper or sweep expired actions: %s", reaper_err, exc_info=True)
 
+    # Automatically ensure local LLM engine (Foundation-Sec-8B on RTX 5050) is running
+    try:
+        from .llm.manager import ensure_local_llm
+        ensure_local_llm(background=True)
+    except Exception as llm_init_err:
+        logging.getLogger("cyberguard.main").warning("Local LLM auto-startup check: %s", llm_init_err)
+
     yield
 
     default_router.stop_ttl_reaper()

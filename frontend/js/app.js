@@ -71,7 +71,7 @@ window.CG = window.CG || {};
     entries.forEach((e) => {
       if (e.isIntersecting) { e.target.classList.add("is-in"); io.unobserve(e.target); }
     });
-  }, { threshold: 0.08 });
+  }, { threshold: 0, rootMargin: "150px" });
   function watchReveals(root = document) {
     root.querySelectorAll(".reveal:not(.is-in)").forEach((el) => io.observe(el));
   }

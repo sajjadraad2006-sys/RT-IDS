@@ -317,6 +317,10 @@ class ScanCorrelator:
 
         # Case 2: Classifier thought it was Benign or Unknown, BUT strong multi-target probe burst occurred
         elif (is_vertical_scan or is_horizontal_sweep) and alert.route != "known_attack":
+            # Outbound browsing traffic on standard web ports across hosts is normal web browsing,
+            # not a network sweep attack.
+            if is_horizontal_sweep and not is_vertical_scan and dst_port in WEB_PORTS:
+                return alert
             alert.type = "PortScan"
             alert.severity = "high"
             alert.route = "known_attack"
@@ -340,6 +344,23 @@ class ScanCorrelator:
                 "heuristic_confidence": heuristic_conf,
                 "window_sec": self.window_sec,
             }
+
+        # Case 3: Model flagged flow as unknown-anomaly, but classifier is confident Benign on normal interactive or web traffic
+        if alert.type == "unknown-anomaly" or alert.route == "unknown_anomaly_review":
+            clf_evidence = alert.evidence.get("classifier", {}) if isinstance(alert.evidence.get("classifier"), dict) else {}
+            clf_label = str(clf_evidence.get("label", "")).lower()
+            clf_conf = float(alert.confidence or clf_evidence.get("confidence", 0.0) or 0.0)
+            if clf_label == "benign" and clf_conf >= 0.70:
+                if dst_port in WEB_PORTS or not is_probe or is_web_browsing:
+                    alert.type = "Benign"
+                    alert.severity = "none"
+                    alert.route = "benign"
+                    alert.note = "Statistical/autoencoder unknown anomaly downgraded: verified benign interactive/web traffic"
+                    alert.evidence["anomaly_correlation"] = {
+                        "downgraded_false_alarm_mitigation": True,
+                        "classifier_confidence": clf_conf,
+                        "dst_port": dst_port,
+                    }
 
         return alert
 

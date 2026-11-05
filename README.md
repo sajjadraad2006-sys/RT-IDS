@@ -6,8 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-Async%20Backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Suricata](https://img.shields.io/badge/Suricata-EVE%20Bridge-D73A49?logo=suricata&logoColor=white)](https://suricata.io/)
 [![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK%20v19-B22222)](https://attack.mitre.org/)
-[![Tests](https://img.shields.io/badge/Tests-556%2B%20Passed-brightgreen)](tests/)
-[![Thesis](https://img.shields.io/badge/Academic%20Thesis-94%20Pages%20PDF-blue)](report/dist/report.pdf)
+[![Tests](https://img.shields.io/badge/Tests-558%2B%20Passed-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **CyberGuard** is an industrial-grade, hybrid **Real-Time Network Intrusion Detection System (RT-IDS)** and defensive containment engine developed at the **University of Basrah, College of Engineering, Department of Mechatronics Engineering**. It integrates high-throughput packet flow extraction, hardware-accelerated machine learning (NVIDIA CUDA), deep unsupervised anomaly detection, signature-based EVE telemetry, and guarded multi-actuator containment into a deterministic, zero-hallucination defensive pipeline.
@@ -103,23 +102,12 @@ Evaluation was conducted on a held-out, leakage-resistant test set of **406,661 
 
 ---
 
-## 📖 Comprehensive Academic Thesis & Documentation
-
-A publication-grade **94-page Engineering Dissertation / Thesis Report** is bundled with the project:
-
-* 📄 **PDF Report:** [`report/dist/report.pdf`](report/dist/report.pdf)
-* 🌐 **Interactive HTML Report:** [`report/dist/report.html`](report/dist/report.html)
-* 📚 **Verified Academic Citations:** 45 independent peer-reviewed literature references (IEEE, ACM, Springer, Elsevier) verified against official Crossref, DataCite, and arXiv APIs with zero broken links.
-* 📐 **25 Publication-Grade Vector Blueprints:** Crisp, unrasterized SVG architectural diagrams, mechatronic fault trees, and ROC curves.
-
----
-
 ## 🚀 Quickstart & Installation
 
 ### 1. Prerequisites
 * **Operating System:** Windows 10/11 or Linux (Ubuntu 22.04+)
 * **Python:** 3.12+ (64-bit)
-* **GPU (Optional but Recommended):** NVIDIA GPU with CUDA support for accelerated training
+* **GPU (Optional but Recommended):** NVIDIA GPU with CUDA support for accelerated training and local LLM inference
 
 ### 2. Environment Setup
 
@@ -143,20 +131,28 @@ python -m pip install -r requirements-dev.txt
 
 ### 3. Verify System Integrity
 
-Run the automated test suite (536 unit, integration, and security tests):
+Run the automated test suite (558 unit, integration, and security tests):
 
 ```bash
 pytest -q
 ```
-*Expected Output: `536 passed in ~50s`*
+*Expected Output: `558 passed in ~1m`*
 
-Verify cryptographic dataset integrity:
+Run end-to-end cryptographic and module verification:
 ```bash
-python -c "from backend.config import BASE_DIR; from backend.detection.integrity import validate_dataset_manifest; print('Datasets verified:', len(validate_dataset_manifest(BASE_DIR/'cyberguard/datasets/manifest.json', BASE_DIR)))"
+python verify.py
 ```
 
 ### 4. Launch CyberGuard RT-IDS
 
+#### Option A: Quick Launch on Windows (Recommended)
+Right-click and run as Administrator:
+```cmd
+run_admin.bat
+```
+This automatically configures network adapters, enables raw socket promiscuous capture, initializes the live sniffer worker, and launches the FastAPI Command Center.
+
+#### Option B: Standard Launch
 ```bash
 # Start backend API and dashboard server
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
@@ -192,22 +188,28 @@ CyberGuard/
 │   │   ├── statistical.py        # Multivariate Z-Score anomaly detector
 │   │   ├── router.py             # Deterministic Pipeline v2 router
 │   │   ├── live_sniffer.py       # Raw socket live packet capture engine
+│   │   ├── live_worker.py        # Real-time background flow worker
+│   │   ├── scan_correlator.py    # Multi-port behavioral scan correlator
 │   │   ├── integrity.py          # Cryptographic SHA-256 artifact validator
 │   │   └── trainer.py            # End-to-end dataset trainer & evaluator
 │   ├── actuators/                # Host firewall & process containment engines
+│   ├── llm/                      # Local llama.cpp engine & MITRE RAG reasoning
 │   ├── mitre/                    # MITRE ATT&CK v19 TAXII synchronization & RAG
 │   ├── suricata/                 # High-throughput Suricata EVE live bridge
 │   └── main.py                   # FastAPI application orchestration
 ├── cyberguard/
 │   └── datasets/                 # Cryptographic dataset manifests & fixtures
 ├── data/
-│   └── models/                   # Serialized model weights & metrics (candidate_cicids2017)
+│   ├── models/                   # Serialized model weights & metrics (candidate_cicids2017)
+│   └── mitre/                    # MITRE ATT&CK snapshot matrices
+├── docs/                         # Technical specifications and architecture guides
 ├── frontend/                     # Interactive real-time dashboard UI
-├── report/                       # 94-page engineering thesis (Markdown, SVG, PDF)
-│   ├── dist/report.pdf           # Compiled dissertation PDF
-│   └── dist/report.html          # Standalone publication-ready HTML
-├── scripts/                      # Training & deployment utility scripts
-└── tests/                        # 556+ automated regression & safety tests
+├── scripts/                      # Training, simulation, and local LLM scripts
+├── tests/                        # 558+ automated regression & safety tests
+├── run_admin.bat                 # One-click Windows Admin launcher (Full sniffer & pipeline)
+├── run.bat                       # Standard launcher
+├── run.ps1                       # PowerShell launcher
+└── verify.py                     # Cryptographic module and pipeline integrity check
 ```
 
 ---

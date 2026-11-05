@@ -22,6 +22,7 @@ function Write-Fail($msg)    { Write-Host "[x] $msg" -ForegroundColor Red; exit 
 
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "  CyberGuard Autonomous Active Cyber Defense Launcher (Windows)  " -ForegroundColor Cyan
+Write-Host "  Accelerated on RTX 5050 8GB VRAM - Foundation-Sec-8B  " -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
 # 1. Force UTF-8 encoding across Windows console
@@ -61,12 +62,42 @@ if (-not $SkipVerify) {
     Write-Success "All system integrity gates passed."
 }
 
-# 5. Environment configuration
+# 5. Environment & LLM Engine Startup
 if ($SkipMitreSync) {
     $env:CG_SKIP_MITRE_SYNC = "1"
 }
 if ($SkipLLM) {
     $env:CG_LLM_PROVIDER = "fallback"
+} else {
+    Write-Info "Checking Local LLM Engine (Foundation-Sec-8B on RTX 5050)..."
+    $llmRunning = $false
+    try {
+        $res = Invoke-RestMethod -Uri "http://127.0.0.1:8080/health" -TimeoutSec 1 -ErrorAction SilentlyContinue
+        if ($res.status -eq "ok") { $llmRunning = $true }
+    } catch {}
+
+    if (-not $llmRunning) {
+        Write-Info "Starting llama-server with GPU acceleration on port 8080..."
+        Start-Process -FilePath $PythonPath -ArgumentList "scripts\run_local_llama.py --port 8080 --ngl 99 --ctx 4096" -WindowStyle Minimized
+        
+        Write-Info "Waiting for LLM model weights to load into GPU VRAM..."
+        $tries = 0
+        while ($tries -lt 30) {
+            Start-Sleep -Milliseconds 500
+            try {
+                $r = Invoke-RestMethod -Uri "http://127.0.0.1:8080/health" -TimeoutSec 1 -ErrorAction SilentlyContinue
+                if ($r.status -eq "ok") { $llmRunning = $true; break }
+            } catch {}
+            $tries++
+        }
+        if ($llmRunning) {
+            Write-Success "Foundation-Sec-8B active on RTX 5050 GPU (Port 8080)."
+        } else {
+            Write-Warn "LLM Engine taking longer than expected; continuing startup..."
+        }
+    } else {
+        Write-Success "Local LLM Engine already active on Port 8080."
+    }
 }
 
 # 6. Start CyberGuard FastAPI Application

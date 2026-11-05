@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 MODEL_CATALOG = {
     "foundation-sec": {
         "label": "Foundation-Sec-8B (Reasoning)",
-        "file": "foundation-sec-8b-reasoning-q4_k_m.gguf",
+        "file": "Foundation-Sec-8B-Instruct.Q4_K_M.gguf",
         "size_gb": 4.9, "publisher": "Cisco Foundation AI",
         "vram_gb": 5.6, "focus": "Security reasoning, threat intel",
     },

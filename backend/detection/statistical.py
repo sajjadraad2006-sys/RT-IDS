@@ -46,7 +46,24 @@ class StatisticalFilter:
         if self.mean_ is None or self.std_ is None:
             raise RuntimeError("statistical filter is not fitted")
         z = np.abs((X - self.mean_) / self.std_)
-        return np.clip(np.nan_to_num(z, nan=0.0, posinf=1e12), 0.0, 1e12)
+        z = np.nan_to_num(z, nan=0.0, posinf=1e12)
+        # Discrete TCP binary flag features (indices 14-19: syn, ack, rst, fin, psh, urg).
+        # In standard TCP, initiating with SYN or closing with FIN is normal protocol behavior.
+        # Valid binary flag states (<= 1.5) must not cause artificial Gaussian outlier scores (> 2.0).
+        DISCRETE_PROTOCOL_INDICES = (14, 15, 16, 17, 18, 19, 20, 21)
+        if z.ndim == 1:
+            for idx in DISCRETE_PROTOCOL_INDICES:
+                if idx < len(z):
+                    z[idx] = min(z[idx], 2.0)
+            zero_var = self.std_ <= 1e-9
+            z[zero_var] = np.minimum(z[zero_var], 2.0)
+        elif z.ndim == 2:
+            for idx in DISCRETE_PROTOCOL_INDICES:
+                if idx < z.shape[1]:
+                    z[:, idx] = np.minimum(z[:, idx], 2.0)
+            zero_var = self.std_ <= 1e-9
+            z[:, zero_var] = np.minimum(z[:, zero_var], 2.0)
+        return np.clip(z, 0.0, 1e12)
 
     def is_anomalous(self, x: np.ndarray) -> bool:
         """Single flow → whether statistical anomaly evidence is present.
