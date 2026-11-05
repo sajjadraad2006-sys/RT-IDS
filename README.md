@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/Tests-558%2B%20Passed-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**CyberGuard** is an industrial-grade, hybrid **Real-Time Network Intrusion Detection System (RT-IDS)** and defensive containment engine developed at the **University of Basrah, College of Engineering, Department of Mechatronics Engineering**. It integrates high-throughput packet flow extraction, hardware-accelerated machine learning (NVIDIA CUDA), deep unsupervised anomaly detection, signature-based EVE telemetry, and guarded multi-actuator containment into a deterministic, zero-hallucination defensive pipeline.
+**CyberGuard** is an industrial-grade, hybrid **Real-Time Network Intrusion Detection System (RT-IDS)** and defensive containment engine developed at the **University of Basrah, College of Engineering, Department of Mechatronics Engineering**. It integrates high-throughput packet flow extraction, hardware-accelerated machine learning (NVIDIA CUDA), deep unsupervised anomaly detection, signature-based EVE telemetry, and guarded multi-actuator containment into a deterministic defensive pipeline.
 
 Unlike brittle legacy IDS designs or naive LLM-based wrappers, CyberGuard separates deterministic low-latency mathematical detection (< 5ms) from advisory semantic triage. Critical network actions are formally governed by deterministic policy safety gates with cryptographic proof certificates and strict Two-Person Rule authorization.
 
@@ -86,12 +86,9 @@ Evaluation was conducted on a held-out, leakage-resistant test set of **406,661 
 | **Web Attack (SQLi, XSS, Brute Force)** | 107 | 39.62% | **58.88%** | 0.4737 | Flow (58.9%) + LLM/Suricata (99%) |
 | **PortScan (Network Reconnaissance)** | 391 | 18.62% | **85.17%** | 0.3056 | Flow Classifier (XGBoost) |
 
-> **Defense-in-Depth Note on Application Layer Attacks:**  
-> In network flow analysis, Web Attacks (SQLi/XSS) carry volumetric profiles near-identical to benign HTTP requests. CyberGuard's multi-tier design intentionally routes flow-uncertain web traffic to **Stage 4 (Deep Autoencoder)** and **Stage 5 (LLM & Suricata EVE Payload Inspection)**, catching SQLi/XSS at **>99% precision** via textual semantic analysis.
-
 ---
 
-## ⚡ Key Features
+## ⚡ Key Capabilities
 
 * **Real-Time Packet Sniffing (`live_sniffer.py`):** High-efficiency raw socket packet capture with microsecond TCP flow tracking, early-window detection, and `TIME_WAIT` absorption.
 * **Vectorized 32-Feature Extraction (`features.py`):** Extracts duration, forward/backward packet distributions, inter-arrival times (IAT), TCP flags (SYN, ACK, FIN, RST, PSH, URG), and window scales directly into optimized NumPy matrices in microseconds.
@@ -105,7 +102,7 @@ Evaluation was conducted on a held-out, leakage-resistant test set of **406,661 
 ## 🚀 Quickstart & Installation
 
 ### 1. Prerequisites
-* **Operating System:** Windows 10/11 or Linux (Ubuntu 22.04+)
+* **Operating System:** Windows 10/11 (Administrator privileges required for raw socket sniffing)
 * **Python:** 3.12+ (64-bit)
 * **GPU (Optional but Recommended):** NVIDIA GPU with CUDA support for accelerated training and local LLM inference
 
@@ -118,12 +115,7 @@ cd CyberGuard
 
 # Create and activate virtual environment
 python -m venv venv
-
-# Windows (PowerShell):
 .\venv\Scripts\Activate.ps1
-
-# Linux / macOS:
-source venv/bin/activate
 
 # Install dependencies
 python -m pip install -r requirements-dev.txt
@@ -131,47 +123,27 @@ python -m pip install -r requirements-dev.txt
 
 ### 3. Verify System Integrity
 
-Run the automated test suite (558 unit, integration, and security tests):
-
 ```bash
+# Run automated test suite (558 unit, integration, and security tests)
 pytest -q
-```
-*Expected Output: `558 passed in ~1m`*
 
-Run end-to-end cryptographic and module verification:
-```bash
+# Run end-to-end cryptographic and module verification
 python verify.py
 ```
 
 ### 4. Launch CyberGuard RT-IDS
 
-#### Option A: Quick Launch on Windows (Recommended)
 Right-click and run as Administrator:
 ```cmd
 run_admin.bat
 ```
-This automatically configures network adapters, enables raw socket promiscuous capture, initializes the live sniffer worker, and launches the FastAPI Command Center.
+This automatically:
+1. Configures network adapters and grants raw socket promiscuous capture privileges.
+2. Initializes the live sniffer worker thread.
+3. Connects the local GPU-accelerated LLM reasoning engine.
+4. Starts the FastAPI server and launches the Command Center at **`http://127.0.0.1:8000`**.
 
-#### Option B: Standard Launch
-```bash
-# Start backend API and dashboard server
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
-```
-
-Open your browser at **`http://127.0.0.1:8000`** to view the live dashboard.  
 Interactive OpenAPI documentation is available at **`http://127.0.0.1:8000/docs`**.
-
----
-
-## 🎯 Model Training on CICIDS2017 Dataset
-
-To retrain the complete multi-class model and autoencoder on the full CICIDS2017 dataset using GPU acceleration:
-
-```bash
-# Run automated GPU training pipeline
-python scripts/train_cicids2017.py
-```
-*This extracts features across 2.83M rows, performs leakage-free temporal block partitioning, trains XGBoost on CUDA, calibrates the PyTorch Autoencoder, and evaluates against 406k held-out test samples.*
 
 ---
 
@@ -180,35 +152,26 @@ python scripts/train_cicids2017.py
 ```text
 CyberGuard/
 ├── backend/
-│   ├── detection/
-│   │   ├── classifier.py         # Multi-class XGBoost with CUDA support
-│   │   ├── autoencoder.py        # PyTorch Bottleneck Deep Autoencoder
-│   │   ├── features.py           # Vectorized 32-feature matrix extractor
-│   │   ├── normalizer.py         # RobustScaler with log1p transformation
-│   │   ├── statistical.py        # Multivariate Z-Score anomaly detector
-│   │   ├── router.py             # Deterministic Pipeline v2 router
-│   │   ├── live_sniffer.py       # Raw socket live packet capture engine
-│   │   ├── live_worker.py        # Real-time background flow worker
-│   │   ├── scan_correlator.py    # Multi-port behavioral scan correlator
-│   │   ├── integrity.py          # Cryptographic SHA-256 artifact validator
-│   │   └── trainer.py            # End-to-end dataset trainer & evaluator
 │   ├── actuators/                # Host firewall & process containment engines
-│   ├── llm/                      # Local llama.cpp engine & MITRE RAG reasoning
+│   ├── api/                      # REST endpoints & Universal Ingestion API
+│   ├── db/                       # Database models & SQLite migration
+│   ├── decision/                 # Decision engine, smart logs & policy rules
+│   ├── detection/                # ML classifier, Autoencoder, sniffer & correlator
+│   ├── llm/                      # Local LLM manager & MITRE reasoning
 │   ├── mitre/                    # MITRE ATT&CK v19 TAXII synchronization & RAG
 │   ├── suricata/                 # High-throughput Suricata EVE live bridge
 │   └── main.py                   # FastAPI application orchestration
 ├── cyberguard/
 │   └── datasets/                 # Cryptographic dataset manifests & fixtures
 ├── data/
-│   ├── models/                   # Serialized model weights & metrics (candidate_cicids2017)
-│   └── mitre/                    # MITRE ATT&CK snapshot matrices
-├── docs/                         # Technical specifications and architecture guides
+│   ├── mitre/                    # MITRE ATT&CK snapshot matrices
+│   └── models/                   # Serialized model weights & metrics (candidate_cicids2017)
 ├── frontend/                     # Interactive real-time dashboard UI
 ├── scripts/                      # Training, simulation, and local LLM scripts
 ├── tests/                        # 558+ automated regression & safety tests
 ├── run_admin.bat                 # One-click Windows Admin launcher (Full sniffer & pipeline)
-├── run.bat                       # Standard launcher
-├── run.ps1                       # PowerShell launcher
+├── requirements.txt              # Production dependencies
+├── requirements-dev.txt          # Development dependencies
 └── verify.py                     # Cryptographic module and pipeline integrity check
 ```
 

@@ -28,18 +28,30 @@ wheels/
 venv/
 .venv/
 
-# Antigravity Agent & Skills
+# Antigravity Agent & Internal Instructions
 .agent/
 .agent
+NEXT_AGENT_PROMPT.md
 
-# Obsolete / Generated Reports & Benchmarks
+# Legacy & Non-Admin Run Scripts
+run.ps1
+run.sh
+run.bash
+run.bat
+run_window*.bat
+
+# Reports & Documentation
 report/
+docs/
 *.pdf
 *.docx
 benchmark_results.json
 benchmark_doctoral_results.json
 MASSIVE_STRESS_TEST_RESULTS.json
 HARD_BENCHMARK_200_RESULTS.json
+MASSIVE_SCALE_ATTACK_STRESS_TEST_REPORT*
+SECURITY_TEST_REPORT*
+ZERO_DAY_ATTACK_EXPERIMENT_REPORT*
 
 # Scratch & Temporary Scripts
 *.tmp
@@ -54,9 +66,6 @@ cyberguard/datasets/*
 !cyberguard/datasets/*_manifest.json
 !cyberguard/datasets/*.py
 !cyberguard/datasets/*_sources.json
-# The default manifest references this small deterministic fixture.  Keep the
-# large generated benchmark fixture ignored; a clean checkout must still pass
-# manifest validation without downloading or generating hidden files.
 !cyberguard/datasets/cicids2017/
 cyberguard/datasets/cicids2017/*
 !cyberguard/datasets/cicids2017/sample_traffic.csv
