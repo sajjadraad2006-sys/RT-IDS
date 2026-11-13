@@ -68,11 +68,16 @@ Evaluation was conducted on a held-out, leakage-resistant test set of **406,661 
 
 ### Overall Pipeline Comparison
 
-| Model / Pipeline | Precision (Weighted) | Recall (Weighted) | Macro F1-Score | Inference Latency |
-| :--- | :---: | :---: | :---: | :---: |
-| **CyberGuard RT-IDS (XGBoost CUDA + AE)** | **98.78%** | **98.49%** | **98.55%** | **< 3.2 ms / flow** |
-| *Baseline: Isolation Forest* | 70.21% | 58.74% | 63.97% | 4.8 ms / flow |
-| *Baseline: Multivariate Z-Score Filter* | 32.90% | 67.33% | 44.20% | 0.8 ms / flow |
+| Model / Pipeline | Precision (Weighted) | Recall (Weighted) | Weighted F1 | Macro F1 | Inference Latency |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **CyberGuard RT-IDS (XGBoost CUDA + AE)** | **98.78%** | **98.49%** | **98.55%** | **68.52%** | **< 3.2 ms / flow** |
+| *Baseline: Isolation Forest* | 70.21% | 58.74% | 63.97%* | — | 4.8 ms / flow |
+| *Baseline: Multivariate Z-Score Filter* | 32.90% | 67.33% | 44.20%* | — | 0.8 ms / flow |
+
+> **Metric Distinction & Evaluation Context:**
+> - **Weighted F1 (98.55%):** The aggregate 98.55% score is the **Weighted F1**, computed across all 406,661 test flows weighted by class support. Because legitimate traffic (`Benign`) comprises 84.8% of the dataset (344,984 flows) and achieves 99.33% F1, the weighted score reflects aggregate operational throughput.
+> - **Macro F1 (68.52%):** The unweighted arithmetic mean across all 8 classes is **68.52%** ($\frac{0.9933 + 0.0000 + 0.9955 + 0.9988 + 0.9150 + 0.8000 + 0.3056 + 0.4737}{8} = 68.52\%$). This metric reveals the impact of extreme class imbalance on minority attack vectors, notably `Bot` (0.00% F1), `PortScan` (30.56% F1), and `WebAttack` (47.37% F1).
+> - *\*Baselines (Isolation Forest and Z-Score Filter) are binary anomaly detectors evaluated against binary attack vs. benign ground truth.*
 
 ### Per-Class Detection Performance
 
@@ -85,6 +90,27 @@ Evaluation was conducted on a held-out, leakage-resistant test set of **406,661 
 | **Infiltration (Internal Pivot)** | 7 | **75.00%** | **85.71%** | **0.8000** | Flow Classifier & Autoencoder |
 | **Web Attack (SQLi, XSS, Brute Force)** | 107 | 39.62% | **58.88%** | 0.4737 | Flow (58.9%) + LLM/Suricata (99%) |
 | **PortScan (Network Reconnaissance)** | 391 | 18.62% | **85.17%** | 0.3056 | Flow Classifier (XGBoost) |
+| **Bot (ARES Botnet / C2 Traffic)** | 113 | 0.00% | 0.00% | **0.0000 (0%)** | Flow Classifier (XGBoost; Handled by Suricata Bridge) |
+
+### Model Governance & Operational Statuses
+
+CyberGuard enforces strict architectural separation between calibrated evaluation baselines, shadow benchmark candidates, and production-promoted artifacts:
+
+* **Default Trained Model (`data/models/trained`):**
+  - **Class Coverage:** Operates on **4 classes** (`Benign`, `Bot`, `DDoS`, `PortScan`), calibrated on the synthetic shape fixture (`synthetic-cicids-shape-fixture-large-v1`).
+  - **Operational Status:** Strictly **evaluation-only** (`production_approved: false`, `evaluation_only: true`, `pipeline_version: "cyberguard-pipeline-legacy-v1"`).
+  - **Role:** Serves as the minimal, leak-resistant baseline for functional and regression test suites.
+
+* **Benchmark Model (`data/models/candidate_cicids2017`):**
+  - **Class Coverage:** Evaluated across all **8 classes** (`Benign`, `Bot`, `BruteForce`, `DDoS`, `DoS`, `Infiltration`, `PortScan`, `WebAttack`) on the complete CICIDS2017 benchmark dataset (406,661 test flows).
+  - **Operational Status:** Strictly **shadow-only** (`candidate_status: "shadow_only_not_promoted"`, `production_approved: false`, `evaluation_only: true`).
+  - **Governance:** Unapproved for live production containment. Under the CyberGuard promotion protocol (`promote.py`), legacy pipeline artifacts cannot be promoted without calibrated Pipeline v2 telemetry, explicit human reviewer sign-off, and passing cryptographic quality gates.
+
+* **Active Bundle Pointer Resolution (`data/models/active_bundle.json`):**
+  - The repository does **not** track or bundle an `active_bundle.json` designating an alternate active production model.
+  - The pointer path `data/models/active_bundle.json` is explicitly gitignored (`.gitignore:75`).
+  - On a clean repository clone or fresh deployment, `backend/detection/bundles.py` defaults to `data/models/trained`.
+  - All model bundle configuration files (`artifacts.json`, `metrics.json`, model weights, and normalizers) remain strictly unaltered to preserve cryptographic integrity manifests.
 
 ---
 
